@@ -1,0 +1,73 @@
+"use client";
+
+import ThemeToggle from "@/components/theme-toggle";
+import { ClerkProvider } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
+type Theme = "light" | "dark";
+
+const ThemeContext = createContext<{
+  theme: Theme;
+  toggleTheme: () => void;
+}>({
+  theme: "light",
+  toggleTheme: () => {},
+});
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+
+export default function Providers({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [theme, setTheme] = useState<Theme>("light");
+
+  // Apply theme to entire app
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      "dark",
+      theme === "dark"
+    );
+  }, [theme]);
+
+  // Persist theme
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") setTheme("dark");
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((t) => (t === "light" ? "dark" : "light"));
+  }
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      <ClerkProvider
+        signInUrl="/login"
+        signUpUrl="/signup"
+        afterSignOutUrl="/"
+        appearance={{
+          baseTheme: theme === "dark" ? dark : undefined,
+        }}
+      >
+        <div className="fixed right-3 flex justify-end mr-3 mt-3 ">
+            <ThemeToggle/>
+        </div>
+        {children}
+      </ClerkProvider>
+    </ThemeContext.Provider>
+  );
+}

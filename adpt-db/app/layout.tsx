@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
+import Providers from "./provider";
 
 export const metadata: Metadata = {
   title: "Final year Project",
@@ -12,19 +12,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider 
-      signInUrl="/login"
-      signUpUrl="/signup"
-      afterSignOutUrl='/'
-      >
 
-      <html lang="en">
+
+  return (
+    <html lang="en" suppressHydrationWarning>
       <body>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
-
-    </ClerkProvider>
   );
 }

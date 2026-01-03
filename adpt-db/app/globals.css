@@ -1,5 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import '@clerk/themes/shadcn.css';
+@tailwind utilities;
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -121,3 +130,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* ===== Clerk branding removal (Free plan workaround) =====
+
+/* Footer container */
+/* .cl-footer,
+.cl-footerAction,
+.cl-footerActionText,
+.cl-footerActionLink {
+  display: none !important;
+} */
+
+/* Logo at top */
+/* .cl-logoBox,
+.cl-logoImage {
+  display: none !important;
+} */
+
+/* "Secured by Clerk" / Powered by */
+/* .cl-poweredBy,
+[data-localization-key="signIn.securedByClerk"],
+[data-localization-key="signUp.securedByClerk"] {
+  display: none !important;
+}  */
