@@ -1,6 +1,4 @@
 "use client";
-
-import ThemeToggle from "@/components/theme-toggle";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import {
@@ -63,9 +61,6 @@ export default function Providers({
           baseTheme: theme === "dark" ? dark : undefined,
         }}
       >
-        <div className="fixed right-3 flex justify-end mr-3 mt-3 ">
-            <ThemeToggle/>
-        </div>
         {children}
       </ClerkProvider>
     </ThemeContext.Provider>

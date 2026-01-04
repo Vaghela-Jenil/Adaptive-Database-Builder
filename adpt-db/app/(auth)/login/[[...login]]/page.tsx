@@ -1,9 +1,11 @@
 import { SignIn } from '@clerk/nextjs'
-import { Button } from '@/components/ui/button'
 
-export default function Page() {
+
+export default function DashboardPage() {
+    
     return (
-        <div className="min-h-screen flex items-center justify-center">
+       <div>
+         <div className="min-h-screen flex items-center justify-center">
             <div className="w-full max-w-md p-6 rounded-xl">
                 <SignIn 
                     routing='path' 
@@ -12,6 +14,7 @@ export default function Page() {
                     />
             </div>
         </div>
+       </div>
 
     )
 }
