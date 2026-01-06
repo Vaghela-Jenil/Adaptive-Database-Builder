@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import Link from 'next/link';
+import { SignOutButton, useUser } from '@clerk/nextjs';
 
 export default function DarkNavigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const {isSignedIn} = useUser();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -100,7 +102,15 @@ export default function DarkNavigation() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4, duration: 0.5 }}
             >
-              <Link href='/login'>
+             {
+              isSignedIn ?
+                <div
+                  className="px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+                >
+                  <SignOutButton/>
+                </div> 
+              :
+               <Link href='/login'>
                 <Button
                   variant="ghost"
                   className="text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
@@ -108,6 +118,7 @@ export default function DarkNavigation() {
                   Sign In
                 </Button>
               </Link>
+             }
             </motion.div>
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
