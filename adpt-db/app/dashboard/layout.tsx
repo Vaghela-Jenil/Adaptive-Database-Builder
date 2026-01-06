@@ -1,7 +1,7 @@
 'use client'
 import { useUser } from "@clerk/nextjs";
 
-export default function AdshBoardLayout({
+export default function DashBoardLayout({
     adminDashboard,
     userDashboard,
   children,
