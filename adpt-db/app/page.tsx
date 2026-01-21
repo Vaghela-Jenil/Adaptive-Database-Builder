@@ -1,4 +1,3 @@
-import Link from "next/link";
 import LandingPage from "./synsnera/page";
 
 export default function Home() {

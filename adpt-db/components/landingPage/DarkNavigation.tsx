@@ -177,9 +177,16 @@ export default function DarkNavigation() {
               </motion.a>
             ))}
             <div className="px-6 py-4 space-y-3">
+            {
+              isSignedIn ?
+            <div className='text-center w-full text-slate-300 hover:text-white hover:bg-slate-800/50'>
+              <SignOutButton/>
+            </div>
+              :
               <Button variant="ghost" className="w-full text-slate-300 hover:text-white hover:bg-slate-800/50">
                 Sign In
               </Button>
+            }
               <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/30">
                 Get Started
               </Button>
