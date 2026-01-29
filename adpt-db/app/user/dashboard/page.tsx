@@ -1,7 +1,8 @@
 import CreateUserOnSignIn from "@/components/CreateUserOnSignIn";
+import { requireAuth } from "@/lib/auth";
 import { SignOutButton } from "@clerk/nextjs";
 export default async function DashBoard() {
-   
+    requireAuth();
   return (
      <div className="min-h-screen flex items-center justify-center">
                 <div className="w-full max-w-md p-6 rounded-xl">

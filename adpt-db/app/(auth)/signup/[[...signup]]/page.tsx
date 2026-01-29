@@ -8,7 +8,9 @@ export default function Page() {
                     <SignUp 
                       routing='path' 
                       path='/signup' 
-                      forceRedirectUrl='/dashboard' />
+                      redirectUrl="/redirect"
+                      afterSignUpUrl="/redirect"
+/>
                 </div>                
             </div>
   )

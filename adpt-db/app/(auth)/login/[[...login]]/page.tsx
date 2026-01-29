@@ -10,7 +10,8 @@ export default function DashboardPage() {
                 <SignIn 
                     routing='path' 
                     path='/login' 
-                    forceRedirectUrl='/dashboard'
+                    redirectUrl="/redirect"
+                    afterSignUpUrl="/redirect"
                     />
             </div>
         </div>

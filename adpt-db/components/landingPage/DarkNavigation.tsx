@@ -115,7 +115,7 @@ export default function DarkNavigation() {
                   variant="ghost"
                   className="text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
                 >
-                  Sign In
+                  Login
                 </Button>
               </Link>
              }
@@ -126,9 +126,10 @@ export default function DarkNavigation() {
               transition={{ delay: 0.5, duration: 0.5 }}
               className="relative group"
             >
+             <Link href='/user/dashboard'>
               <Button className="relative bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all">
                 Get Started
-              </Button>
+              </Button></Link>
               {/* Button glow */}
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-md blur opacity-0 group-hover:opacity-50 transition-opacity -z-10" />
             </motion.div>

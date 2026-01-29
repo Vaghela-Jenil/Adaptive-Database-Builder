@@ -57,6 +57,8 @@ export default function Providers({
         signInUrl="/login"
         signUpUrl="/signup"
         afterSignOutUrl="/"
+        afterSignInUrl="/redirect"
+        afterSignUpUrl="/redirect"
         appearance={{
           baseTheme: theme === "dark" ? dark : undefined,
         }}

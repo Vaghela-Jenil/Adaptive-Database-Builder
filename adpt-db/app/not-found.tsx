@@ -46,7 +46,7 @@ export default function PageNotFound() {
             className="flex items-center space-x-2 w-full sm:w-auto"
           >
             <Home className="w-4 h-4" />
-            <Link href='/dashboard'><span>Back to Home</span></Link>
+            <Link href='/user/dashboard'><span>Back to Home</span></Link>
           </Button>
           
           <Button 
@@ -89,3 +89,31 @@ export default function PageNotFound() {
     </div>
   );
 }
+
+
+
+// "use client";
+
+// import { StatusPage } from "@/components/status-page";
+// import { Search, Home } from "lucide-react";
+
+// export default function NotFound() {
+//   return (
+//     <StatusPage
+//       code="404"
+//       title="Page Not Found"
+//       description="The page you're looking for doesn't exist or has been moved."
+//       icon={Search}
+//       primaryAction={{
+//         label: "Back to Dashboard",
+//         href: "/user/dashboard",
+//         icon: Home,
+//       }}
+//       secondaryAction={{
+//         label: "Go Back",
+//         onClick: () => window.history.back(),
+//         icon:undefined,
+//       }}
+//     />
+//   );
+// }

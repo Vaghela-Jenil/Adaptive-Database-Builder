@@ -1,6 +1,5 @@
-'use client'
 import { Toaster } from "@/components/ui/sonner";
-import AnimatedBackground from "@/components/landingPage/AnimatedBackground";
+// import AnimatedBackground from "@/components/landingPage/AnimatedBackground";
 import DarkNavigation from "@/components/landingPage/DarkNavigation";
 import DarkHero from "@/components/landingPage/DarkHero";
 import DarkFeatures from "@/components/landingPage/DarkFeature";
@@ -17,7 +16,7 @@ import DarkFooter from "@/components/landingPage/DarkFooter";
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 relative">
-      <AnimatedBackground />
+      {/* <AnimatedBackground /> */}
       <div className="relative z-10">
         <DarkNavigation />
         <DarkHero />
