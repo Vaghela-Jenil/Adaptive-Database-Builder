@@ -131,7 +131,6 @@
   }
 }
 
-
 /* ===== Clerk branding removal (Free plan workaround) =====
 
 /* Footer container */
@@ -154,7 +153,6 @@
 [data-localization-key="signUp.securedByClerk"] {
   display: none !important;
 }  */
-
 
 @layer base {
   :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
