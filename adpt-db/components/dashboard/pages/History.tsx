@@ -1,86 +1,104 @@
 import { motion } from "motion/react";
 import {
+  Clock,
   Database,
-  FileText,
-  Trash2,
   Edit,
-  FolderOpen,
-  Users,
-  Settings,
-  ArrowUpRight,
+  Trash2,
+  Upload,
+  Download,
+  Share2,
+  FileText,
   Filter,
-  Search,
 } from "lucide-react";
-import { Card } from "../../ui/card";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function History() {
-  const historyItems = [
+  const { currentTheme } = useTheme();
+
+  const activities = [
     {
+      id: 1,
+      type: "create",
       action: "Created new database",
-      item: "Customer Records",
-      user: "Sarah Chen",
+      target: "Customer Records",
+      user: "John Doe",
       timestamp: new Date(Date.now() - 120000),
       icon: Database,
-      color: "from-cyan-500 to-blue-600",
     },
     {
+      id: 2,
+      type: "edit",
       action: "Updated record",
-      item: "Invoice #INV-2024-0156",
+      target: "Invoice #1234",
+      user: "Sarah Chen",
+      timestamp: new Date(Date.now() - 300000),
+      icon: Edit,
+    },
+    {
+      id: 3,
+      type: "upload",
+      action: "Uploaded file",
+      target: "Q4_Report.pdf",
       user: "Mike Johnson",
       timestamp: new Date(Date.now() - 900000),
-      icon: Edit,
-      color: "from-blue-500 to-purple-600",
+      icon: Upload,
     },
     {
+      id: 4,
+      type: "share",
       action: "Shared folder",
-      item: "Q1 Financial Reports",
+      target: "Financial Documents",
       user: "Emily Rodriguez",
-      timestamp: new Date(Date.now() - 3600000),
-      icon: FolderOpen,
-      color: "from-purple-500 to-pink-600",
+      timestamp: new Date(Date.now() - 1800000),
+      icon: Share2,
     },
     {
-      action: "Deleted records",
-      item: "3 duplicate entries",
+      id: 5,
+      type: "delete",
+      action: "Deleted record",
+      target: "Old Project Data",
       user: "Alex Turner",
-      timestamp: new Date(Date.now() - 7200000),
+      timestamp: new Date(Date.now() - 3600000),
       icon: Trash2,
-      color: "from-rose-500 to-red-600",
     },
     {
-      action: "Added team member",
-      item: "Jessica Williams",
+      id: 6,
+      type: "download",
+      action: "Downloaded export",
+      target: "Database_Backup.zip",
       user: "John Doe",
-      timestamp: new Date(Date.now() - 10800000),
-      icon: Users,
-      color: "from-emerald-500 to-green-600",
+      timestamp: new Date(Date.now() - 7200000),
+      icon: Download,
     },
     {
-      action: "Modified settings",
-      item: "API Configuration",
-      user: "David Kim",
-      timestamp: new Date(Date.now() - 14400000),
-      icon: Settings,
-      color: "from-amber-500 to-orange-600",
-    },
-    {
+      id: 7,
+      type: "create",
       action: "Generated report",
-      item: "Monthly Summary Report",
+      target: "Monthly Analytics",
       user: "Sarah Chen",
-      timestamp: new Date(Date.now() - 18000000),
+      timestamp: new Date(Date.now() - 86400000),
       icon: FileText,
-      color: "from-cyan-500 to-blue-600",
+    },
+    {
+      id: 8,
+      type: "edit",
+      action: "Modified permissions",
+      target: "Team Workspace",
+      user: "Mike Johnson",
+      timestamp: new Date(Date.now() - 172800000),
+      icon: Edit,
     },
   ];
 
-  const formatTime = (date: Date) => {
-    const diff = Date.now() - date.getTime();
-    const m = Math.floor(diff / 60000);
-    const h = Math.floor(diff / 3600000);
-    const d = Math.floor(diff / 86400000);
-    if (m < 60) return `${m} min ago`;
-    if (h < 24) return `${h} hrs ago`;
-    return `${d} days ago`;
+  const getRelativeTime = (timestamp: Date) => {
+    const seconds = Math.floor((Date.now() - timestamp.getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
   };
 
   return (
@@ -89,106 +107,146 @@ export default function History() {
       <div className="flex items-center justify-between">
         <div>
           <motion.h1
-            initial={{ opacity: 0, y: -12 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-3xl font-bold text-foreground mb-2"
+            className="text-3xl font-bold mb-2"
+            style={{ color: currentTheme.text }}
           >
             Activity History
           </motion.h1>
-          <p className="text-muted-foreground">
-            Track all changes and actions in your workspace
-          </p>
+          <motion.p
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            style={{ color: currentTheme.textSecondary }}
+          >
+            Track all changes and activities across your databases
+          </motion.p>
         </div>
-
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted/40 border border-border hover:border-cyan-500/40 transition">
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:opacity-90 transition">
-            <ArrowUpRight className="w-4 h-4" />
-            Export
-          </button>
-        </div>
+        <button
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium"
+          style={{
+            backgroundColor: currentTheme.surface,
+            border: `1px solid ${currentTheme.border}`,
+            color: currentTheme.text,
+          }}
+        >
+          <Filter className="w-4 h-4" />
+          Filter
+        </button>
       </div>
 
-      {/* Search */}
-      <Card className="p-4 bg-background/60 backdrop-blur-xl border-border/50">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <input
-            placeholder="Search activity history..."
-            className="w-full pl-11 pr-4 py-3 rounded-xl bg-muted/40 border border-border focus:border-cyan-500/40 outline-none transition"
-          />
-        </div>
-      </Card>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {[
+          { label: "Today", value: "24" },
+          { label: "This Week", value: "156" },
+          { label: "This Month", value: "892" },
+          { label: "All Time", value: "12.4K" },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 + index * 0.1 }}
+            className="p-6 rounded-2xl text-center"
+            style={{
+              backgroundColor: currentTheme.surface,
+              border: `1px solid ${currentTheme.border}`,
+            }}
+          >
+            <p className="text-3xl font-bold mb-1" style={{ color: currentTheme.text }}>
+              {stat.value}
+            </p>
+            <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
+              {stat.label}
+            </p>
+          </motion.div>
+        ))}
+      </div>
 
-      {/* Timeline */}
-      <Card className="p-6 bg-background/60 backdrop-blur-xl border-border/50">
+      {/* Activity Timeline */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="rounded-2xl p-6"
+        style={{
+          backgroundColor: currentTheme.surface,
+          border: `1px solid ${currentTheme.border}`,
+        }}
+      >
+        <h2 className="text-xl font-bold mb-6" style={{ color: currentTheme.text }}>
+          Recent Activity
+        </h2>
+
         <div className="space-y-4">
-          {historyItems.map((item, i) => {
-            const Icon = item.icon;
+          {activities.map((activity, index) => {
+            const Icon = activity.icon;
             return (
               <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -10 }}
+                key={activity.id}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="relative"
+                transition={{ delay: 0.7 + index * 0.05 }}
+                className="flex items-start gap-4 p-4 rounded-xl hover:scale-[1.01] transition-all"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                }}
               >
-                {i !== historyItems.length - 1 && (
-                  <div className="absolute left-6 top-14 bottom-0 w-px bg-border" />
-                )}
+                {/* Icon */}
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: currentTheme.primary }}
+                >
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
 
-                <div className="flex gap-4 p-4 rounded-xl bg-muted/40 border border-border hover:border-cyan-500/40 transition group">
-                  <div className="relative">
-                    <div
-                      className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center`}
-                    >
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div
-                      className={`absolute inset-0 rounded-xl bg-gradient-to-br ${item.color} blur-lg opacity-30`}
-                    />
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex justify-between gap-4">
-                      <div>
-                        <p className="font-medium text-foreground group-hover:text-cyan-400 transition">
-                          {item.action}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{item.item}</p>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="font-medium mb-1" style={{ color: currentTheme.text }}>
+                        {activity.action}
+                      </p>
+                      <p className="text-sm mb-2" style={{ color: currentTheme.primary }}>
+                        {activity.target}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: currentTheme.textSecondary }}>
+                        <span>{activity.user}</span>
+                        <span>•</span>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{getRelativeTime(activity.timestamp)}</span>
+                        </div>
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {formatTime(item.timestamp)}
-                      </span>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-500 to-pink-600 text-xs text-white flex items-center justify-center font-semibold">
-                        {item.user
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <span className="text-sm text-muted-foreground">{item.user}</span>
-                    </div>
+                    {/* Timestamp */}
+                    <span className="text-xs whitespace-nowrap" style={{ color: currentTheme.textSecondary }}>
+                      {activity.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </div>
-
-                  <button className="w-8 h-8 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-lg bg-muted/50 border border-border hover:bg-muted transition">
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
                 </div>
               </motion.div>
             );
           })}
         </div>
 
-        <button className="w-full mt-6 py-3 rounded-xl border border-border bg-muted/30 hover:border-cyan-500/40 transition">
-          Load more history
-        </button>
-      </Card>
+        {/* Load More */}
+        <div className="mt-6 text-center">
+          <button
+            className="px-6 py-3 rounded-xl font-medium text-white"
+            style={{ backgroundColor: currentTheme.primary }}
+          >
+            Load More Activities
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

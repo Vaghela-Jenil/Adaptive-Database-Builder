@@ -1,46 +1,53 @@
 'use client';
-import { useState } from "react";
-import DashboardNavbar from "./app-navbar";
-import DashboardSidebar from "./app-sidebar";
-import DashboardHome from "./pages/DashboardHome";
-import Analytics from "./pages/Analytics";
-import Chatbot from "./pages/chatbot";
-import History from "./pages/History";
-import Settings from "./pages/setting";
 
-export default function DashboardLayout() {
-  const [activePage, setActivePage] = useState("dashboard");
+import { useState } from 'react';
+import { useTheme } from '@/context/ThemeContext';
 
-  const renderPage = () => {
-    switch (activePage) {
-      case "dashboard":
-        return <DashboardHome />;
-      case "analytics":
-        return <Analytics />;
-      case "chatbot":
-        return <Chatbot />;
-      case "history":
-        return <History />;
-      case "settings":
-        return <Settings />;
-      default:
-        return <DashboardHome />;
-    }
-  };
+import DashboardSidebar from './app-sidebar';
+import DashboardNavbar from './app-navbar';
+
+import DashboardHome from './pages/DashboardHome';
+import Analytics from './pages/Analytics';
+import Chatbot from './pages/chatbot';
+import History from './pages/History';
+import Settings from './pages/setting';
+
+type DashboardPage =
+  | 'dashboard'
+  | 'analytics'
+  | 'chatbot'
+  | 'history'
+  | 'settings';
+
+export default function DashboardShell() {
+  const [activePage, setActivePage] = useState<DashboardPage>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const { currentTheme } = useTheme();
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden">
-      {/* Sidebar - persistent, never re-renders */}
-      <DashboardSidebar activePage={activePage} setActivePage={setActivePage} />
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ backgroundColor: currentTheme.background }}
+    >
+      <DashboardSidebar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        isSidebarOpen={isSidebarOpen}
+      />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Navbar - persistent, never re-renders */}
-        <DashboardNavbar />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <DashboardNavbar
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+        />
 
-        {/* Page Content - only this changes */}
-        <main className="flex-1 overflow-y-auto bg-slate-950">
-          {renderPage()}
+        <main className="flex-1 overflow-y-auto">
+          {activePage === 'dashboard' && <DashboardHome />}
+          {activePage === 'analytics' && <Analytics />}
+          {activePage === 'chatbot' && <Chatbot />}
+          {activePage === 'history' && <History />}
+          {activePage === 'settings' && <Settings />}
         </main>
       </div>
     </div>

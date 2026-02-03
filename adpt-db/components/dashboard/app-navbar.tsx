@@ -1,141 +1,150 @@
-"use client";
-
+'use client';
 import { motion } from "motion/react";
 import {
   Search,
   Bell,
   Plus,
-  Moon,
-  Sun,
+  Settings,
   HelpCircle,
+  Menu,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useTheme } from "next-themes";
+import { Button } from "../ui/button";
 import { useState } from "react";
-import ThemeToggle from "../theme-toggle";
+import { useTheme } from "@/context/ThemeContext";
+import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 
-export default function DashboardNavbar() {
+export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : {
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (isOpen: boolean) => void;
+}) {
   const [notifications] = useState(3);
-  const { theme, setTheme } = useTheme();
+  const { currentTheme } = useTheme();
 
   return (
     <motion.header
-      initial={{ y: -80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
-      className="
-        h-20 px-6 flex items-center
-        bg-background/70 backdrop-blur-xl
-        border-b border-border
-      "
+      initial={{ y: -80 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="h-20 flex items-center px-8"
+      style={{
+        backgroundColor: currentTheme.surface,
+        borderBottom: `1px solid ${currentTheme.border}`,
+      }}
     >
-      <div className="flex items-center justify-between w-full gap-6">
-
-        {/* LEFT */}
+      <div className="flex items-center justify-between w-full">
+        {/* Left - Menu Toggle & Search */}
         <div className="flex items-center gap-4 flex-1">
-          {/* Search */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 rounded-lg"
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+            }}
+          >
+            {isSidebarOpen ? (
+              <X className="w-5 h-5" style={{ color: currentTheme.text }} />
+            ) : (
+              <Menu className="w-5 h-5" style={{ color: currentTheme.text }} />
+            )}
+          </button>
+
           <div className="relative max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+              style={{ color: currentTheme.textSecondary }}
+            />
+            <input
+              type="text"
               placeholder="Search databases, records, folders..."
-              className="
-                pl-10 h-10 rounded-xl
-                bg-muted/40
-                focus-visible:ring-1 focus-visible:ring-foreground/20
-              "
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl outline-none transition-all"
+              style={{
+                backgroundColor: currentTheme.background,
+                border: `1px solid ${currentTheme.border}`,
+                color: currentTheme.text,
+              }}
             />
           </div>
 
-          {/* Primary Action */}
-          <Button className="rounded-xl gap-2">
-            <Plus className="w-4 h-4" />
+          <Button
+            size="sm"
+            className="text-white border-0"
+            style={{ backgroundColor: currentTheme.primary }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
             New Record
           </Button>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex items-center gap-2">
-
+        {/* Right - Actions */}
+        <div className="flex items-center gap-3">
           {/* Help */}
-          <IconButton>
-            <HelpCircle className="h-5 w-5" />
-          </IconButton>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-10 h-10 flex items-center justify-center rounded-xl transition-all"
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+              color: currentTheme.textSecondary,
+            }}
+          >
+            <HelpCircle className="w-5 h-5" />
+          </motion.button>
 
           {/* Notifications */}
-          <IconButton>
-            <Bell className="h-5 w-5" />
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative w-10 h-10 flex items-center justify-center rounded-xl transition-all"
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+              color: currentTheme.textSecondary,
+            }}
+          >
+            <Bell className="w-5 h-5" />
             {notifications > 0 && (
               <span
-                className="
-                  absolute -top-1 -right-1
-                  h-5 w-5 rounded-full
-                  bg-foreground text-background
-                  text-xs font-semibold
-                  flex items-center justify-center
-                "
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                style={{ backgroundColor: currentTheme.primary }}
               >
                 {notifications}
               </span>
             )}
-          </IconButton>
+          </motion.button>
 
-          {/* Theme Toggle */}
-          <ThemeToggle/>
+          {/* Theme Switcher */}
+          <NavbarThemeSwitcher />
 
           {/* Profile */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="
-              flex items-center gap-3 px-3 py-2
-              rounded-xl border border-border
-              bg-muted/40 hover:bg-muted
-              transition-colors
-            "
+            className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all"
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+            }}
           >
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="font-semibold">
-                JD
-              </AvatarFallback>
-            </Avatar>
-
-            <div className="hidden md:block text-left leading-tight">
-              <p className="text-sm font-medium">John Doe</p>
-              <p className="text-xs text-muted-foreground">Admin</p>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: currentTheme.primary }}
+            >
+              <span className="text-white font-semibold text-xs">JD</span>
+            </div>
+            <div className="hidden md:block text-left">
+              <p className="text-sm font-medium" style={{ color: currentTheme.text }}>
+                John Doe
+              </p>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                Admin
+              </p>
             </div>
           </motion.button>
         </div>
       </div>
     </motion.header>
-  );
-}
-
-/* -------------------------
-   Small reusable icon button
--------------------------- */
-function IconButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-}) {
-  return (
-    <motion.button
-      onClick={onClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className="
-        relative h-10 w-10 rounded-xl
-        border border-border
-        bg-muted/40 hover:bg-muted
-        flex items-center justify-center
-        transition-colors
-      "
-    >
-      {children}
-    </motion.button>
   );
 }

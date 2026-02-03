@@ -1,5 +1,4 @@
-"use client";
-
+'use client';
 import { motion } from "motion/react";
 import {
   LayoutDashboard,
@@ -10,154 +9,216 @@ import {
   Database,
   FolderLock,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+import { useClerk } from "@clerk/nextjs";
 
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-export default function DashboardSidebar({
-  activePage,
-  setActivePage,
-}: {
+export default function DashboardSidebar({ activePage, setActivePage, isSidebarOpen } : {
   activePage: string;
-  setActivePage: (id: string) => void;
+  setActivePage: (page: string) => void;
+  isSidebarOpen: boolean;
 }) {
+  const { currentTheme } = useTheme();
+
   const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "chatbot", label: "AI Assistant", icon: MessageSquare },
-    { id: "history", label: "History", icon: Clock },
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      id: "analytics",
+      label: "Analytics",
+      icon: BarChart3,
+    },
+    {
+      id: "chatbot",
+      label: "AI Assistant",
+      icon: MessageSquare,
+    },
+    {
+      id: "history",
+      label: "History",
+      icon: Clock,
+    },
   ];
 
-  const bottomItems = [{ id: "settings", label: "Settings", icon: Settings }];
+  const bottomItems = [
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+    },
+  ];
+  const { signOut, session } = useClerk()
 
   return (
     <motion.aside
-      initial={{ x: -280 }}
-      animate={{ x: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="w-72 bg-black/90 backdrop-blur-xl border-r border-white/10 flex flex-col"
+      initial={false}
+      animate={{ width: isSidebarOpen ? 280 : 0 }}
+      className="overflow-hidden shrink-0"
+      style={{
+        backgroundColor: currentTheme.surface,
+        borderRight: `1px solid ${currentTheme.border}`,
+      }}
     >
-      {/* Logo */}
-      <div className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center">
-            <Database className="w-5 h-5 text-black" />
-          </div>
-          <div>
-            <h2 className="text-white font-semibold">My Digital Records</h2>
-            <p className="text-white/40 text-xs">Enterprise Edition</p>
+      <div className="w-70 h-full flex flex-col">
+        {/* Logo */}
+        <div
+          className="p-6"
+          style={{ borderBottom: `1px solid ${currentTheme.border}` }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                <Database className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <div>
+              <h2 className="font-semibold" style={{ color: currentTheme.text }}>
+                My Digital Records
+              </h2>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                Enterprise Edition
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <Separator className="bg-white/10" />
+        {/* Navigation Items */}
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <div className="space-y-1">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activePage === item.id;
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-1">
-          {navigationItems.map((item) => {
+              return (
+                <motion.button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id)}
+                  whileHover={{ x: 4, backgroundColor: currentTheme.background }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
+                  style={{
+                    backgroundColor: isActive
+                      ? currentTheme.primary
+                      : "transparent",
+                    color: isActive ? "#ffffff" : currentTheme.text,
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{item.label}</span>
+                  {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Quick Access */}
+          <div className="mt-8">
+            <p
+              className="text-xs font-semibold uppercase tracking-wider px-4 mb-3"
+              style={{ color: currentTheme.textSecondary }}
+            >
+              Quick Access
+            </p>
+            <div className="space-y-1">
+              <button
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
+                style={{
+                  color: currentTheme.textSecondary,
+                }}
+              >
+                <Database className="w-4 h-4" />
+                <span className="text-sm">My Databases</span>
+              </button>
+              <button
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
+                style={{
+                  color: currentTheme.textSecondary,
+                }}
+              >
+                <FolderLock className="w-4 h-4" />
+                <span className="text-sm">Secure Folders</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        {/* Bottom Items - Settings */}
+        <div
+          className="p-4"
+          style={{ borderTop: `1px solid ${currentTheme.border}` }}
+        >
+          {bottomItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.id;
 
             return (
-              <motion.div key={item.id} className="relative">
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className="absolute inset-0 rounded-xl bg-white/5 border border-white/10"
-                    transition={{ type: "spring", duration: 0.5 }}
-                  />
-                )}
-
-                <Button
-                  variant="ghost"
-                  onClick={() => setActivePage(item.id)}
-                  className={`w-full justify-start gap-3 px-4 py-6 rounded-xl relative z-10
-                    ${
-                      isActive
-                        ? "text-white"
-                        : "text-white/50 hover:text-white hover:bg-white/5"
-                    }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                  {isActive && (
-                    <ChevronRight className="ml-auto w-4 h-4 text-white/70" />
-                  )}
-                </Button>
-              </motion.div>
+              <motion.button
+                key={item.id}
+                onClick={() => setActivePage(item.id)}
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-4"
+                style={{
+                  backgroundColor: isActive
+                    ? currentTheme.primary
+                    : "transparent",
+                  color: isActive ? "#ffffff" : currentTheme.text,
+                }}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="font-medium">{item.label}</span>
+              </motion.button>
             );
           })}
-        </div>
-
-        {/* Quick Access */}
-        <div className="mt-8">
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider px-4 mb-3">
-            Quick Access
-          </p>
-
-          <div className="space-y-1">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 text-white/50 hover:text-white hover:bg-white/5"
+          {/* Logout Button */}
+          <div
+            className="p-4"
+          >
+            <button
+            onClick={async () => await signOut()}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+                color: currentTheme.text,
+              }}
             >
-              <Database className="w-4 h-4" />
-              <span className="text-sm">My Databases</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 text-white/50 hover:text-white hover:bg-white/5"
-            >
-              <FolderLock className="w-4 h-4" />
-              <span className="text-sm">Secure Folders</span>
-            </Button>
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">Logout</span>
+            </button>
           </div>
-        </div>
-      </nav>
 
-      <Separator className="bg-white/10" />
-
-      {/* Bottom */}
-      <div className="p-4 space-y-3">
-        {bottomItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activePage === item.id;
-
-          return (
-            <Button
-              key={item.id}
-              variant="ghost"
-              onClick={() => setActivePage(item.id)}
-              className={`w-full justify-start gap-3 py-6 rounded-xl
-                ${
-                  isActive
-                    ? "bg-white/5 text-white border border-white/10"
-                    : "text-white/50 hover:text-white hover:bg-white/5"
-                }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
-            </Button>
-          );
-        })}
-
-        {/* User */}
-        <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
-          <Avatar>
-            <AvatarFallback className="bg-white text-black font-semibold">
-              JD
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="text-white text-sm font-medium truncate">
-              John Doe
-            </p>
-            <p className="text-white/40 text-xs truncate">
-              john@company.com
-            </p>
+          {/* User Profile */}
+          <div
+            className="p-3 rounded-xl"
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                <span className="text-white font-semibold text-sm">JD</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: currentTheme.text }}>
+                  John Doe
+                </p>
+                <p className="text-xs truncate" style={{ color: currentTheme.textSecondary }}>
+                  john@company.com
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

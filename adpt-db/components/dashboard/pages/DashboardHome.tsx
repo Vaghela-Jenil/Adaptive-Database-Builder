@@ -9,52 +9,74 @@ import {
   Clock,
   Star,
 } from "lucide-react";
-import { Card } from "../../ui/card";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function DashboardHome() {
+  const { currentTheme } = useTheme();
+
   const stats = [
     {
       label: "Total Records",
       value: "12,458",
       change: "+12.5%",
+      trend: "up",
       icon: Database,
-      color: "from-cyan-500 to-blue-600",
     },
     {
       label: "Active Databases",
       value: "24",
       change: "+3",
+      trend: "up",
       icon: FolderLock,
-      color: "from-blue-500 to-purple-600",
     },
     {
       label: "Team Members",
       value: "48",
       change: "+8",
+      trend: "up",
       icon: Users,
-      color: "from-purple-500 to-pink-600",
     },
     {
       label: "API Calls",
       value: "1.2M",
       change: "+23.1%",
+      trend: "up",
       icon: Activity,
-      color: "from-pink-500 to-rose-600",
     },
   ];
 
   const recentActivities = [
-    { action: "New database created", database: "Customer Records", time: "2 min ago", user: "Sarah Chen" },
-    { action: "Record updated", database: "Inventory System", time: "15 min ago", user: "Mike Johnson" },
-    { action: "Folder shared", database: "Financial Reports", time: "1 hr ago", user: "Emily Rodriguez" },
-    { action: "API key generated", database: "Analytics Dashboard", time: "3 hrs ago", user: "Alex Turner" },
+    {
+      action: "New database created",
+      database: "Customer Records",
+      time: "2 minutes ago",
+      user: "Sarah Chen",
+    },
+    {
+      action: "Record updated",
+      database: "Inventory System",
+      time: "15 minutes ago",
+      user: "Mike Johnson",
+    },
+    {
+      action: "Folder shared",
+      database: "Financial Reports",
+      time: "1 hour ago",
+      user: "Emily Rodriguez",
+    },
+    {
+      action: "API key generated",
+      database: "Analytics Dashboard",
+      time: "3 hours ago",
+      user: "Alex Turner",
+    },
   ];
 
   const quickActions = [
-    { label: "Create Database", icon: Database, color: "from-cyan-500 to-blue-600" },
-    { label: "New Folder", icon: FolderLock, color: "from-blue-500 to-purple-600" },
-    { label: "Import Data", icon: ArrowUpRight, color: "from-purple-500 to-pink-600" },
-    { label: "View Analytics", icon: TrendingUp, color: "from-pink-500 to-rose-600" },
+    { label: "Create Database", icon: Database },
+    { label: "New Folder", icon: FolderLock },
+    { label: "Import Data", icon: ArrowUpRight },
+    { label: "View Analytics", icon: TrendingUp },
   ];
 
   return (
@@ -62,121 +84,170 @@ export default function DashboardHome() {
       {/* Header */}
       <div>
         <motion.h1
-          initial={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-foreground mb-2"
+          className="text-3xl font-bold mb-2"
+          style={{ color: currentTheme.text }}
         >
-          Welcome back 👋
+          Welcome back, John 👋
         </motion.h1>
         <motion.p
-          initial={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-muted-foreground"
+          style={{ color: currentTheme.textSecondary }}
         >
-          Here's what's happening with your data today.
+          Here's what's happening with your records today
         </motion.p>
       </div>
 
-      {/* Stats */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => {
+        {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <motion.div
               key={stat.label}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: index * 0.1 }}
+              className="p-6 rounded-2xl"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
             >
-              <Card className="p-6 bg-background/60 backdrop-blur-xl border-border/50 hover:border-cyan-500/40 transition group">
-                <div className="flex justify-between mb-4">
-                  <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}
-                  >
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-medium">
-                    <TrendingUp className="w-4 h-4" />
-                    {stat.change}
-                  </div>
+              <div className="flex items-start justify-between mb-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: currentTheme.primary }}
+                >
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
-
-                <h3 className="text-3xl font-bold text-foreground group-hover:text-cyan-400 transition">
-                  {stat.value}
-                </h3>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </Card>
+                <div
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.primary,
+                  }}
+                >
+                  <TrendingUp className="w-3 h-3" />
+                  {stat.change}
+                </div>
+              </div>
+              <p className="text-sm mb-1" style={{ color: currentTheme.textSecondary }}>
+                {stat.label}
+              </p>
+              <p className="text-3xl font-bold" style={{ color: currentTheme.text }}>
+                {stat.value}
+              </p>
             </motion.div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity */}
-        <motion.div className="lg:col-span-2">
-          <Card className="p-6 bg-background/60 backdrop-blur-xl border-border/50">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-foreground">Recent Activity</h2>
-              <Clock className="w-5 h-5 text-muted-foreground" />
-            </div>
-
-            <div className="space-y-4">
-              {recentActivities.map((a, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 + i * 0.1 }}
-                  className="flex gap-4 p-4 rounded-xl bg-muted/40 border border-border hover:border-cyan-500/40 transition"
+      {/* Quick Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="rounded-2xl p-6"
+        style={{
+          backgroundColor: currentTheme.surface,
+          border: `1px solid ${currentTheme.border}`,
+        }}
+      >
+        <h2 className="text-xl font-bold mb-4" style={{ color: currentTheme.text }}>
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {quickActions.map((action, index) => {
+            const Icon = action.icon;
+            return (
+              <motion.button
+                key={action.label}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="p-4 rounded-xl text-left transition-all"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                }}
+              >
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                  style={{ backgroundColor: currentTheme.primary }}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                    <Activity className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{a.action}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {a.database} • {a.user}
-                    </p>
-                  </div>
-                  <span className="text-sm text-muted-foreground">{a.time}</span>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+                <p className="font-medium text-sm" style={{ color: currentTheme.text }}>
+                  {action.label}
+                </p>
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.div>
 
-        {/* Quick Actions */}
-        <motion.div>
-          <Card className="p-6 bg-background/60 backdrop-blur-xl border-border/50">
-            <div className="flex items-center gap-2 mb-6">
-              <Star className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-xl font-bold text-foreground">Quick Actions</h2>
-            </div>
+      {/* Recent Activity */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="rounded-2xl p-6"
+        style={{
+          backgroundColor: currentTheme.surface,
+          border: `1px solid ${currentTheme.border}`,
+        }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold" style={{ color: currentTheme.text }}>
+            Recent Activity
+          </h2>
+          <button
+            className="text-sm font-medium"
+            style={{ color: currentTheme.primary }}
+          >
+            View All
+          </button>
+        </div>
 
-            <div className="space-y-3">
-              {quickActions.map((a, i) => {
-                const Icon = a.icon;
-                return (
-                  <motion.button
-                    key={a.label}
-                    whileHover={{ scale: 1.02 }}
-                    className="w-full flex items-center gap-3 p-4 rounded-xl bg-muted/40 border border-border hover:border-cyan-500/40 transition"
-                  >
-                    <div
-                      className={`w-10 h-10 rounded-lg bg-gradient-to-br ${a.color} flex items-center justify-center`}
-                    >
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="font-medium text-foreground">{a.label}</span>
-                    <ArrowUpRight className="ml-auto w-4 h-4 text-muted-foreground" />
-                  </motion.button>
-                );
-              })}
-            </div>
-          </Card>
-        </motion.div>
-      </div>
+        <div className="space-y-4">
+          {recentActivities.map((activity, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 + index * 0.1 }}
+              className="flex items-start gap-4 p-4 rounded-xl"
+              style={{
+                backgroundColor: currentTheme.background,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                <Clock className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium mb-1" style={{ color: currentTheme.text }}>
+                  {activity.action}
+                </p>
+                <p className="text-sm mb-1" style={{ color: currentTheme.textSecondary }}>
+                  {activity.database}
+                </p>
+                <div className="flex items-center gap-2 text-xs" style={{ color: currentTheme.textSecondary }}>
+                  <span>{activity.user}</span>
+                  <span>•</span>
+                  <span>{activity.time}</span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 }
