@@ -197,7 +197,7 @@ export default function History() {
               >
                 {/* Icon */}
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: currentTheme.primary }}
                 >
                   <Icon className="w-5 h-5 text-white" />

@@ -11,13 +11,16 @@ import Analytics from './pages/Analytics';
 import Chatbot from './pages/chatbot';
 import History from './pages/History';
 import Settings from './pages/setting';
+import NearbyStore from './pages/NearbyStore';
 
 type DashboardPage =
   | 'dashboard'
   | 'analytics'
   | 'chatbot'
   | 'history'
-  | 'settings';
+  | 'settings'
+  | 'form-builder'
+  | 'nearby-store';
 
 export default function DashboardShell() {
   const [activePage, setActivePage] = useState<DashboardPage>('dashboard');
@@ -48,6 +51,7 @@ export default function DashboardShell() {
           {activePage === 'chatbot' && <Chatbot />}
           {activePage === 'history' && <History />}
           {activePage === 'settings' && <Settings />}
+          {activePage === 'nearby-store' && <NearbyStore />}
         </main>
       </div>
     </div>
