@@ -1,4 +1,3 @@
-'use client';
 import { motion } from "motion/react";
 import {
   LayoutDashboard,
@@ -9,17 +8,10 @@ import {
   Database,
   FolderLock,
   ChevronRight,
-  LogOut,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { useClerk } from "@clerk/nextjs";
-import Link from "next/link";
 
-export default function DashboardSidebar({ activePage, setActivePage, isSidebarOpen }: {
-  activePage: string;
-  setActivePage: (page: string) => void;
-  isSidebarOpen: boolean;
-}) {
+export default function DashboardSidebar({ activePage, setActivePage, isSidebarOpen } : { activePage: string; setActivePage: (page: string) => void; isSidebarOpen: boolean; }) {
   const { currentTheme } = useTheme();
 
   const navigationItems = [
@@ -27,6 +19,11 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       id: "dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
+    },
+    {
+      id: "database",
+      label: "My Databases",
+      icon: Database,
     },
     {
       id: "analytics",
@@ -43,11 +40,6 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       label: "History",
       icon: Clock,
     },
-    {
-      id: "nearby-store",
-      label: "Nearby Store",
-      icon: FolderLock,
-    }
   ];
 
   const bottomItems = [
@@ -57,8 +49,6 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       icon: Settings,
     },
   ];
-  const { signOut, session } = useClerk()
-
 
   return (
     <motion.aside
@@ -104,40 +94,26 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
               const isActive = activePage === item.id;
 
               return (
-                  <motion.button
-                    key={item.id}
-                    onClick={() => setActivePage(item.id)}
-                    whileHover={{ x: 4, backgroundColor: currentTheme.background }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
-                    style={{
-                      backgroundColor: isActive
-                        ? currentTheme.primary
-                        : "transparent",
-                      color: isActive ? "#ffffff" : currentTheme.text,
-                    }}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                  </motion.button>
+                <motion.button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id)}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
+                  style={{
+                    backgroundColor: isActive
+                      ? currentTheme.primary
+                      : "transparent",
+                    color: isActive ? "#ffffff" : currentTheme.text,
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{item.label}</span>
+                  {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                </motion.button>
               );
             })}
           </div>
-
-              <Link href={'/user/databases/FormBuilder'}>
-              <motion.button
-                    whileHover={{ x: 4, backgroundColor: currentTheme.background }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
-                    style={{
-                      backgroundColor: currentTheme.primary,
-                      color:currentTheme.text,
-                    }}
-                  >
-                    <Database className="w-5 h-5" />
-                    <span className="font-medium">Form Builder</span>
-                  </motion.button></Link>
 
           {/* Quick Access */}
           <div className="mt-8">
@@ -198,23 +174,6 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
               </motion.button>
             );
           })}
-          {/* Logout Button */}
-          <div
-            className="p-4"
-          >
-            <button
-              onClick={async () => await signOut()}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
-                color: currentTheme.text,
-              }}
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
 
           {/* User Profile */}
           <div

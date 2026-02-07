@@ -160,7 +160,7 @@ export default function QueryManagement() {
             >
               <div className="flex items-start gap-3 mb-2">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0"
+                  className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0"
                   style={{
                     backgroundColor:
                       selectedQuery?.id === query.id ? "#ffffff" : currentTheme.primary,
@@ -183,7 +183,7 @@ export default function QueryManagement() {
                     </p>
                     {query.status === "pending" ? (
                       <Clock
-                        className="w-4 h-4 flex-shrink-0"
+                        className="w-4 h-4 shrink-0"
                         style={{
                           color:
                             selectedQuery?.id === query.id
@@ -193,7 +193,7 @@ export default function QueryManagement() {
                       />
                     ) : (
                       <CheckCircle
-                        className="w-4 h-4 flex-shrink-0"
+                        className="w-4 h-4 shrink-0"
                         style={{ color: "#10b981" }}
                       />
                     )}

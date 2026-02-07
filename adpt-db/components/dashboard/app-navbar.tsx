@@ -1,4 +1,3 @@
-'use client';
 import { motion } from "motion/react";
 import {
   Search,
@@ -14,10 +13,7 @@ import { useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 
-export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : {
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (isOpen: boolean) => void;
-}) {
+export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { isSidebarOpen: boolean; setIsSidebarOpen: (open: boolean) => void; }) {
   const [notifications] = useState(3);
   const { currentTheme } = useTheme();
 
