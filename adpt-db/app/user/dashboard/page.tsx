@@ -1,6 +1,6 @@
 import CreateUserOnSignIn from "@/components/CreateUserOnSignIn";
 import { requireAuth } from "@/lib/auth";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import DashboardLayout from "@/components/UserDashboard/DashboardLayout";
 export default async function DashBoard() {
     requireAuth();
   return (

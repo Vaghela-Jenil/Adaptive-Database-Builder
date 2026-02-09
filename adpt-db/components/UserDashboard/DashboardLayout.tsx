@@ -11,6 +11,7 @@ import Settings from "./pages/setting";
 import Database from "./pages/Database";
 import FormBuilderPage from "./pages/FormBuilderPage";
 import { FieldAttributes } from "./pages/types";
+import NearbyStore from "./pages/NearbyStore";
 
 type DatabaseFolder = {
   id: string;
@@ -84,6 +85,8 @@ export default function DashboardLayout() {
         return <Chatbot />;
       case "history":
         return <History />;
+      case "nearby-stores":
+        return <NearbyStore/>
       case "settings":
         return <Settings />;
       case "database":
