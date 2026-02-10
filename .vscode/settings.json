@@ -1,0 +1,12 @@
+﻿{
+    "tailwindCSS.root": "adpt-db",
+    "files.exclude": {
+        "**/node_modules": false
+    },
+    "search.exclude": {
+        "**/node_modules": false
+    },
+    "files.watcherExclude": {
+        "**/node_modules": false
+    }
+}
