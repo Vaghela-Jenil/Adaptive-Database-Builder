@@ -64,9 +64,9 @@ export default function DarkHero({
   ];
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-linear-to-b from-slate-950 via-slate-900 to-slate-950">
       {/* Background Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-size-[4rem_4rem] opacity-30" />
 
       {/* Glow Orbs */}
       <motion.div
@@ -110,7 +110,7 @@ export default function DarkHero({
               <Button
                 size="lg"
                 onClick={onEnterDashboard}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600"
+                className="bg-linear-to-r from-cyan-500 to-blue-600"
               >
                 Start Free Trial
                 <ArrowRight className="w-4 h-4 ml-2" />

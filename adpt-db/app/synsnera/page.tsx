@@ -15,11 +15,11 @@ import DarkFooter from "@/components/landingPage/DarkFooter";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-950 relative">
+    <div className="w-fu min-h-screen bg-slate-950 relative">
       {/* <AnimatedBackground /> */}
       <div className="relative z-10">
         <DarkNavigation />
-        <DarkHero />
+        <DarkHero/>
         <DarkFeatures />
         <DarkHowItWorks />
         <DarkDemoPreview />
