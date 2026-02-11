@@ -40,12 +40,12 @@ export default function DarkCTA() {
           className="relative max-w-4xl mx-auto"
         >
           {/* Main CTA Card */}
-          <div className="relative bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-12 lg:p-16 overflow-hidden">
+          <div className="relative bg-linear-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-12 lg:p-16 overflow-hidden">
             {/* Background Grid */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-20" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-size-[3rem_3rem] opacity-20" />
             
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-600/10" />
+            <div className="absolute inset-0 bg-linear-to-br from-cyan-500/10 via-transparent to-blue-600/10" />
 
             {/* Content */}
             <div className="relative z-10 text-center">
@@ -53,14 +53,14 @@ export default function DarkCTA() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 mb-8"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 mb-8"
               >
                 <Sparkles className="w-4 h-4 text-cyan-400" />
                 <span className="text-cyan-400">Start your free trial today</span>
               </motion.div>
 
               <motion.h2
-                className="text-white mb-6 bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent"
+                className="text-white mb-6 bg-linear-to-r from-white via-slate-200 to-slate-400 bg-clip-text"
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
@@ -86,7 +86,7 @@ export default function DarkCTA() {
               >
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all"
+                  className="bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all"
                 >
                   Get Started Free
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -116,7 +116,7 @@ export default function DarkCTA() {
           </div>
 
           {/* Outer glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 blur-3xl -z-10 opacity-50" />
+          <div className="absolute inset-0 bg-linear-to-r from-cyan-500/20 to-blue-600/20 blur-3xl -z-10 opacity-50" />
         </motion.div>
       </div>
     </section>

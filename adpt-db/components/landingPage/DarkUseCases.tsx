@@ -70,7 +70,7 @@ export default function DarkUseCases() {
     <section className="relative py-16 bg-slate-950 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-20" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-size-[3rem_3rem] opacity-20" />
       </div>
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
@@ -85,12 +85,12 @@ export default function DarkUseCases() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
           >
             <span className="text-cyan-400">Versatile Solutions</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
             Built for every industry
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -122,11 +122,11 @@ export default function DarkUseCases() {
                       }}
                       transition={{ duration: 0.6 }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-slate-900 to-transparent" />
                     
                     {/* Icon overlay */}
                     <motion.div
-                      className={`absolute top-4 right-4 w-12 h-12 bg-gradient-to-br ${useCase.gradient} rounded-xl flex items-center justify-center`}
+                      className={`absolute top-4 right-4 w-12 h-12 bg-linear-to-br ${useCase.gradient} rounded-xl flex items-center justify-center`}
                       whileHover={{ scale: 1.1, rotate: 5 }}
                     >
                       <Icon className="w-6 h-6 text-white" />
@@ -154,15 +154,15 @@ export default function DarkUseCases() {
 
                   {/* Hover gradient */}
                   <motion.div
-                    className={`absolute inset-0 bg-gradient-to-br ${useCase.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
+                    className={`absolute inset-0 bg-linear-to-br ${useCase.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
                   />
 
                   {/* Bottom accent line */}
-                  <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${useCase.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                  <div className={`absolute bottom-0 left-0 right-0 h-1 bg-linear-to-r ${useCase.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
                 </div>
 
                 {/* Outer glow */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${useCase.gradient} blur-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10`} />
+                <div className={`absolute inset-0 bg-linear-to-br ${useCase.gradient} blur-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10`} />
               </motion.div>
             );
           })}

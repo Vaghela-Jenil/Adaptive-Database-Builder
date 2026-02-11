@@ -23,7 +23,7 @@ export default function DarkDemoPreview() {
   ];
 
   return (
-    <section className="relative py-16 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 overflow-hidden">
+    <section className="relative py-16 bg-linear-to-b from-slate-900 via-slate-950 to-slate-900 overflow-hidden">
       {/* Animated background */}
       <motion.div
         className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"
@@ -46,12 +46,12 @@ export default function DarkDemoPreview() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
           >
             <span className="text-cyan-400">Live Preview</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
             See it in action
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -243,7 +243,7 @@ export default function DarkDemoPreview() {
           </div>
 
           {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-blue-600/10 blur-3xl -z-10 opacity-50" />
+          <div className="absolute inset-0 bg-linear-to-r from-cyan-500/10 to-blue-600/10 blur-3xl -z-10 opacity-50" />
         </motion.div>
       </div>
     </section>

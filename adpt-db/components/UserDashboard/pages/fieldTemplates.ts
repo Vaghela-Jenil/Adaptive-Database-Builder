@@ -1,4 +1,5 @@
 import { FieldTemplate } from "./types";
+import { ArrowLeftRight, Calendar, CalendarHeart, Check, CheckCheck, Clipboard, Clock, DoorClosedLocked, FileUp, Link, ListOrderedIcon, Lock, Mail, Phone, Radio, SeparatorHorizontalIcon, SlidersHorizontal, Star, Tag, TextAlignJustify, TextInitial, TextSelect, ToggleLeft } from "lucide-react";
 
 export const fieldTemplates: FieldTemplate[] = [
   // DISPLAY ELEMENTS
@@ -7,7 +8,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'text',
     label: 'Text',
     category: 'display',
-    icon: '📝',
+    icon: Clipboard,
     defaultSpan: 3,
     defaultAttributes: {
       label: 'Text Label',
@@ -20,7 +21,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'separator',
     label: 'Separator',
     category: 'display',
-    icon: '➖',
+    icon: SeparatorHorizontalIcon,
     defaultSpan: 3,
     defaultAttributes: {
       label: 'Separator',
@@ -35,7 +36,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-text',
     label: 'Input',
     category: 'field',
-    icon: '✏️',
+    icon: TextInitial, // Replace with actual icon component
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Text Input',
@@ -51,7 +52,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-number',
     label: 'Number',
     category: 'field',
-    icon: '🔢',
+    icon: ListOrderedIcon,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Number Input',
@@ -70,7 +71,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-email',
     label: 'Email',
     category: 'field',
-    icon: '📧',
+    icon: Mail,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Email Address',
@@ -86,7 +87,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-phone',
     label: 'Phone Number',
     category: 'field',
-    icon: '📱',
+    icon: Phone,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Phone Number',
@@ -102,7 +103,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-url',
     label: 'URL',
     category: 'field',
-    icon: '🔗',
+    icon: Link,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Website URL',
@@ -118,7 +119,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-time',
     label: 'Time',
     category: 'field',
-    icon: '🕐',
+    icon: Clock,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Time',
@@ -135,7 +136,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'textarea',
     label: 'Text Area',
     category: 'field',
-    icon: '📄',
+    icon: TextAlignJustify,
     defaultSpan: 3,
     defaultAttributes: {
       label: 'Description',
@@ -156,7 +157,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'password',
     label: 'Password',
     category: 'field',
-    icon: '🔒',
+    icon: Lock,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Password',
@@ -175,7 +176,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'input-otp',
     label: 'OTP',
     category: 'field',
-    icon: '🔐',
+    icon: DoorClosedLocked,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Enter OTP',
@@ -193,7 +194,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'checkbox',
     label: 'Checkbox',
     category: 'field',
-    icon: '☑️',
+    icon: Check,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'I agree to terms',
@@ -211,7 +212,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'switch',
     label: 'Switch',
     category: 'field',
-    icon: '🎚️',
+    icon: ArrowLeftRight,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Enable notifications',
@@ -229,7 +230,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'date-picker',
     label: 'Date Picker',
     category: 'field',
-    icon: '📅',
+    icon: CalendarHeart,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Select Date',
@@ -247,7 +248,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'tag-input',
     label: 'Tag',
     category: 'field',
-    icon: '🏷️',
+    icon: Tag,
     defaultSpan: 2,
     defaultAttributes: {
       label: 'Tags',
@@ -265,7 +266,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'select',
     label: 'Select',
     category: 'field',
-    icon: '📋',
+    icon: TextSelect,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Select Option',
@@ -284,7 +285,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'combobox',
     label: 'Combobox',
     category: 'field',
-    icon: '🔽',
+    icon: CheckCheck,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Search & Select',
@@ -303,7 +304,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'multi-select',
     label: 'Multi Select',
     category: 'field',
-    icon: '✅',
+    icon: CheckCheck,
     defaultSpan: 2,
     defaultAttributes: {
       label: 'Select Multiple',
@@ -323,7 +324,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'toggle',
     label: 'Toggle Group',
     category: 'field',
-    icon: '🔘',
+    icon: ToggleLeft,
     defaultSpan: 2,
     defaultAttributes: {
       label: 'Choose One',
@@ -341,7 +342,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'radio',
     label: 'Radio Group',
     category: 'field',
-    icon: '🔴',
+    icon: Radio,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Select One',
@@ -359,7 +360,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'slider',
     label: 'Slider',
     category: 'field',
-    icon: '🎚️',
+    icon: SlidersHorizontal,
     defaultSpan: 2,
     defaultAttributes: {
       label: 'Select Value',
@@ -381,7 +382,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'file',
     label: 'File Upload',
     category: 'field',
-    icon: '📎',
+    icon: FileUp,
     defaultSpan: 2,
     defaultAttributes: {
       label: 'Upload File',
@@ -400,7 +401,7 @@ export const fieldTemplates: FieldTemplate[] = [
     type: 'rating',
     label: 'Rating',
     category: 'field',
-    icon: '⭐',
+    icon: Star,
     defaultSpan: 1,
     defaultAttributes: {
       label: 'Rate this',

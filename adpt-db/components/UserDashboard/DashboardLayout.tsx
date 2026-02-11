@@ -11,7 +11,7 @@ import Settings from "./pages/setting";
 import Database from "./pages/Database";
 import FormBuilderPage from "./pages/FormBuilderPage";
 import { FieldAttributes } from "./pages/types";
-import NearbyStore from "./pages/NearbyStore";
+import NearByStorePage from "./pages/NearbyStore";
 
 type DatabaseFolder = {
   id: string;
@@ -85,10 +85,10 @@ export default function DashboardLayout() {
         return <Chatbot />;
       case "history":
         return <History />;
-      case "nearby-stores":
-        return <NearbyStore/>
       case "settings":
         return <Settings />;
+        case "nearby-stores":
+        return <NearByStorePage />;
       case "database":
         return (
           <Database
@@ -111,6 +111,8 @@ export default function DashboardLayout() {
             editingDatabase={editingDatabase}
           />
         );
+      case "nearby-stores":
+        return <NearByStorePage />;
       default:
         return <DashboardHome />;
     }
@@ -124,6 +126,7 @@ export default function DashboardLayout() {
       </div>
     );
   }
+
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: currentTheme.background }}>

@@ -1,15 +1,17 @@
 'use client'
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import Link from 'next/link';
-import { SignOutButton, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useClerk } from '@clerk/nextjs';
 
-export default function DarkNavigation() {
+export default function DarkNavigation({activePanel, setActivePanel} : {activePanel : string; setActivePanel: (page: string) => void}) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const {isSignedIn} = useUser();
+  const { signOut, session } = useClerk()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,10 +23,12 @@ export default function DarkNavigation() {
   }, []);
 
   const navItems = [
-    { label: 'Product', href: '#', hasDropdown: true },
-    { label: 'Use Cases', href: '#', hasDropdown: true },
-    { label: 'Security', href: '#' },
-    { label: 'Pricing', href: '#' },
+    { label: 'Home'},
+    { label: 'Use Cases' },
+    { label: 'Security' },
+    { label: 'Tools'},
+    { label: 'Reviews'},
+    { label: 'Q&A'},
   ];
 
   return (
@@ -47,7 +51,7 @@ export default function DarkNavigation() {
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/50">
+              <div className="w-10 h-10 bg-linear-to-br from-cyan-500 via-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/50">
                 <motion.span 
                   className="text-white tracking-tighter"
                   animate={{ rotateY: [0, 360] }}
@@ -57,7 +61,7 @@ export default function DarkNavigation() {
                 </motion.span>
               </div>
               {/* Logo glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl blur-md opacity-50 group-hover:opacity-75 transition-opacity -z-10" />
+              <div className="absolute inset-0 bg-linear-to-br from-cyan-500 to-blue-600 rounded-xl blur-md opacity-50 group-hover:opacity-75 transition-opacity -z-10" />
             </div>
             <div>
               <div className="text-white tracking-tight">My Digital Records</div>
@@ -68,29 +72,27 @@ export default function DarkNavigation() {
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-1">
             {navItems.map((item, index) => (
+              
               <motion.div
                 key={item.label}
+                onClick={() => setActivePanel(item.label)}
                 className="relative group"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
               >
-                <a
-                  href={item.href}
-                  className="flex items-center gap-1 px-4 py-2 text-slate-300 hover:text-white transition-colors relative"
+                <div
+                  className="flex items-center gap-1 px-4 py-2 text-slate-300 hover:text-white transition-colors relative cursor-pointer"
                 >
                   {item.label}
-                  {item.hasDropdown && (
-                    <ChevronDown className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  )}
                   {/* Hover underline */}
                   <motion.div
-                    className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-cyan-500 to-blue-600"
+                    className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-cyan-500 to-blue-600"
                     initial={{ scaleX: 0 }}
                     whileHover={{ scaleX: 1 }}
                     transition={{ duration: 0.3 }}
                   />
-                </a>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -104,16 +106,18 @@ export default function DarkNavigation() {
             >
              {
               isSignedIn ?
-                <div
-                  className="px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+                <Button
+                  variant="ghost"
+                  className="text-slate-300 cursor-pointer hover:text-white hover:bg-slate-800/50 transition-all"
+                  onClick={async() => await signOut()}
                 >
-                  <SignOutButton/>
-                </div> 
+                  Sign Out
+                </Button>
               :
                <Link href='/login'>
                 <Button
                   variant="ghost"
-                  className="text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+                  className="text-slate-300  cursor-pointer hover:text-white hover:bg-slate-800/50 transition-all"
                 >
                   Login
                 </Button>
@@ -127,11 +131,12 @@ export default function DarkNavigation() {
               className="relative group"
             >
              <Link href='/user/dashboard'>
-              <Button className="relative bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all">
+              <Button className="relative bg-linear-to-r from-cyan-500 to-blue-600 cursor-pointer hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all">
                 Get Started
-              </Button></Link>
+              </Button>
+              </Link>
               {/* Button glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-md blur opacity-0 group-hover:opacity-50 transition-opacity -z-10" />
+              <div className="absolute inset-0 bg-linear-to-r from-cyan-500 to-blue-600 rounded-md blur opacity-0 group-hover:opacity-50 transition-opacity -z-10" />
             </motion.div>
           </div>
 
@@ -167,28 +172,28 @@ export default function DarkNavigation() {
             {navItems.map((item, index) => (
               <motion.a
                 key={item.label}
-                href={item.href}
                 className="flex items-center justify-between px-6 py-4 text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors border-b border-slate-800/30 last:border-0"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 {item.label}
-                {item.hasDropdown && <ChevronDown className="w-4 h-4 opacity-50" />}
               </motion.a>
             ))}
             <div className="px-6 py-4 space-y-3">
             {
               isSignedIn ?
-            <div className='text-center w-full text-slate-300 hover:text-white hover:bg-slate-800/50'>
-              <SignOutButton/>
-            </div>
+             <Button variant="ghost" className="w-full text-slate-300 hover:text-white hover:bg-slate-800/50"
+              onClick={async() => await signOut()
+             }>
+                Sign Out
+              </Button>
               :
               <Button variant="ghost" className="w-full text-slate-300 hover:text-white hover:bg-slate-800/50">
-                Sign In
+                Login
               </Button>
             }
-              <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/30">
+              <Button className="w-full bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-cyan-500/30">
                 Get Started
               </Button>
             </div>

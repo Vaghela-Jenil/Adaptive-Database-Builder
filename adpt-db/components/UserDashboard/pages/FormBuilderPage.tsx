@@ -23,6 +23,7 @@ import { FieldAttributes } from './types';
 import { fieldTemplates } from './fieldTemplates';
 import { useTheme } from '@/context/ThemeContext';
 import { Eye, Code, Trash2, ArrowLeft, Database as DatabaseIcon } from 'lucide-react';
+import axios from 'axios';
 
 const STORAGE_KEY = 'form-builder-current';
 
@@ -136,8 +137,12 @@ export default function FormBuilderPage({
     }
   }
 
-  function handleCreateDatabase(name: string) {
-    onSaveDatabase(name, canvasFields);
+  async function handleCreateDatabase(name: string) {
+    await axios.post("/api/form", {
+      formName: 'myForm',
+      fields: canvasFields, // your drag-drop JSON
+    }),
+      onSaveDatabase(name, canvasFields);
     setCanvasFields([]);
     localStorage.removeItem(STORAGE_KEY);
     onBack();
@@ -286,18 +291,27 @@ export default function FormBuilderPage({
                       No fields added yet
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-6 auto-rows-min">
+                    <div
+                      className="grid gap-6 auto-rows-min"
+                      style={{
+                        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                        gridAutoFlow: "dense", // ⭐ VERY IMPORTANT
+                      }}
+                    >
                       {canvasFields.map((field) => (
                         <div
                           key={field.id}
+                          className="w-full"
                           style={{
-                            gridColumn: `span ${field.span}`,
+                            gridColumn: `span ${Math.min(field.span ?? 1, 3)}`,
                           }}
                         >
                           <FieldPreview field={field} />
                         </div>
                       ))}
                     </div>
+
+
                   )}
 
                   {canvasFields.length > 0 && (
@@ -373,9 +387,11 @@ export default function FormBuilderPage({
               }}
             >
               <div className="flex items-center gap-2">
-                <span>
-                  {fieldTemplates.find((f) => activeId.includes(f.id))?.icon}
-                </span>
+                {(() => {
+                  const Icon = fieldTemplates.find((f) => activeId.includes(f.id))?.icon;
+                  return Icon ? <Icon size={18} /> : null;
+                })()}
+
                 <span className="font-medium" style={{ color: currentTheme.text }}>
                   {fieldTemplates.find((f) => activeId.includes(f.id))?.label}
                 </span>

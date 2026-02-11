@@ -17,7 +17,7 @@ export async function POST() {
     // 🕵️ Check if user exists first to save resources
     const existingUser = await User.findOne({ clerkId: userId });
     if (existingUser) {
-      return NextResponse.json({ message: "User already exists" });
+      return NextResponse.json({ message: "User already exists", user_id: existingUser.clerkId, status: 200 });
     }
 
     // 👤 Fetch full user details from Clerk
@@ -38,7 +38,7 @@ export async function POST() {
 
     await newUser.save();
 
-    return NextResponse.json({ message: "User created" }, { status: 201 });
+    return NextResponse.json({ message: "User created", user_id: newUser.clerkId, status: 201 });
   } catch (err: any) {
   console.error("SERVER ERROR:", err.message); // Look at your terminal for this!
   return NextResponse.json({ error: err.message }, { status: 500 });

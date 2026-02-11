@@ -47,7 +47,7 @@ export default function DarkFAQ() {
   return (
     <section className="relative py-16 bg-slate-950 overflow-hidden">
       {/* Background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent" />
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <motion.div
@@ -61,12 +61,12 @@ export default function DarkFAQ() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
           >
             <span className="text-cyan-400">Got Questions?</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
             Frequently asked questions
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -96,9 +96,9 @@ export default function DarkFAQ() {
                     className="w-full text-left p-6 flex items-center justify-between gap-4"
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-all ${
                         openIndex === index
-                          ? 'bg-gradient-to-br from-cyan-500 to-blue-600'
+                          ? 'bg-linear-to-br from-cyan-500 to-blue-600'
                           : 'bg-slate-800'
                       }`}>
                         <HelpCircle className={`w-5 h-5 transition-colors ${
@@ -114,7 +114,7 @@ export default function DarkFAQ() {
                     <motion.div
                       animate={{ rotate: openIndex === index ? 180 : 0 }}
                       transition={{ duration: 0.3 }}
-                      className="flex-shrink-0"
+                      className="shrink-0"
                     >
                       <ChevronDown className={`w-5 h-5 transition-colors ${
                         openIndex === index ? 'text-cyan-400' : 'text-slate-400'
@@ -142,7 +142,7 @@ export default function DarkFAQ() {
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-cyan-500 to-blue-600"
+                      className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-cyan-500 to-blue-600"
                     />
                   )}
                 </div>
@@ -163,7 +163,7 @@ export default function DarkFAQ() {
             </p>
             <a
               href="#"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
             >
               Contact Support
               <span>→</span>

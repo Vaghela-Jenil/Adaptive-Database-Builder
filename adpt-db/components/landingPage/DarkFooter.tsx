@@ -31,7 +31,7 @@ export default function DarkFooter() {
   return (
     <footer className="relative bg-slate-950 border-t border-slate-800/50 overflow-hidden">
       {/* Subtle gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-b from-slate-900/50 to-transparent pointer-events-none" />
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         {/* Main Footer Content */}
@@ -46,7 +46,7 @@ export default function DarkFooter() {
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-linear-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
                   <span className="text-white">M</span>
                 </div>
                 <span className="text-white tracking-tight">My Digital Records</span>
@@ -130,7 +130,7 @@ export default function DarkFooter() {
       </div>
 
       {/* Subtle bottom glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-gradient-to-t from-cyan-500/5 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-linear-to-t from-cyan-500/5 to-transparent pointer-events-none" />
     </footer>
   );
 }

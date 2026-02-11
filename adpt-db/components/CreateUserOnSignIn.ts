@@ -15,8 +15,10 @@ export default function CreateUserOnSignIn() {
     calledRef.current = true;
 
     axios.post("/api/auth/create-user")
-      .then(() => console.log("User stored in DB"))
-      .catch(err => console.error("Create user failed", err));
+      .then((response) => {
+        // const { message, user_id, status } = response.data;
+        console.log("Create user response:", response.data);
+      }).catch(err => console.error("Create user failed", err));
   }, [isLoaded, isSignedIn, user?.id]);
 
   return null;

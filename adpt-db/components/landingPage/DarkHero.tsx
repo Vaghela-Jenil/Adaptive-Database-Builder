@@ -13,12 +13,7 @@ import {
 import { Button } from "../ui/button";
 import FloatingCardsSection from "./FloatingCard";
 
-export default function DarkHero({
-  onEnterDashboard,
-}: {
-  onEnterDashboard: () => void;
-}) {
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+export default function DarkHero() {
 
   const floatingCards = [
     {
@@ -109,7 +104,6 @@ export default function DarkHero({
             <div className="flex gap-4 justify-center lg:justify-start">
               <Button
                 size="lg"
-                onClick={onEnterDashboard}
                 className="bg-linear-to-r from-cyan-500 to-blue-600"
               >
                 Start Free Trial

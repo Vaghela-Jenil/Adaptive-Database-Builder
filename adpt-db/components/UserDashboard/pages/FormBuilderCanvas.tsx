@@ -21,6 +21,7 @@ export default function FormBuilderCanvas({
   fields,
   onFieldEdit,
   onFieldDelete,
+  onFieldUpdate
 }: Props) {
   const { currentTheme } = useTheme();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
@@ -51,7 +52,11 @@ export default function FormBuilderCanvas({
           items={fields.map((f) => f.id)}
           strategy={rectSortingStrategy} // ✅ FIXED
         >
-          <div className="grid grid-cols-3 gap-6 auto-rows-min">
+          <div className="grid gap-6 auto-rows-min"
+           style={{
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gridAutoFlow: "dense",
+          }}>
             {fields.map((field) => (
               <DraggableField
                 key={field.id}

@@ -20,9 +20,9 @@ export default function DarkIntegrations() {
   ];
 
   return (
-    <section className="relative py-16 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 overflow-hidden">
+    <section className="relative py-16 bg-linear-to-b from-slate-900 via-slate-950 to-slate-900 overflow-hidden">
       {/* Background Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-size-[4rem_4rem] opacity-20" />
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <motion.div
@@ -36,12 +36,12 @@ export default function DarkIntegrations() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
           >
             <span className="text-cyan-400">Seamless Integrations</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
             Connect with your favorite tools
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -65,7 +65,7 @@ export default function DarkIntegrations() {
                 <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6 text-center hover:border-slate-700/50 transition-all duration-300">
                   {/* Icon */}
                   <motion.div
-                    className={`w-14 h-14 mx-auto mb-3 bg-gradient-to-br ${integration.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
+                    className={`w-14 h-14 mx-auto mb-3 bg-linear-to-br ${integration.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
                     whileHover={{ rotate: 5 }}
                   >
                     <Icon className="w-7 h-7 text-white" />
@@ -77,11 +77,11 @@ export default function DarkIntegrations() {
                   </p>
 
                   {/* Hover glow */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${integration.color} opacity-0 group-hover:opacity-5 rounded-xl transition-opacity duration-300`} />
+                  <div className={`absolute inset-0 bg-linear-to-br ${integration.color} opacity-0 group-hover:opacity-5 rounded-xl transition-opacity duration-300`} />
                 </div>
 
                 {/* Card glow */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${integration.color} blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 -z-10`} />
+                <div className={`absolute inset-0 bg-linear-to-br ${integration.color} blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 -z-10`} />
               </motion.div>
             );
           })}
@@ -107,7 +107,7 @@ export default function DarkIntegrations() {
           </div>
 
           <div className="relative z-10 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-linear-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
               <Code className="w-8 h-8 text-white" />
             </div>
             <h3 className="text-white mb-3">Powerful REST API</h3>

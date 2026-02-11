@@ -1,3 +1,5 @@
+import { LucideIcon } from "lucide-react";
+
 export type FieldCategory = 'display' | 'field';
 
 export type FieldType =
@@ -27,7 +29,6 @@ export type FieldType =
 
 export type FieldAttributes = {
   id: string;
-  type: FieldType;
   label: string;
   span: number;
   position?: { x: number; y: number };
@@ -56,7 +57,7 @@ export type FieldTemplate = {
   type: FieldType;
   label: string;
   category: FieldCategory;
-  icon: any;
+  icon: LucideIcon;
   defaultSpan: number;
   defaultAttributes: Partial<FieldAttributes>;
 };

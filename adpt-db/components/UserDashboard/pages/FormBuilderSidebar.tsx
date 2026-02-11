@@ -4,8 +4,9 @@ import { Card } from '../../ui/card';
 import { useDraggable } from '@dnd-kit/core';
 import { fieldTemplates } from './fieldTemplates';
 import { useTheme } from '@/context/ThemeContext';
+import { LucideIcon } from 'lucide-react';
 
-function DraggableFieldTemplate({ id, icon, label }: { id: string; icon: string; label: string }) {
+function DraggableFieldTemplate({ id, icon: Icon, label }: { id: string; icon: LucideIcon; label: string }) {
   const { currentTheme } = useTheme();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
 
@@ -38,7 +39,7 @@ function DraggableFieldTemplate({ id, icon, label }: { id: string; icon: string;
       "
     >
       <div className="flex items-center gap-2">
-        <span>{icon}</span>
+        <Icon size={18} />
         <span className="text-sm font-medium">{label}</span>
       </div>
     </div>

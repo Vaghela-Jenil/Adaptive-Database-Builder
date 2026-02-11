@@ -40,9 +40,9 @@ export default function DarkFeatures() {
   ];
 
   return (
-    <section className="relative py-16 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 overflow-hidden">
+    <section className="relative py-16 bg-linear-to-b from-slate-950 via-slate-900 to-slate-950 overflow-hidden">
       {/* Background Elements */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-size-[4rem_4rem] opacity-20" />
       
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <motion.div
@@ -56,12 +56,12 @@ export default function DarkFeatures() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
           >
             <span className="text-cyan-400">Powerful Features</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
             Everything you need to organize
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -85,21 +85,21 @@ export default function DarkFeatures() {
                 <div className="relative h-full bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-8 overflow-hidden transition-all duration-300 group-hover:border-slate-700/50">
                   {/* Hover Glow Effect */}
                   <motion.div
-                    className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
+                    className={`absolute inset-0 bg-linear-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
                   />
                   
                   {/* Icon with Gradient Background */}
                   <motion.div
-                    className={`relative w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
+                    className={`relative w-14 h-14 bg-linear-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
                     whileHover={{ rotate: 5 }}
                   >
                     <Icon className="w-7 h-7 text-white" />
                     
                     {/* Icon Glow */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} blur-xl opacity-50 group-hover:opacity-70 transition-opacity duration-300 -z-10`} />
+                    <div className={`absolute inset-0 bg-linear-to-br ${feature.gradient} blur-xl opacity-50 group-hover:opacity-70 transition-opacity duration-300 -z-10`} />
                   </motion.div>
 
-                  <h3 className="text-white mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-slate-300 group-hover:bg-clip-text transition-all">
+                  <h3 className="text-white mb-3 group-hover:text-transparent group-hover:bg-linear-to-r group-hover:from-white group-hover:to-slate-300 group-hover:bg-clip-text transition-all">
                     {feature.title}
                   </h3>
                   <p className="text-slate-400 leading-relaxed">
@@ -107,11 +107,11 @@ export default function DarkFeatures() {
                   </p>
 
                   {/* Bottom Glow Line */}
-                  <div className={`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r ${feature.gradient} opacity-0 group-hover:opacity-50 transition-opacity duration-300`} />
+                  <div className={`absolute bottom-0 left-0 right-0 h-px bg-linear-to-r ${feature.gradient} opacity-0 group-hover:opacity-50 transition-opacity duration-300`} />
                 </div>
 
                 {/* Card Outer Glow */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 blur-2xl rounded-2xl -z-10 transition-opacity duration-300`} />
+                <div className={`absolute inset-0 bg-linear-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 blur-2xl rounded-2xl -z-10 transition-opacity duration-300`} />
               </motion.div>
             );
           })}

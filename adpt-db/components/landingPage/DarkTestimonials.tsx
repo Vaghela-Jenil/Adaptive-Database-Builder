@@ -7,7 +7,7 @@ import { Star, Quote } from 'lucide-react';
 export default function DarkTestimonials() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.2 });
-  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(0);
 
   const testimonials = [
     {
@@ -63,7 +63,7 @@ export default function DarkTestimonials() {
   return (
     <section className="relative py-16 bg-slate-950 overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent" />
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <motion.div
@@ -77,12 +77,12 @@ export default function DarkTestimonials() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
           >
             <span className="text-cyan-400">Trusted by Professionals</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
             What our customers say
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -98,7 +98,7 @@ export default function DarkTestimonials() {
               animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
               transition={{ delay: 0.1 * index, duration: 0.8 }}
               onHoverStart={() => setHoveredIndex(index)}
-              onHoverEnd={() => setHoveredIndex(null)}
+              onHoverEnd={() => setHoveredIndex(0)}
               className="group relative"
             >
               <div className="relative h-full bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-slate-700/50 transition-all duration-300">
@@ -127,7 +127,7 @@ export default function DarkTestimonials() {
                       alt={testimonial.name}
                       className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-800"
                     />
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 rounded-full bg-linear-to-br from-cyan-500/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div>
                     <p className="text-white">{testimonial.name}</p>
@@ -139,13 +139,13 @@ export default function DarkTestimonials() {
 
                 {/* Hover effect */}
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-600/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  className="absolute inset-0 bg-linear-to-br from-cyan-500/5 to-blue-600/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   animate={hoveredIndex === index ? { opacity: 1 } : { opacity: 0 }}
                 />
               </div>
 
               {/* Glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-blue-600/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+              <div className="absolute inset-0 bg-linear-to-br from-cyan-500/10 to-blue-600/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
             </motion.div>
           ))}
         </div>

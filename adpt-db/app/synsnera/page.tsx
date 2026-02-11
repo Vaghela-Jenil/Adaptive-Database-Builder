@@ -1,6 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
 // import AnimatedBackground from "@/components/landingPage/AnimatedBackground";
-import DarkNavigation from "@/components/landingPage/DarkNavigation";
 import DarkHero from "@/components/landingPage/DarkHero";
 import DarkFeatures from "@/components/landingPage/DarkFeature";
 import DarkHowItWorks from "@/components/landingPage/DarkHowItWorks";
@@ -11,14 +10,11 @@ import DarkTrust from "@/components/landingPage/DarkTrust";
 import DarkTestimonials from "@/components/landingPage/DarkTestimonials";
 import DarkFAQ from "@/components/landingPage/DarkFAQ";
 import DarkCTA from "@/components/landingPage/DarkCTA";
-import DarkFooter from "@/components/landingPage/DarkFooter";
 
 export default function LandingPage() {
+
   return (
-    <div className="w-fu min-h-screen bg-slate-950 relative">
-      {/* <AnimatedBackground /> */}
       <div className="relative z-10">
-        <DarkNavigation />
         <DarkHero/>
         <DarkFeatures />
         <DarkHowItWorks />
@@ -29,9 +25,6 @@ export default function LandingPage() {
         <DarkTestimonials />
         <DarkFAQ />
         <DarkCTA />
-        <DarkFooter />
       </div>
-      <Toaster />
-    </div>
   );
 }

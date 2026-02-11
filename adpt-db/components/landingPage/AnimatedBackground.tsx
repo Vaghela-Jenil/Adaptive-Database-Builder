@@ -38,7 +38,7 @@ export default function AnimatedBackground() {
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
       {/* Gradient orbs with parallax */}
       <motion.div
-        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-3xl"
+        className="absolute top-1/4 left-1/4 w-125 h-125 bg-cyan-500/20 rounded-full blur-3xl"
         animate={{
           x: mousePosition.x * 50,
           y: mousePosition.y * 50,
@@ -52,7 +52,7 @@ export default function AnimatedBackground() {
       />
       
       <motion.div
-        className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-3xl"
+        className="absolute bottom-1/4 right-1/4 w-150 h-150 bg-blue-600/20 rounded-full blur-3xl"
         animate={{
           x: mousePosition.x * -40,
           y: mousePosition.y * -40,
@@ -95,7 +95,7 @@ export default function AnimatedBackground() {
       {dataNodes.map((node) => (
         <motion.div
           key={node.id}
-          className="absolute rounded-full bg-gradient-to-br from-cyan-500/30 to-blue-600/30 backdrop-blur-sm"
+          className="absolute rounded-full bg-linear-to-br from-cyan-500/30 to-blue-600/30 backdrop-blur-sm"
           style={{
             width: node.size,
             height: node.size,
@@ -118,7 +118,7 @@ export default function AnimatedBackground() {
       {/* Grid lines with perspective */}
       <div className="absolute inset-0" style={{ perspective: '1000px' }}>
         <motion.div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#0ea5e9_1px,transparent_1px),linear-gradient(to_bottom,#0ea5e9_1px,transparent_1px)] bg-[size:100px_100px] opacity-5"
+          className="absolute inset-0 bg-[linear-gradient(to_right,#0ea5e9_1px,transparent_1px),linear-gradient(to_bottom,#0ea5e9_1px,transparent_1px)] bg-size-[100px_100px] opacity-5"
           animate={{
             rotateX: [0, 10, 0],
             y: [0, -50, 0],

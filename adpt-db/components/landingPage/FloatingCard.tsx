@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconType } from "react-icons";
+import { LucideIcon } from "lucide-react";
 
 interface FloatingCard {
   label: string;
   description: string;
   features: string[];
-  icon: IconType;
+  icon: LucideIcon;
   color: string;
   delay: number;
 }
@@ -44,7 +44,7 @@ export default function RotatingGrid({
   return (
     <section className="relative py-16 flex justify-center">
       <div
-        className="relative w-[500px] h-[500px]"
+        className="relative w-125 h-125"
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: `${gap}px` }}
       >
         {floatingCards.map((card, index) => {
@@ -83,14 +83,14 @@ export default function RotatingGrid({
                 >
                   {/* Hover Glow */}
                   <div
-                    className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 ${
+                    className={`absolute inset-0 bg-linear-to-br ${card.color} opacity-0 ${
                       isActive ? "opacity-10" : ""
                     } rounded-2xl transition-opacity duration-300 pointer-events-none`}
                   />
 
                   <div className="p-6">
                     <div
-                      className={`w-12 h-12 bg-gradient-to-br ${card.color} rounded-xl flex items-center justify-center mb-3`}
+                      className={`w-12 h-12 bg-linear-to-br ${card.color} rounded-xl flex items-center justify-center mb-3`}
                     >
                       <Icon className="w-6 h-6 text-white" />
                     </div>
@@ -120,7 +120,7 @@ export default function RotatingGrid({
                             className="flex items-center gap-2 text-slate-400 text-xs"
                           >
                             <div
-                              className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${card.color}`}
+                              className={`w-1.5 h-1.5 rounded-full bg-linear-to-r ${card.color}`}
                             />
                             {feature}
                           </div>
@@ -132,7 +132,7 @@ export default function RotatingGrid({
 
                 {/* Outer Glow */}
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-20 blur-xl rounded-2xl -z-10 pointer-events-none`}
+                  className={`absolute inset-0 bg-linear-to-br ${card.color} opacity-20 blur-xl rounded-2xl -z-10 pointer-events-none`}
                 />
               </motion.div>
             </motion.div>

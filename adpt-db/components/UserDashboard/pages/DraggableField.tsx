@@ -31,7 +31,7 @@ export default function DraggableField({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    gridColumn: `span ${field.span}`,
+    gridColumn: `span ${Math.min(field.span, 3)}`,
     opacity: isDragging ? 0.6 : 1,
   };
 
