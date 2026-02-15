@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { UserButton } from "@clerk/nextjs";
 
 export default function DashboardSidebar({ activePage, setActivePage, isSidebarOpen } : { activePage: string; setActivePage: (page: string) => void; isSidebarOpen: boolean; }) {
   const { currentTheme } = useTheme();
@@ -22,7 +23,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     },
     {
       id: "database",
-      label: "My Databases",
+      label: "Databases",
       icon: Database,
     },
     {
@@ -82,7 +83,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             </div>
             <div>
               <h2 className="font-semibold" style={{ color: currentTheme.text }}>
-                My Digital Records
+                Sysnera
               </h2>
               <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
                 Enterprise Edition
@@ -135,15 +136,6 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                   color: currentTheme.textSecondary,
                 }}
               >
-                <Database className="w-4 h-4" />
-                <span className="text-sm">My Databases</span>
-              </button>
-              <button
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
-                style={{
-                  color: currentTheme.textSecondary,
-                }}
-              >
                 <FolderLock className="w-4 h-4" />
                 <span className="text-sm">Secure Folders</span>
               </button>
@@ -189,18 +181,13 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             }}
           >
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: currentTheme.primary }}
-              >
-                <span className="text-white font-semibold text-sm">JD</span>
-              </div>
+                <UserButton/>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: currentTheme.text }}>
-                  John Doe
+                  Vaghela Jenil
                 </p>
                 <p className="text-xs truncate" style={{ color: currentTheme.textSecondary }}>
-                  john@company.com
+                  jenilvaghela@gmail.com
                 </p>
               </div>
             </div>

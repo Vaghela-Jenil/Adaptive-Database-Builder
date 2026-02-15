@@ -1,5 +1,5 @@
 import { FieldTemplate } from "./types";
-import { ArrowLeftRight, Calendar, CalendarHeart, Check, CheckCheck, Clipboard, Clock, DoorClosedLocked, FileUp, Link, ListOrderedIcon, Lock, Mail, Phone, Radio, SeparatorHorizontalIcon, SlidersHorizontal, Star, Tag, TextAlignJustify, TextInitial, TextSelect, ToggleLeft } from "lucide-react";
+import { ArrowLeftRight, CalendarHeart, Check, CheckCheck, Clipboard, Clock, DoorClosedLocked, FileUp, Link, ListOrderedIcon, Lock, Mail, Phone, Radio, SeparatorHorizontalIcon, SlidersHorizontal, Star, Tag, TextAlignJustify, TextInitial, TextSelect, ToggleLeft } from "lucide-react";
 
 export const fieldTemplates: FieldTemplate[] = [
   // DISPLAY ELEMENTS
@@ -378,8 +378,8 @@ export const fieldTemplates: FieldTemplate[] = [
 
   // FILE UPLOAD
   {
-    id: 'file-upload',
-    type: 'file',
+    id: 'file',
+    type: 'file-upload',
     label: 'File Upload',
     category: 'field',
     icon: FileUp,

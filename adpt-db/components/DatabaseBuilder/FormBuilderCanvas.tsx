@@ -14,14 +14,14 @@ type Props = {
   fields: FieldAttributes[];
   onFieldEdit: (field: FieldAttributes) => void;
   onFieldDelete: (id: string) => void;
-  onFieldUpdate: (field: FieldAttributes) => void;
+  // onFieldUpdate: (field: FieldAttributes) => void;
 };
 
 export default function FormBuilderCanvas({
   fields,
   onFieldEdit,
   onFieldDelete,
-  onFieldUpdate
+  // onFieldUpdate
 }: Props) {
   const { currentTheme } = useTheme();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });

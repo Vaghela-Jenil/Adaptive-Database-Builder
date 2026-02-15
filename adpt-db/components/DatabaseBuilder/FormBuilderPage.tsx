@@ -11,8 +11,8 @@ import {
   PointerSensor,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable'; // ✅ REQUIRED
-import { Card } from '../../ui/card';
-import { Button } from '../../ui/button';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
 import FormBuilderSidebar from './FormBuilderSidebar';
 import FormBuilderCanvas from './FormBuilderCanvas';
 import EditFieldPanel from './EditFieldPanel';
@@ -138,10 +138,6 @@ export default function FormBuilderPage({
   }
 
   async function handleCreateDatabase(name: string) {
-    await axios.post("/api/form", {
-      formName: 'myForm',
-      fields: canvasFields, // your drag-drop JSON
-    }),
       onSaveDatabase(name, canvasFields);
     setCanvasFields([]);
     localStorage.removeItem(STORAGE_KEY);
@@ -263,7 +259,7 @@ export default function FormBuilderPage({
             {!previewMode ? (
               <FormBuilderCanvas
                 fields={canvasFields}
-                onFieldUpdate={handleFieldUpdate}
+                // onFieldUpdate={handleFieldUpdate}
                 onFieldEdit={setEditingField}
                 onFieldDelete={handleDelete}
               />

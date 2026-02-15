@@ -1,7 +1,7 @@
 'use client';
 
-import { Card } from '../../ui/card';
-import { Button } from '../../ui/button';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
 import { X, Download, Copy, Check } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { FieldAttributes } from './types';

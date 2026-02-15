@@ -3,7 +3,6 @@ import {
   Search,
   Bell,
   Plus,
-  Settings,
   HelpCircle,
   Menu,
   X,
@@ -12,6 +11,7 @@ import { Button } from "../ui/button";
 import { useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
+import { UserButton } from "@clerk/nextjs";
 
 export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { isSidebarOpen: boolean; setIsSidebarOpen: (open: boolean) => void; }) {
   const [notifications] = useState(3);
@@ -66,8 +66,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { 
           <Button
             size="sm"
             className="text-white border-0"
-            style={{ backgroundColor: currentTheme.primary }}
-          >
+            style={{ backgroundColor: currentTheme.primary }}          >
             <Plus className="w-4 h-4 mr-2" />
             New Record
           </Button>
@@ -124,18 +123,13 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { 
               border: `1px solid ${currentTheme.border}`,
             }}
           >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: currentTheme.primary }}
-            >
-              <span className="text-white font-semibold text-xs">JD</span>
-            </div>
+              <UserButton/>
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium" style={{ color: currentTheme.text }}>
-                John Doe
+               Vaghela Jenil
               </p>
               <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                Admin
+                User
               </p>
             </div>
           </motion.button>

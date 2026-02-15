@@ -10,7 +10,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useClerk } from '@clerk/clerk-react'
+import { useClerk, UserAvatar } from '@clerk/clerk-react'
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 import UserManagement from "./pages/UserManagement";
@@ -167,17 +167,17 @@ export default function AdminLayout() {
             <NavbarThemeSwitcher />
             <div className="text-right">
               <p className="font-medium" style={{ color: currentTheme.text }}>
-                Admin User
+                Vaghela Jenil
               </p>
               <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                admin@system.com
+                jenilvaghela9008@gmail.com
               </p>
             </div>
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: currentTheme.primary }}
+              // style={{ backgroundColor: currentTheme.primary }}
             >
-              <span className="text-white font-semibold">A</span>
+              <UserAvatar/>
             </div>
           </div>
         </header>

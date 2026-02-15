@@ -331,7 +331,7 @@ export default function EditFieldPanel({ open, field, onClose, onSave }: Props) 
           )}
 
           {/* File Upload Accept */}
-          {editedField.type === 'file' && (
+          {editedField.type === 'file-upload' && (
             <>
               <div>
                 <Label style={{ color: currentTheme.text }}>Accept File Types</Label>

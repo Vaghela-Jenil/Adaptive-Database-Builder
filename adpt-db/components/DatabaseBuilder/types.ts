@@ -24,13 +24,14 @@ export type FieldType =
   | 'toggle'
   | 'radio'
   | 'slider'
-  | 'file'
+  | 'file-upload'
   | 'rating';
 
 export type FieldAttributes = {
   id: string;
   label: string;
   span: number;
+  type: FieldType;
   position?: { x: number; y: number };
   placeholder?: string;
   required?: boolean;

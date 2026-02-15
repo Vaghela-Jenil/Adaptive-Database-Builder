@@ -15,14 +15,24 @@ import { useState } from "react";
 import { Card } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
+import { FieldAttributes } from "../../DatabaseBuilder/types";
 
 type DatabaseFolder = {
   id: string;
   name: string;
-  formSchema: any;
+  formSchema: FieldAttributes[];
   createdAt: string;
   hasPassword: boolean;
+  password?: string;
   recordCount: number;
+  records: DatabaseRecord[];
+};
+
+type DatabaseRecord = {
+  id: string;
+  data: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type DatabasePageProps = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Card } from '../../ui/card';
+import { Card } from '../ui/card';
 import { useDraggable } from '@dnd-kit/core';
 import { fieldTemplates } from './fieldTemplates';
 import { useTheme } from '@/context/ThemeContext';

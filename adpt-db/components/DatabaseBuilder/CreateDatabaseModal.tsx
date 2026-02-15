@@ -1,9 +1,9 @@
 'use client';
 
-import { Card } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { X, Database as DatabaseIcon } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useState } from 'react';

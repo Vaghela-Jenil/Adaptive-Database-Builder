@@ -1,6 +1,6 @@
 import CreateUserOnSignIn from "@/components/CreateUserOnSignIn";
 import { requireAuth } from "@/lib/auth";
-import DashboardLayout from "@/components/UserDashboard/DashboardLayout";
+import DashboardLayout from "@/components/DatabaseBuilder/DashboardLayout";
 
 
 
