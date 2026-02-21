@@ -14,11 +14,16 @@ export default function CreateUserOnSignIn() {
 
     calledRef.current = true;
 
-    axios.post("/api/auth/create-user")
-      .then((response) => {
-        // const { message, user_id, status } = response.data;
-        console.log("Create user response:", response.data);
-      }).catch(err => console.error("Create user failed", err));
+    async function createUser() {
+      try {
+        const res = await axios.post("/api/auth/verify-user");
+        console.log("Create user response:", res.data);
+      } catch (err) {
+        console.error("Create user failed", err);
+      }
+    }
+
+    createUser();
   }, [isLoaded, isSignedIn, user?.id]);
 
   return null;

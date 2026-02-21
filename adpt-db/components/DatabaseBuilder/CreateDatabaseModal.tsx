@@ -12,10 +12,11 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onSave: (name: string) => void;
+  onUpdate: (name: string) => void;
   editingName?: string;
 };
 
-export default function CreateDatabaseModal({ open, onClose, onSave, editingName }: Props) {
+export default function CreateDatabaseModal({ open, onClose, onSave, editingName, onUpdate }: Props) {
   const { currentTheme } = useTheme();
   const [name, setName] = useState(editingName || '');
   const [error, setError] = useState('');
@@ -36,6 +37,10 @@ export default function CreateDatabaseModal({ open, onClose, onSave, editingName
     onSave(name.trim());
     setName('');
     setError('');
+  };
+
+  const handleUpdate = () => {
+    onUpdate(name.trim());
   };
 
   return (
@@ -95,8 +100,9 @@ export default function CreateDatabaseModal({ open, onClose, onSave, editingName
                 border: `1px solid ${currentTheme.border}`,
                 color: currentTheme.text,
               }}
-              autoFocus
+              autoFocus={!editingName}
               onKeyPress={(e) => e.key === 'Enter' && handleSave()}
+              readOnly={!!editingName}
             />
             {error && (
               <p className="text-sm mt-2" style={{ color: '#ef4444' }}>
@@ -137,17 +143,33 @@ export default function CreateDatabaseModal({ open, onClose, onSave, editingName
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!name.trim()}
-            style={{
-              backgroundColor: currentTheme.primary,
-              color: '#ffffff',
-              opacity: !name.trim() ? 0.5 : 1,
-            }}
-          >
-            {editingName ? 'Update Database' : 'Create Database'}
-          </Button>
+          {
+            !editingName ? (
+              <Button
+                onClick={handleSave}
+                disabled={!name.trim()}
+                style={{
+                  backgroundColor: currentTheme.primary,
+                  color: '#ffffff',
+                  opacity: !name.trim() ? 0.5 : 1,
+                }}
+              >
+                Create Database
+              </Button>
+            ) : (
+              <Button
+                onClick={handleUpdate}
+                disabled={!name.trim()}
+                style={{
+                  backgroundColor: currentTheme.primary,
+                  color: '#ffffff',
+                  opacity: !name.trim() ? 0.5 : 1,
+                }}
+              >
+              Update Database
+              </Button>
+            )
+          }
         </div>
       </Card>
     </div>

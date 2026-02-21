@@ -62,3 +62,35 @@ export type FieldTemplate = {
   defaultSpan: number;
   defaultAttributes: Partial<FieldAttributes>;
 };
+
+
+
+export type DatabaseRecord = {
+  id: string;
+  data: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DatabaseFolder = {
+  _id: string;
+  DatabaseName: string;
+  formSchema: FieldAttributes[];
+  createdAt: string;
+  updatedAt: string;
+  hasPassword: boolean;
+  password?: string;
+  recordCount: number;
+  records: DatabaseRecord[];
+};
+
+export type UserType = {
+    clerkId: { type: String, required: true, unique: true },
+    email: { type: String, required: true },
+    userName: String ,
+    role: { type: String, enum: ["admin", "user"], default: "user" },
+    userImage: { type: String, default: null },
+    password: { type: String, default: null },
+    phonenumber:String 
+} | null;
+ 

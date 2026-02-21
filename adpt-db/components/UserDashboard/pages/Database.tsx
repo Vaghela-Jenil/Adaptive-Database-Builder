@@ -9,56 +9,142 @@ import {
   MoreVertical,
   FolderOpen,
   Search,
+  EyeOff
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { FieldAttributes } from "../../DatabaseBuilder/types";
-
-type DatabaseFolder = {
-  id: string;
-  name: string;
-  formSchema: FieldAttributes[];
-  createdAt: string;
-  hasPassword: boolean;
-  password?: string;
-  recordCount: number;
-  records: DatabaseRecord[];
-};
-
-type DatabaseRecord = {
-  id: string;
-  data: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-};
+import { DatabaseFolder } from "../../DatabaseBuilder/types";
+import axios from "axios";
 
 type DatabasePageProps = {
-  onCreateNew: () => void;
-  onEditForm: (database: DatabaseFolder) => void;
+  onChangePage: (changePage: string) => void;
+  onEditDatabase: (database: DatabaseFolder) => void;
   onViewDatabase: (database: DatabaseFolder) => void;
-  databases: DatabaseFolder[];
-  onDeleteDatabase: (id: string) => void;
-  onSetPassword: (id: string) => void;
 };
 
 export default function Database({
-  onCreateNew,
-  onEditForm,
+  onChangePage,
+  onEditDatabase,
   onViewDatabase,
-  databases,
-  onDeleteDatabase,
-  onSetPassword,
 }: DatabasePageProps) {
   const { currentTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [databases, setDatabases] = useState<DatabaseFolder[]>([]);
+  const [passwordModal, setPasswordModal] = useState<{
+    databaseId: string;
+    action: string;
+  } | null>(null);
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [passwordError, setPasswordError] = useState<string>("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const filteredDatabases = databases.filter((db) =>
-    db.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDatabases: DatabaseFolder[] = databases.filter((db) =>
+    db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleEditDatabase = async (id: string) => {
+    try {
+      const verify = await axios.post(`/api/databases/${id}/verify`, {
+        password: passwordInput,
+      });
+
+      if (verify.data.verified) {
+        onEditDatabase(databases.find((db) => db._id === id)!);
+        setPasswordInput("");
+        setPasswordModal(null);
+      } else {
+        setPasswordError("Incorrect password");
+      }
+    } catch (err) {
+      alert("Access failed");
+    }
+  };
+
+  const handleDeleteDatabase = async (id: string) => {
+    try {
+      const res = await axios.post(`/api/databases/${id}/verify`, {
+        password: passwordInput,
+      });
+      if (!res.data.verified) {
+        setPasswordError("Incorrect password");
+        return;
+      }
+      await axios.delete(`/api/databases/${id}`);
+      setPasswordInput("");
+      setPasswordModal(null);
+      fetchDatabases();
+    } catch (err) {
+      throw new Error("Failed to delete database");
+    }
+  };
+
+  const handleSetPassword = async (id: string) => {
+    const password = prompt("Enter password for this database:");
+    if (password) {
+      await axios.post(`/api/databases/${id}/set-password`, { password });
+    }
+  };
+
+  const handleViewDatabase = async (id: string) => {
+    try {
+      console.log(passwordInput);
+      const verify = await axios.post(`/api/databases/${id}/verify`, {
+        password: passwordInput,
+      });
+
+      if (verify.data.verified) {
+        onViewDatabase(databases.find((db) => db._id === id)!);
+        setPasswordInput("");
+        setPasswordModal(null);
+      } else {
+        setPasswordError("Incorrect password!");
+      }
+    } catch (err) {
+      alert("Access failed");
+    }
+  };
+
+  const handleVerifyDatabase = async (id: string, func: string) => {
+    try {
+      const res = await axios.post(`/api/databases/${id}/verify`, {
+        password: "",
+      });
+      if (!res.data.hasPassword) {
+        if (func === "view") {
+          onViewDatabase(databases.find((db) => db._id === id)!);
+        } else if (func === "edit") {
+          onEditDatabase(databases.find((db) => db._id === id)!);
+        } else if (func === "delete") {
+          await axios.delete(`/api/databases/${id}`);
+          fetchDatabases();
+        }
+      } else {
+        setPasswordModal({ databaseId: id, action: func });
+      }
+    } catch (err) {
+      throw new Error("Failed to verify database");
+    }
+  };
+
+  const fetchDatabases = async () => {
+    try {
+      const res = await axios.get("/api/databases");
+      const data = res.data;
+      setDatabases(data.databases);
+      console.log("Fetched databases:", data.databases);
+    } catch (err) {
+      throw new Error("Failed to fetch databases");
+    }
+  }
+
+  useEffect(() => {
+    fetchDatabases();
+  }, []);
+
 
   return (
     <div className="p-8">
@@ -77,7 +163,7 @@ export default function Database({
         </div>
 
         <Button
-          onClick={onCreateNew}
+          onClick={() => onChangePage("form-builder")}
           className="flex items-center gap-2"
           style={{
             backgroundColor: currentTheme.primary,
@@ -132,7 +218,7 @@ export default function Database({
           </p>
           {!searchQuery && (
             <Button
-              onClick={onCreateNew}
+              onClick={() => onChangePage("form-builder")}
               style={{
                 backgroundColor: currentTheme.primary,
                 color: "#ffffff",
@@ -144,10 +230,10 @@ export default function Database({
           )}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {filteredDatabases.map((database) => (
             <motion.div
-              key={database.id}
+              key={database._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               whileHover={{ y: -4 }}
@@ -158,24 +244,24 @@ export default function Database({
                   backgroundColor: currentTheme.surface,
                   border: `1px solid ${currentTheme.border}`,
                 }}
-                onClick={() => onViewDatabase(database)}
+                onClick={() => handleVerifyDatabase(database._id, 'view')}
               >
                 {/* Header with icon and menu */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-2">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
                     style={{ backgroundColor: currentTheme.primary }}
                   >
-                    <DatabaseIcon className="w-6 h-6 text-white" />
+                    <DatabaseIcon className="w-4 h-4 text-white" />
                   </div>
 
                   <div className="relative">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveMenu(activeMenu === database.id ? null : database.id);
+                        setActiveMenu(activeMenu === database._id ? null : database._id);
                       }}
-                      className="p-2 rounded-lg hover:scale-110 transition-all"
+                      className="p-1 rounded-lg hover:scale-110 transition-all"
                       style={{
                         backgroundColor: currentTheme.background,
                         border: `1px solid ${currentTheme.border}`,
@@ -184,7 +270,7 @@ export default function Database({
                       <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
                     </button>
 
-                    {activeMenu === database.id && (
+                    {activeMenu === database._id && (
                       <div
                         className="absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-10 py-2"
                         style={{
@@ -195,7 +281,7 @@ export default function Database({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onViewDatabase(database);
+                            handleVerifyDatabase(database._id, 'view');
                             setActiveMenu(null);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2 hover:bg-opacity-50"
@@ -207,7 +293,7 @@ export default function Database({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onEditForm(database);
+                            handleVerifyDatabase(database._id, 'edit');
                             setActiveMenu(null);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2"
@@ -219,7 +305,7 @@ export default function Database({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onSetPassword(database.id);
+                            handleSetPassword(database._id);
                             setActiveMenu(null);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2"
@@ -235,9 +321,7 @@ export default function Database({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`Delete "${database.name}"?`)) {
-                              onDeleteDatabase(database.id);
-                            }
+                            handleVerifyDatabase(database._id, 'delete');
                             setActiveMenu(null);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2"
@@ -253,11 +337,11 @@ export default function Database({
 
                 {/* Database Name */}
                 <h3 className="text-xl font-bold mb-2" style={{ color: currentTheme.text }}>
-                  {database.name}
+                  {database.DatabaseName}
                 </h3>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-4 mb-2">
                   <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
                     {database.recordCount} records
                   </span>
@@ -272,12 +356,95 @@ export default function Database({
                 </div>
 
                 {/* Created Date */}
-                <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                  Created {new Date(database.createdAt).toLocaleDateString()}
-                </p>
+                <div className="flex justify-between">
+                  <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                    Created {new Date(database.createdAt).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                    Updated {new Date(database.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
               </Card>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {passwordModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div
+            className="w-95 rounded-2xl p-6 shadow-2xl"
+            style={{
+              backgroundColor: currentTheme.surface,
+              border: `1px solid ${currentTheme.border}`,
+            }}
+          >
+            <h2 className="text-lg font-semibold mb-4">
+              Enter Database Password
+            </h2>
+
+            <div className="relative mb-3">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full px-3 py-2 pr-10 rounded-lg outline-none transition"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                  color: currentTheme.text,
+                }}
+                placeholder="Enter password"
+                autoFocus
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
+                style={{ color: currentTheme.textSecondary }}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+
+            {passwordError && (
+              <p className="text-red-500 text-sm mb-3">{passwordError}</p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setPasswordModal(null);
+                  setPasswordInput("");
+                  setPasswordError("");
+                  setShowPassword(false);
+                }}
+                className="px-4 py-2 rounded-lg"
+                style={{ border: `1px solid ${currentTheme.border}` }}
+              >
+                Cancel
+              </button>
+
+              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+                onClick={() => {
+                  if (passwordModal.action === "view") {
+                    handleViewDatabase(passwordModal.databaseId);
+                  } else if (passwordModal.action === "edit") {
+                    handleEditDatabase(passwordModal.databaseId);
+                  } else if (passwordModal.action === "delete") {
+                    handleDeleteDatabase(passwordModal.databaseId);
+                  }
+                }}
+              >
+                {passwordModal.action} Database
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

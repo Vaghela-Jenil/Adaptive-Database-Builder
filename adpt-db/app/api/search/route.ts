@@ -18,10 +18,17 @@ export async function GET(request: Request) {
   const radius = Number(searchParams.get("radius") ?? "1000");
   const limit = Number(searchParams.get("limit") ?? "10");
   const sort = searchParams.get("sort") ?? "RELEVANCE";
+  const open_now = searchParams.get("open_now");
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return NextResponse.json(
       { error: "Invalid latitude/longitude" },
+      { status: 400 }
+    );
+  }
+  if (open_now !== null && open_now !== "true" && open_now !== "false") {
+    return NextResponse.json(
+      { error: "open_now must be 'true' or 'false'" },
       { status: 400 }
     );
   }
@@ -32,6 +39,9 @@ export async function GET(request: Request) {
   url.searchParams.set("radius", `${radius}`);
   url.searchParams.set("limit", `${limit}`);
   url.searchParams.set("sort", sort);
+  if (open_now !== null) {
+    url.searchParams.set("open_now", open_now);
+  }
 
   try {
     const res = await fetch(url, {

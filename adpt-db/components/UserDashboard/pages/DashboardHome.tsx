@@ -10,9 +10,13 @@ import {
   Star,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { useContext } from "react";
+import { useUserContext } from "@/context/userContext";
 
 export default function DashboardHome() {
   const { currentTheme } = useTheme();
+  const { user } = useUserContext();
+
 
   const stats = [
     {
@@ -80,7 +84,8 @@ export default function DashboardHome() {
   ];
 
   return (
-    <div className="p-8 space-y-8">
+    <div>
+      <div className="p-8 space-y-8">
       {/* Header */}
       <div>
         <motion.h1
@@ -89,7 +94,7 @@ export default function DashboardHome() {
           className="text-3xl font-bold mb-2"
           style={{ color: currentTheme.text }}
         >
-          Welcome back, John 👋
+          Welcome back, {user?.userName} 👋
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: -20 }}
@@ -248,6 +253,7 @@ export default function DashboardHome() {
           ))}
         </div>
       </motion.div>
+    </div>
     </div>
   );
 }

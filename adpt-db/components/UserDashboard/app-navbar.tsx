@@ -4,18 +4,27 @@ import {
   Bell,
   Plus,
   HelpCircle,
-  Menu,
-  X,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelLeft,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { useState } from "react";
+import { useContext, useState, useMemo, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 import { UserButton } from "@clerk/nextjs";
+import { UserContext } from "@/context/userContext";
 
-export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { isSidebarOpen: boolean; setIsSidebarOpen: (open: boolean) => void; }) {
-  const [notifications] = useState(3);
+type NavBarProps = {
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+  onChange: () => void;
+};
+
+export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onChange }: NavBarProps) {
+  const [notifications, setNotifications] = useState(3);
   const { currentTheme } = useTheme();
+  const { user } = useContext<any>(UserContext);
 
   return (
     <motion.header
@@ -40,9 +49,9 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { 
             }}
           >
             {isSidebarOpen ? (
-              <X className="w-5 h-5" style={{ color: currentTheme.text }} />
+              <PanelLeftClose className="w-5 h-5" style={{ color: currentTheme.text }} />
             ) : (
-              <Menu className="w-5 h-5" style={{ color: currentTheme.text }} />
+              <PanelLeft className="w-5 h-5" style={{ color: currentTheme.text }} />
             )}
           </button>
 
@@ -53,7 +62,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { 
             />
             <input
               type="text"
-              placeholder="Search databases, records, folders..."
+              placeholder="Search pages..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl outline-none transition-all"
               style={{
                 backgroundColor: currentTheme.background,
@@ -66,9 +75,10 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { 
           <Button
             size="sm"
             className="text-white border-0"
+            onClick={onChange}
             style={{ backgroundColor: currentTheme.primary }}          >
             <Plus className="w-4 h-4 mr-2" />
-            New Record
+            New Database
           </Button>
         </div>
 
@@ -123,13 +133,13 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen } : { 
               border: `1px solid ${currentTheme.border}`,
             }}
           >
-              <UserButton/>
+            <UserButton />
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium" style={{ color: currentTheme.text }}>
-               Vaghela Jenil
+                {user && user?.userName}
               </p>
               <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                User
+                {user && user.role}
               </p>
             </div>
           </motion.button>

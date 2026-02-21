@@ -1,8 +1,5 @@
 import mongoose, { Schema, model, models } from "mongoose";
 
-// -----------------------------
-// Field schema (drag-drop items)
-// -----------------------------
 const FieldSchema = new Schema(
   {
     id: { type: String, required: true },
@@ -12,8 +9,8 @@ const FieldSchema = new Schema(
     span: { type: Number, required: true },
 
     position: {
-      x: { type: Number },
-      y: { type: Number },
+      x: Number,
+      y: Number,
     },
 
     placeholder: String,
@@ -40,24 +37,41 @@ const FieldSchema = new Schema(
 
     showLabel: { type: Boolean, default: true },
   },
-  { _id: false } // important: prevents Mongo from auto-adding _id to each field
+  { _id: false }
 );
 
-// -----------------------------
-// Form schema
-// -----------------------------
-const FormSchema = new Schema(
+const RecordSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    data: { type: Schema.Types.Mixed, required: true },
+    createdAt: String,
+    updatedAt: String,
+  },
+  { _id: false }
+);
+
+const DatabaseSchema = new Schema(
   {
     clerkId: { type: String, required: true, index: true },
-    formName: { type: String, required: true },
 
-    fields: {
+    DatabaseName: { type: String, required: true },
+
+    formSchema: {
       type: [FieldSchema],
+      default: [],
+    },
+
+    hasPassword: { type: Boolean, default: false },
+    password: {type : String, default: ""},
+    recordCount: { type: Number, default: 0 },
+
+    records: {
+      type: [RecordSchema],
       default: [],
     },
   },
   { timestamps: true }
 );
 
-export const FormModel =
-  models.Form || model("Form", FormSchema);
+export const DatabaseModel =
+  models.Database || model("Database", DatabaseSchema);

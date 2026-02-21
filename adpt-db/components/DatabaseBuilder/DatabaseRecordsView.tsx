@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import {
   Plus,
-  MessageSquare,
   Search,
   Filter,
   Download,
@@ -10,41 +9,30 @@ import {
   Check,
   Calendar,
   ChevronLeft,
+  BotMessageSquare,
+  Trash2,
+  FileSpreadsheet, // Added for Import UI
+  Upload           // Added for Import UI
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card } from "../ui/card";
-import { FieldAttributes } from "./types";
+import { DatabaseFolder, FieldAttributes } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import ControlledFieldPreview from "./ControlledFieldPreview";
-
-type DatabaseRecord = {
-  id: string;
-  data: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-};
+import { DatabaseRecord } from "./types";
+import axios from "axios";
+import { buildZodSchema } from "@/lib/validateRecord";
+import { Checkbox } from "../ui/checkbox";
 
 type DatabaseRecordsViewProps = {
-  databaseId: string;
-  databaseName: string;
-  formSchema: FieldAttributes[];
-  records: DatabaseRecord[];
-  onAddRecord: (data: Record<string, any>) => void;
-  onUpdateRecord: (id: string, data: Record<string, any>) => void;
-  onDeleteRecord: (id: string) => void;
+  currentDatabase: DatabaseFolder | null;
   onOpenChatbot: () => void;
   onBack: () => void;
 };
 
 export default function DatabaseRecordsView({
-  databaseId,
-  databaseName,
-  formSchema,
-  records,
-  onAddRecord,
-  onUpdateRecord,
-  onDeleteRecord,
+  currentDatabase,
   onOpenChatbot,
   onBack,
 }: DatabaseRecordsViewProps) {
@@ -55,11 +43,20 @@ export default function DatabaseRecordsView({
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [records, setRecords] = useState<DatabaseRecord[]>(currentDatabase ? currentDatabase.records : []);
+  const formSchema = useMemo(() => currentDatabase ? currentDatabase.formSchema : [], [currentDatabase]);
+  const [formErrors, setFormErrors] = useState<Record<string, string> | {}>({});
+  const [deleteRecords, setDeleteRecords] = useState<string[]>([]);
+  const [bulkDelete, setBulkDelete] = useState<Boolean>(false);
 
-  // Filter records based on search query and date filter
+  // --- New States for Import ---
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importPreviewCount, setImportPreviewCount] = useState<number>(0);
+const [importData, setImportData] = useState<any[]>([]);
+
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
-      // Search filter
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
         const matchesSearch = Object.values(record.data).some((value) =>
@@ -67,8 +64,6 @@ export default function DatabaseRecordsView({
         );
         if (!matchesSearch) return false;
       }
-
-      // Date filter
       if (dateFilter) {
         const recordDate = new Date(record.createdAt).toISOString().split("T")[0];
         if (recordDate !== dateFilter) return false;
@@ -78,7 +73,7 @@ export default function DatabaseRecordsView({
     });
   }, [records, searchQuery, dateFilter]);
 
-  // Get data fields (exclude display-only fields)
+
   const dataFields = formSchema.filter(
     (field) => field.type !== "text" && field.type !== "separator"
   );
@@ -95,12 +90,35 @@ export default function DatabaseRecordsView({
     setShowForm(true);
   };
 
+
   const handleSaveForm = () => {
-    if (editingRecord) {
-      onUpdateRecord(editingRecord.id, formData);
-    } else {
-      onAddRecord(formData);
+    if (!currentDatabase) return;
+
+    const schema = buildZodSchema(formSchema);
+    const result = schema.safeParse(formData);
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+
+      result.error.issues.forEach((issue) => {
+        const fieldKey = issue.path[0] as string;
+        if (fieldKey && !errors[fieldKey]) {
+          errors[fieldKey] = issue.message;
+        }
+      });
+
+      setFormErrors(errors);
+      return;
     }
+
+    setFormErrors({});
+
+    if (editingRecord) {
+      handleUpdateRecord(currentDatabase._id, editingRecord.id, formData);
+    } else {
+      handleAddRecord(currentDatabase._id, formData);
+    }
+
     setShowForm(false);
     setFormData({});
     setEditingRecord(null);
@@ -110,6 +128,7 @@ export default function DatabaseRecordsView({
     setShowForm(false);
     setFormData({});
     setEditingRecord(null);
+    setFormErrors({});
   };
 
   const handleFieldChange = (fieldId: string, value: any) => {
@@ -123,6 +142,146 @@ export default function DatabaseRecordsView({
   const handleColumnResize = (fieldId: string, newWidth: number) => {
     setColumnWidths((prev) => ({ ...prev, [fieldId]: Math.max(100, newWidth) }));
   };
+
+  const handleAddRecord = async (databaseId: string, data: Record<string, any>) => {
+    try {
+      await axios.post(`/api/databases/${databaseId}/records`, { data });
+      const response = await axios.get(`/api/databases/${databaseId}/records`);
+      setRecords(response.data);
+    } catch (err) {
+      alert("Failed to add record. Please try again.");
+    }
+  };
+
+  const handleDeleteRecord = async (databaseId: string, recordId: string) => {
+    try {
+      await axios.delete(`/api/databases/${databaseId}/records/${recordId}`);
+      const response = await axios.get(`/api/databases/${databaseId}/records`);
+      setRecords(response.data);
+    } catch (err) {
+      alert("Failed to delete record. Please try again.");
+    }
+  };
+
+  const handleSelectDelete = async () => {
+    try {
+      let databaseId = currentDatabase?._id;
+      await axios.delete(
+        `/api/databases/${databaseId}/records`,
+        {
+          data: { ids: deleteRecords },
+        }
+      );
+      const response = await axios.get(
+        `/api/databases/${databaseId}/records`
+      );
+      setRecords(response.data);
+      setDeleteRecords([]);
+      setSearchQuery("");
+      setDateFilter("");
+      setBulkDelete(false);
+    } catch (err) {
+      alert("Failed to delete records.");
+    }
+  };
+
+  const handleDeleteAll = () => {
+    setDeleteRecords(records.map((r) => r.id));
+  }
+
+  const handleChangeBulkDelete = (recordId: string) => {
+    setDeleteRecords((prev) =>
+      prev.includes(recordId)
+        ? prev.filter((id) => id !== recordId)
+        : [...prev, recordId]
+    );
+  };
+
+  useEffect(() => {
+    console.log(deleteRecords);
+  }, [deleteRecords]);
+
+  const handleUpdateRecord = async (databaseId: string, recordId: string, data: Record<string, any>) => {
+    try {
+      await axios.put(`/api/databases/${databaseId}/records/${recordId}`, { data });
+      const response = await axios.get(`/api/databases/${databaseId}/records`);
+      setRecords(response.data);
+    } catch (err) {
+      alert("Failed to update record. Please try again.");
+    }
+  };
+
+  // --- Export Functionality ---
+  const handleExportCSV = () => {
+  const headers = [...dataFields.map(f => f.label), "Created At"].join(",");
+  const rows = filteredRecords.map(r => {
+    const fieldValues = dataFields.map(f => `"${String(r.data[f.id] ?? "")}"`);
+    const createdAt = `"${new Date(r.createdAt).toLocaleDateString()}"`;
+    
+    return [...fieldValues, createdAt].join(",");
+  }).join("\n");
+  
+  const blob = new Blob([`${headers}\n${rows}`], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${currentDatabase?.DatabaseName || 'export'}.csv`;
+  a.click();
+};
+
+  // --- Import Functionality ---
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file || !currentDatabase) return;
+
+  setIsImporting(true);
+  try {
+    const XLSX = await import("xlsx");
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const data = new Uint8Array(event.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+
+      const formattedRecords = jsonRows.map(row => {
+        const recordData: Record<string, any> = {};
+        dataFields.forEach(field => {
+          const excelValue = row[field.label] || row[field.id];
+          if (excelValue !== undefined) recordData[field.id] = excelValue;
+        });
+        return recordData;
+      });
+
+      setImportData(formattedRecords);
+      setImportPreviewCount(formattedRecords.length);
+    };
+    reader.readAsArrayBuffer(file);
+  } catch (err) {
+    alert("Failed to parse file.");
+  } finally {
+    setIsImporting(false);
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (!currentDatabase || importData.length === 0) return;
+  setIsImporting(true);
+  try {
+    await axios.post(`/api/databases/${currentDatabase._id}/records/bulk`, { 
+      records: importData 
+    });
+    const response = await axios.get(`/api/databases/${currentDatabase._id}/records`);
+    setRecords(response.data);
+    setShowImportModal(false);
+    setImportData([]);
+    setImportPreviewCount(0);
+  } catch (err) {
+    alert("Bulk import failed.");
+  } finally {
+    setIsImporting(false);
+  }
+};
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: currentTheme.background }}>
@@ -146,7 +305,7 @@ export default function DatabaseRecordsView({
           </Button>
           <div className="h-6 w-px" style={{ backgroundColor: currentTheme.border }} />
           <h1 className="text-xl font-bold" style={{ color: currentTheme.text }}>
-            {databaseName}
+            {currentDatabase?.DatabaseName || "Database"}
           </h1>
           <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
             {filteredRecords.length} {filteredRecords.length === 1 ? "record" : "records"}
@@ -154,6 +313,26 @@ export default function DatabaseRecordsView({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Export Button */}
+          <Button
+            variant="outline"
+            onClick={handleExportCSV}
+            style={{ borderColor: currentTheme.border, color: currentTheme.text }}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+
+          {/* Import Button */}
+          <Button
+            variant="outline"
+            onClick={() => setShowImportModal(true)}
+            style={{ borderColor: currentTheme.border, color: currentTheme.text }}
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Import
+          </Button>
+
           <Button
             onClick={handleOpenForm}
             style={{
@@ -225,6 +404,73 @@ export default function DatabaseRecordsView({
             Clear Filters
           </Button>
         )}
+
+        {records.length !== 0 ? bulkDelete ?
+          <Button className="rounded-md"
+            onClick={() => {
+              handleSelectDelete();
+              setBulkDelete(false);
+            }}
+            style={{
+              backgroundColor: currentTheme.primary,
+              color: "#ffffff",
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+             Delete multiple 
+          </Button>
+          :
+          <Button className="rounded-md"
+            onClick={() => setBulkDelete(true)}
+            style={{
+              backgroundColor: currentTheme.primary,
+              color: "#ffffff",
+            }}
+          >
+             Select multiple  
+          </Button> : ""
+        }
+
+        {
+          bulkDelete &&
+          <Button
+            onClick={() => {
+              setBulkDelete(false);
+              setDeleteRecords([]);
+            }}
+            style={{
+              backgroundColor: 'red',
+              color: "#ffffff",
+            }}
+          >
+            cancel
+          </Button>
+        }
+
+        {
+          bulkDelete &&
+          <Button
+            onClick={() => {
+              handleDeleteAll();
+            }}
+            style={{
+              backgroundColor: 'red',
+              color: "#ffffff",
+            }}
+          >
+            Select All
+          </Button>
+        }
+
+        <button
+          onClick={onOpenChatbot}
+          className="absolute right-8 w-10 h-10 rounded-lg shadow-xl flex items-center justify-center hover:scale-110 transition-transform z-30"
+          style={{
+            backgroundColor: currentTheme.primary,
+          }}
+        >
+          <BotMessageSquare className="w-6 h-6 text-white" />
+        </button>
       </div>
 
       {/* Main Content */}
@@ -270,7 +516,7 @@ export default function DatabaseRecordsView({
                   {dataFields.map((field) => (
                     <th
                       key={field.id}
-                      className="px-4 py-3 text-left text-sm font-semibold border-b relative group"
+                      className="px-2 py-2 border-b text-sm truncate border border-white relative group hover:border-black "
                       style={{
                         color: currentTheme.text,
                         borderColor: currentTheme.border,
@@ -307,7 +553,7 @@ export default function DatabaseRecordsView({
                     </th>
                   ))}
                   <th
-                    className="px-4 py-3 text-left text-sm font-semibold border-b"
+                    className="px-2 py-2 text-left border-b text-sm truncate border border-white hover:border-black"
                     style={{
                       color: currentTheme.text,
                       borderColor: currentTheme.border,
@@ -337,7 +583,6 @@ export default function DatabaseRecordsView({
                       backgroundColor:
                         index % 2 === 0 ? currentTheme.background : currentTheme.surface,
                     }}
-                    onClick={() => handleEditRecord(record)}
                   >
                     <td
                       className="px-4 py-3 border-b text-sm"
@@ -346,12 +591,22 @@ export default function DatabaseRecordsView({
                         borderColor: currentTheme.border,
                       }}
                     >
-                      {index + 1}
+                      {
+                        bulkDelete ?
+                          <Checkbox
+                            checked={deleteRecords.includes(record.id)}
+                            onCheckedChange={() => handleChangeBulkDelete(record.id)}
+                          />
+                          :
+                          index + 1
+                      }
+
                     </td>
                     {dataFields.map((field) => (
                       <td
                         key={field.id}
-                        className="px-4 py-3 border-b text-sm truncate"
+                        onClick={() => handleEditRecord(record)}
+                        className="px-4 py-3 border-b text-sm truncate border border-white hover:border-black"
                         style={{
                           color: currentTheme.text,
                           borderColor: currentTheme.border,
@@ -361,10 +616,11 @@ export default function DatabaseRecordsView({
                         {record.data[field.id] !== undefined && record.data[field.id] !== null
                           ? String(record.data[field.id])
                           : "-"}
+
                       </td>
                     ))}
                     <td
-                      className="px-4 py-3 border-b text-sm"
+                      className="px-4 py-3 border-b text-sm truncate border border-white hover:border-black"
                       style={{
                         color: currentTheme.textSecondary,
                         borderColor: currentTheme.border,
@@ -384,7 +640,7 @@ export default function DatabaseRecordsView({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm("Delete this record?")) {
-                            onDeleteRecord(record.id);
+                            handleDeleteRecord(currentDatabase?._id || "", record.id);
                           }
                         }}
                         style={{ color: "#ef4444" }}
@@ -399,6 +655,92 @@ export default function DatabaseRecordsView({
           )}
         </div>
 
+        {/* Import Modal Overlay */}
+        {/* Updated Import Modal Overlay */}
+<AnimatePresence>
+  {showImportModal && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-8"
+      onClick={() => {
+        setShowImportModal(false);
+        setImportPreviewCount(0);
+        setImportData([]);
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0.9 }}
+        animate={{ scale: 1 }}
+        className="w-full max-w-2xl p-8 rounded-2xl shadow-2xl"
+        style={{ backgroundColor: currentTheme.surface }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold" style={{ color: currentTheme.text }}>Import Records</h2>
+          <Button variant="ghost" onClick={() => setShowImportModal(false)}><X /></Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          {/* Upload Section */}
+          <div 
+            className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-3" 
+            style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.background }}
+          >
+            <Upload className="w-8 h-8" style={{ color: currentTheme.primary }} />
+            <div className="text-center">
+              <p className="text-sm font-medium" style={{ color: currentTheme.text }}>
+                {importPreviewCount > 0 ? `Selected: ${importPreviewCount} records` : "Drop Excel/CSV here"}
+              </p>
+              <input type="file" accept=".xlsx, .xls, .csv" onChange={handleImportFile} className="hidden" id="import-input" />
+              <Button 
+                variant="link"
+                size="sm"
+                onClick={() => document.getElementById('import-input')?.click()}
+                style={{ color: currentTheme.primary }}
+              >
+                Change File
+              </Button>
+            </div>
+          </div>
+
+          {/* Requirements Section */}
+          <div className="p-4 rounded-xl border" style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.background }}>
+            <h3 className="text-sm font-bold mb-2" style={{ color: currentTheme.text }}>Import Requirements:</h3>
+            <ul className="text-xs space-y-2" style={{ color: currentTheme.textSecondary }}>
+              <li className="flex gap-2"><Check className="w-3 h-3 text-green-500"/> Headers must match field labels</li>
+              <li className="flex gap-2"><Check className="w-3 h-3 text-green-500"/> Supported: .xlsx, .csv</li>
+              <li className="flex gap-2"><Check className="w-3 h-3 text-green-500"/> Max 500 rows per import</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex justify-end gap-3 mt-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => setShowImportModal(false)}
+            style={{ color: currentTheme.text }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            disabled={importPreviewCount === 0 || isImporting}
+            onClick={handleConfirmImport}
+            style={{ 
+              backgroundColor: importPreviewCount > 0 ? currentTheme.primary : currentTheme.border, 
+              color: '#fff' 
+            }}
+          >
+            {isImporting ? "Importing..." : `Confirm Import (${importPreviewCount})`}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
         {/* Form Overlay */}
         <AnimatePresence>
           {showForm && (
@@ -406,7 +748,7 @@ export default function DatabaseRecordsView({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 p-8"
+              className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 p-8"
               onClick={handleCancelForm}
             >
               <motion.div
@@ -444,6 +786,7 @@ export default function DatabaseRecordsView({
                         value={formData[field.id]}
                         onChange={(value) => handleFieldChange(field.id, value)}
                         isEditing={false}
+                        formErrors={formErrors}
                       />
                     </div>
                   ))}
@@ -478,17 +821,6 @@ export default function DatabaseRecordsView({
           )}
         </AnimatePresence>
       </div>
-
-      {/* Floating Chatbot Button */}
-      <button
-        onClick={onOpenChatbot}
-        className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-xl flex items-center justify-center hover:scale-110 transition-transform z-30"
-        style={{
-          backgroundColor: currentTheme.primary,
-        }}
-      >
-        <MessageSquare className="w-6 h-6 text-white" />
-      </button>
     </div>
   );
 }

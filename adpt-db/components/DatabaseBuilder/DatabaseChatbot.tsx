@@ -11,7 +11,7 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { motion, AnimatePresence } from "motion/react";
-import { FieldAttributes } from "./types";
+import { DatabaseFolder, FieldAttributes } from "./types";
 
 type Message = {
   id: string;
@@ -21,18 +21,12 @@ type Message = {
 };
 
 type DatabaseChatbotProps = {
-  databaseId: string;
-  databaseName: string;
-  formSchema: FieldAttributes[];
-  recordCount: number;
+  database: DatabaseFolder | null;
   onBack: () => void;
 };
 
 export default function DatabaseChatbot({
-  databaseId,
-  databaseName,
-  formSchema,
-  recordCount,
+  database,
   onBack,
 }: DatabaseChatbotProps) {
   const { currentTheme } = useTheme();
@@ -40,7 +34,7 @@ export default function DatabaseChatbot({
     {
       id: "1",
       role: "assistant",
-      content: `Hello! I'm your AI assistant for the "${databaseName}" database. I can help you analyze your ${recordCount} records, answer questions about your data, and provide insights. What would you like to know?`,
+      content: `Hello! I'm your AI assistant for the "${database?.DatabaseName || "Unknown"}" database. I can help you analyze your ${database?.recordCount || 0} records, answer questions about your data, and provide insights. What would you like to know?`,
       timestamp: new Date().toISOString(),
     },
   ]);
@@ -75,7 +69,7 @@ export default function DatabaseChatbot({
       const aiResponse: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: generateAIResponse(inputValue, databaseName, formSchema, recordCount),
+        content: generateAIResponse(inputValue, database?.DatabaseName || "Unknown", database?.formSchema || [], database?.recordCount || 0),
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiResponse]);
@@ -186,7 +180,7 @@ Feel free to ask me anything!`;
                 AI Assistant
               </h1>
               <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                {databaseName}
+                {database?.DatabaseName || "Unknown Database"}
               </p>
             </div>
           </div>

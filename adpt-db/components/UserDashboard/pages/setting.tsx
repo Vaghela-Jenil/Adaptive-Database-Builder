@@ -11,11 +11,19 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Switch } from "../../ui/switch";
+import { useUserContext } from "@/context/userContext";
+
+type colorTheme = {
+  name : string;
+  color: string;
+  label: string;
+}
 
 export default function Settings() {
   const { currentTheme, colorTheme, mode, changeTheme } = useTheme();
+  const {user} = useUserContext();
 
-  const colorThemes = [
+  const colorThemes: colorTheme[] = [
     { name: "red", color: "#ef4444", label: "Red" },
     { name: "blue", color: "#3b82f6", label: "Blue" },
     { name: "green", color: "#10b981", label: "Green" },
@@ -29,9 +37,9 @@ export default function Settings() {
       title: "Profile",
       icon: User,
       settings: [
-        { label: "Full Name", type: "input", value: "John Doe" },
-        { label: "Email", type: "input", value: "john@company.com" },
-        { label: "Role", type: "select", value: "Administrator", options: ["Administrator", "Editor", "Viewer"] },
+        { label: "Full Name", type: "input", value: user?.userName },
+        { label: "Email", type: "input", value: user?.email },
+        { label: "Role", type: "input", value: user?.role },
       ],
     },
     {
@@ -83,7 +91,7 @@ export default function Settings() {
           type: "custom",
           component: (
             <div className="flex items-center gap-3">
-              {colorThemes.map((theme) => (
+              {colorThemes.map((theme: any) => (
                 <button
                   key={theme.name}
                   onClick={() => changeTheme(theme.name)}
@@ -173,7 +181,7 @@ export default function Settings() {
 
               {/* Settings Items */}
               <div className="space-y-4">
-                {section.settings.map((setting) => (
+                {section.settings.map((setting: any) => (
                   <div
                     key={setting.label}
                     className="flex items-center justify-between p-4 rounded-xl"
@@ -195,6 +203,7 @@ export default function Settings() {
                         <input
                           type="text"
                           defaultValue={setting.value}
+                          disabled
                           className="px-4 py-2 rounded-lg outline-none"
                           style={{
                             backgroundColor: currentTheme.surface,
@@ -202,24 +211,6 @@ export default function Settings() {
                             color: currentTheme.text,
                           }}
                         />
-                      )}
-
-                      {setting.type === "select" && (
-                        <select
-                          defaultValue={setting.value}
-                          className="px-4 py-2 rounded-lg outline-none"
-                          style={{
-                            backgroundColor: currentTheme.surface,
-                            border: `1px solid ${currentTheme.border}`,
-                            color: currentTheme.text,
-                          }}
-                        >
-                          {setting.options.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
                       )}
 
                       {setting.type === "custom" && setting.component}

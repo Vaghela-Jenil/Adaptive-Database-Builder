@@ -18,9 +18,10 @@ type Props = {
   value?: any;
   onChange?: (value: any) => void;
   isEditing?: boolean;
+  formErrors?: Record<string, string>;
 };
 
-export default function ControlledFieldPreview({ field, value, onChange, isEditing = true }: Props) {
+export default function ControlledFieldPreview({ field, value, onChange, isEditing = true, formErrors }: Props) {
   const { currentTheme } = useTheme();
   const [localTags, setLocalTags] = useState<string[]>(
     Array.isArray(value) ? value : value ? [value] : []
@@ -28,8 +29,8 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
   const [tagInput, setTagInput] = useState('');
 
   const showLabel = field.showLabel !== false;
+  const errorMessage = formErrors?.[field.id];
 
-  // Display Elements (non-interactive)
   if (field.type === 'text') {
     return (
       <div className="p-4" style={{ color: currentTheme.text }}>
@@ -77,14 +78,14 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
             field.type === 'input-number'
               ? 'number'
               : field.type === 'input-email'
-              ? 'email'
-              : field.type === 'input-phone'
-              ? 'tel'
-              : field.type === 'input-url'
-              ? 'url'
-              : field.type === 'input-time'
-              ? 'time'
-              : 'text'
+                ? 'email'
+                : field.type === 'input-phone'
+                  ? 'tel'
+                  : field.type === 'input-url'
+                    ? 'url'
+                    : field.type === 'input-time'
+                      ? 'time'
+                      : 'text'
           }
           value={value || ''}
           onChange={(e) => onChange?.(e.target.value)}
@@ -98,7 +99,10 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           maxLength={field.maxLength}
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
+
             color: currentTheme.text,
           }}
         />
@@ -117,7 +121,9 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           maxLength={field.maxLength}
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
             color: currentTheme.text,
           }}
         />
@@ -135,7 +141,10 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           minLength={field.minLength}
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
+
             color: currentTheme.text,
           }}
         />
@@ -159,7 +168,10 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
               disabled={field.disabled}
               style={{
                 backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
+                border: errorMessage
+                  ? "1px solid #ef4444"
+                  : `1px solid ${currentTheme.border}`,
+
                 color: currentTheme.text,
               }}
             />
@@ -209,7 +221,9 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           required={field.required}
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
             color: currentTheme.text,
           }}
         />
@@ -228,7 +242,10 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
               disabled={field.disabled}
               style={{
                 backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
+                border: errorMessage
+                  ? "1px solid #ef4444"
+                  : `1px solid ${currentTheme.border}`,
+
                 color: currentTheme.text,
               }}
             />
@@ -244,7 +261,9 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
                   className="px-2 py-1 rounded-md text-sm flex items-center gap-1"
                   style={{
                     backgroundColor: currentTheme.background,
-                    border: `1px solid ${currentTheme.border}`,
+                    border: errorMessage
+                      ? "1px solid #ef4444"
+                      : `1px solid ${currentTheme.border}`,
                     color: currentTheme.text,
                   }}
                 >
@@ -275,7 +294,9 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           className="w-full px-3 py-2 rounded-md"
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
             color: currentTheme.text,
           }}
         >
@@ -302,7 +323,9 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           className="w-full px-3 py-2 rounded-md"
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
             color: currentTheme.text,
             minHeight: '100px',
           }}
@@ -354,7 +377,11 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
       {field.type === 'file-upload' && (
         <label
           className="block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-opacity-50 transition-all"
-          style={{ borderColor: currentTheme.border }}
+          style={{
+            border: errorMessage
+              ? "1px solid #ef4444"
+              : `1px solid ${currentTheme.border}`,
+          }}
         >
           <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: currentTheme.textSecondary }} />
           <p className="text-sm" style={{ color: currentTheme.text }}>
@@ -399,6 +426,12 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
             </button>
           ))}
         </div>
+      )}
+
+      {errorMessage && (
+        <p className="text-red-500 text-xs mt-1">
+          {errorMessage}
+        </p>
       )}
 
       {/* Helper Text */}

@@ -18,7 +18,7 @@ export default function AuthLayout({
           starColor={theme === 'dark' ? '#FFF' : '#000'}
           className={cn(
             'absolute inset-0 flex items-center justify-center rounded-xl',
-            'dark:bg-[radial-gradient(ellipse_at_bottom,_#262626_0%,_#000_100%)] bg-[radial-gradient(ellipse_at_bottom,_#f5f5f5_0%,_#fff_100%)]',
+            'dark:bg-[radial-gradient(ellipse_at_bottom,#262626_0%,#000_100%)] bg-[radial-gradient(ellipse_at_bottom,#f5f5f5_0%,#fff_100%)]',
           )}
         />
         <div className="fixed right-3 flex justify-end mr-3 mt-3 ">

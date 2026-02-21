@@ -10,7 +10,7 @@ import {
   useSensors,
   PointerSensor,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable'; // ✅ REQUIRED
+import { arrayMove } from '@dnd-kit/sortable';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import FormBuilderSidebar from './FormBuilderSidebar';
@@ -19,27 +19,20 @@ import EditFieldPanel from './EditFieldPanel';
 import FieldPreview from './FieldPreview';
 import ExportJSONModal from './ExportJSONModal';
 import CreateDatabaseModal from './CreateDatabaseModal';
-import { FieldAttributes } from './types';
+import { DatabaseFolder, FieldAttributes } from "./types";
 import { fieldTemplates } from './fieldTemplates';
 import { useTheme } from '@/context/ThemeContext';
 import { Eye, Code, Trash2, ArrowLeft, Database as DatabaseIcon } from 'lucide-react';
 import axios from 'axios';
 
-const STORAGE_KEY = 'form-builder-current';
 
 type FormBuilderPageProps = {
-  onBack: () => void;
-  onSaveDatabase: (name: string, formSchema: FieldAttributes[]) => void;
-  editingDatabase?: {
-    id: string;
-    name: string;
-    formSchema: FieldAttributes[];
-  } | null;
+  onBack: (name: string) => void;
+  editingDatabase: DatabaseFolder | null;
 };
 
 export default function FormBuilderPage({
   onBack,
-  onSaveDatabase,
   editingDatabase,
 }: FormBuilderPageProps) {
   const { currentTheme } = useTheme();
@@ -50,33 +43,53 @@ export default function FormBuilderPage({
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  const handleCreateDatabase = async (name: string) => {
+    try {
+      const res = await axios.post("/api/databases", {
+        name,
+        formSchema: canvasFields,
+      });
+
+      console.log("Created:", res.data);
+      setCanvasFields([]);
+      onBack("database");
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        alert("Database name already exists");
+      } else {
+        alert("Failed to create database");
+      }
+    }
+  };
+
+  const handleUpdateDatabase = async (name: string) => { 
+     try {
+      const res = await axios.put(`/api/databases`, {
+        name,
+        formSchema: canvasFields,
+      });
+
+      console.log("Updated:", res.data);
+      setCanvasFields([]);
+      onBack("database");
+    } catch (err: any) {
+        alert("Failed to update database");
+    }
+  }
+
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     })
   );
 
-  /* -------------------- LOAD / SAVE -------------------- */
   useEffect(() => {
     if (editingDatabase) {
       setCanvasFields(editingDatabase.formSchema);
-    } else {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          setCanvasFields(JSON.parse(stored));
-        } catch {
-          console.error('Failed to load saved fields');
-        }
-      }
     }
   }, [editingDatabase]);
 
-  useEffect(() => {
-    if (!editingDatabase) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasFields));
-    }
-  }, [canvasFields, editingDatabase]);
 
   /* -------------------- DRAG END -------------------- */
   function handleDragEnd(event: DragEndEvent) {
@@ -103,7 +116,7 @@ export default function FormBuilderPage({
       if (!template) return;
 
       const newField: FieldAttributes = {
-        id: `${template.id}-${crypto.randomUUID()}`,
+        id: template.id + '-' + crypto.randomUUID(),
         type: template.type,
         label: template.label,
         span: template.defaultSpan,
@@ -114,7 +127,7 @@ export default function FormBuilderPage({
     }
   }
 
-  function handleFieldUpdate(id: string, updates: Partial<FieldAttributes>) {
+  function handleFieldsUpdate(id: string, updates: Partial<FieldAttributes>) {
     setCanvasFields((fields) =>
       fields.map((f) => (f.id === id ? { ...f, ...updates } : f))
     );
@@ -133,15 +146,7 @@ export default function FormBuilderPage({
   function handleClearAll() {
     if (confirm('Are you sure you want to clear all fields?')) {
       setCanvasFields([]);
-      if (!editingDatabase) localStorage.removeItem(STORAGE_KEY);
     }
-  }
-
-  async function handleCreateDatabase(name: string) {
-      onSaveDatabase(name, canvasFields);
-    setCanvasFields([]);
-    localStorage.removeItem(STORAGE_KEY);
-    onBack();
   }
 
   /* -------------------- COLLISION -------------------- */
@@ -174,7 +179,7 @@ export default function FormBuilderPage({
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              onClick={onBack}
+              onClick={() => onBack("database")}
               className="flex items-center gap-2"
               style={{
                 color: currentTheme.text,
@@ -185,7 +190,7 @@ export default function FormBuilderPage({
             </Button>
             <div>
               <h1 className="text-xl font-bold" style={{ color: currentTheme.text }}>
-                {editingDatabase ? `Edit: ${editingDatabase.name}` : 'Form Builder'}
+                {editingDatabase ? `Edit: ${editingDatabase.DatabaseName}` : 'Form Builder'}
               </h1>
               <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
                 {canvasFields.length} fields added
@@ -259,7 +264,6 @@ export default function FormBuilderPage({
             {!previewMode ? (
               <FormBuilderCanvas
                 fields={canvasFields}
-                // onFieldUpdate={handleFieldUpdate}
                 onFieldEdit={setEditingField}
                 onFieldDelete={handleDelete}
               />
@@ -291,7 +295,7 @@ export default function FormBuilderPage({
                       className="grid gap-6 auto-rows-min"
                       style={{
                         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                        gridAutoFlow: "dense", // ⭐ VERY IMPORTANT
+                        gridAutoFlow: "dense",
                       }}
                     >
                       {canvasFields.map((field) => (
@@ -362,8 +366,9 @@ export default function FormBuilderPage({
           <CreateDatabaseModal
             open={showCreateModal}
             onClose={() => setShowCreateModal(false)}
-            onSave={handleCreateDatabase}
-            editingName={editingDatabase?.name}
+            onSave={(name) => handleCreateDatabase(name)}
+            onUpdate={(name) => handleUpdateDatabase(name)}
+            editingName={editingDatabase?.DatabaseName}
           />
         )}
 

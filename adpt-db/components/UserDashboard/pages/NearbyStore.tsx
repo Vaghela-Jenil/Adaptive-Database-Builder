@@ -1,18 +1,31 @@
 "use client";
-import '../../../components/ui/style.css'
-import "leaflet/dist/leaflet.css";
+
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { motion } from "motion/react";
+import { Loader2, Info, Compass } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+
 import ResultsList from "@/components/Nearby-store/ResultList";
 import ExportButtons from "@/components/Nearby-store/ExportButton";
 import { Place } from "@/components/Nearby-store/types";
-import { buildExportRows } from "@/lib/normalize";
+import { Button } from "@/components/ui/button";
 
-const MapView = dynamic(() => import("../../../components/Nearby-store/MapView"), { ssr: false });
+// Load Map only on client with a matching fancy placeholder
+const MapView = dynamic(() => import("../../../components/Nearby-store/MapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-145 w-full bg-slate-200/50 flex flex-col items-center justify-center animate-pulse rounded-[2rem]">
+      <Compass className="w-12 h-12 mb-4 opacity-20 animate-spin" />
+      <span className="text-[10px] font-black uppercase tracking-widest opacity-20">Mapping Coordinates...</span>
+    </div>
+  )
+});
 
 const SORT_OPTIONS = ["RELEVANCE", "RATING", "DISTANCE", "POPULARITY"] as const;
-
+const OPEN_NOW_OPTIONS = ["", "true", "false"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
+type OpenNowOption = (typeof OPEN_NOW_OPTIONS)[number];
 
 type SearchState = {
   query: string;
@@ -21,9 +34,12 @@ type SearchState = {
   radius: number;
   limit: number;
   sort: SortOption;
+  open_now: OpenNowOption;
 };
 
 export default function NearByStorePage() {
+  const { currentTheme } = useTheme();
+
   const [query, setQuery] = useState("pharmacy");
   const [latitude, setLatitude] = useState(23.0225);
   const [longitude, setLongitude] = useState(72.5714);
@@ -34,16 +50,23 @@ export default function NearByStorePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Place[] | null>(null);
-  const [showGuide, setShowGuide] = useState(true);
   const [lastSearch, setLastSearch] = useState<SearchState | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [open_now, setOpenNow] = useState<OpenNowOption>("");
 
-  const rows = useMemo(() => (results ? buildExportRows(results) : []), [results]);
+  const handleLocationClick = async () => {
+    setLoading(true);
+    try {
+      await getBrowserLocation();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onSearch = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const params = new URLSearchParams({
         query,
@@ -51,24 +74,61 @@ export default function NearByStorePage() {
         longitude: longitude.toString(),
         radius: radius.toString(),
         limit: limit.toString(),
-        sort
+        sort,
       });
+      if (open_now !== "") {
+        params.set("open_now", open_now);
+      }
+
       const res = await fetch(`/api/search?${params.toString()}`);
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "API request failed");
-      }
-      if (!data?.results?.length) {
-        setResults([]);
-      } else {
-        setResults(data.results as Place[]);
-      }
-      setLastSearch({ query, latitude, longitude, radius, limit, sort });
+      if (!res.ok) throw new Error(data?.error || "API request failed");
+
+      setResults(data?.results?.length ? (data.results as Place[]) : []);
+      setLastSearch({ query, latitude, longitude, radius, limit, sort, open_now });
     } catch (err: any) {
       setError(err?.message ?? "Unexpected error");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getBrowserLocation = async () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported by your browser."));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          setLatitude(lat);
+          setLongitude(lng);
+          resolve({ latitude: lat, longitude: lng });
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              reject(console.error("User denied the request for Geolocation."));
+              break;
+            case error.POSITION_UNAVAILABLE:
+              reject(console.error("Location information is unavailable."));
+              break;
+            default:
+              reject(console.error("An unknown error occurred."));
+              break;
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    });
   };
 
   const hasResults = Boolean(results && results.length > 0);
@@ -79,213 +139,244 @@ export default function NearByStorePage() {
     return `foursquare_${lastSearch?.query ?? "search"}_${stamp}`;
   }, [lastSearch]);
 
-  if (showGuide) {
-    return (
-      <div className='app-shell'>
-        <div className={`page ${darkMode ? "theme-dark" : ""}`}>
-        <header className="topbar">
-          <button className="theme-toggle" onClick={() => setDarkMode((prev) => !prev)}>
-            {darkMode ? "Light mode" : "Dark mode"}
-          </button>
-        </header>
-        <main className="guide-wrap">
-          <section className="card glass guide">
-            <h1>Welcome to Nearby Store Locator</h1>
-            <p>1. Select a category</p>
-            <p>2. Enter your location</p>
-            <p>3. Adjust radius and limit as needed</p>
-            <p>4. Click Search</p>
-            <button className="btn" onClick={() => setShowGuide(false)}>
-              Ok, let's start
-            </button>
-          </section>
-        </main>
-      </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`page ${darkMode ? "theme-dark" : ""}`}>
-      <header className="topbar">
-        <button className="theme-toggle" onClick={() => setDarkMode((prev) => !prev)}>
-          {darkMode ? "Light mode" : "Dark mode"}
-        </button>
-      </header>
+    <div className="max-w-400 mx-auto px-8 py-12 space-y-12 font-sans overflow-x-hidden">
 
-      <section className="shell">
-        <aside className="sidebar card">
-          <h2>Search Parameters</h2>
-          <div className="sidebar-controls">
-            <div className="control">
-              <label>Search Query</label>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} />
-            </div>
-            <div className="control">
-              <label>Latitude</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={latitude}
-                onChange={(e) => setLatitude(Number(e.target.value))}
-              />
-            </div>
-            <div className="control">
-              <label>Longitude</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={longitude}
-                onChange={(e) => setLongitude(Number(e.target.value))}
-              />
-            </div>
-            <div className="control">
-              <label>Sort</label>
-              <select value={sort} onChange={(e) => setSort(e.target.value as SortOption)}>
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="control">
-              <label>Radius (meters)</label>
-              <input
-                type="number"
-                min={100}
-                max={10000}
-                step={100}
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-              />
-            </div>
-            <div className="control">
-              <label>Limit</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-              />
-            </div>
+      {/* Header */}
+      <div className="space-y-1">
+        <motion.h1
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-7xl font-black tracking-tighter uppercase italic leading-none"
+          style={{ color: currentTheme.text }}
+        >
+          Store <span style={{ color: currentTheme.primary }}>Finder</span>
+        </motion.h1>
+        <div className="flex items-center gap-3 ml-1">
+          <div className="h-0.5 w-8" style={{ backgroundColor: currentTheme.primary }} />
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-60"
+            style={{ color: currentTheme.textSecondary }}>
+            Powered by Foursquare Architecture
+          </p>
+        </div>
+        <Button
+          onClick={handleLocationClick}
+          disabled={loading}
+          style={{ backgroundColor: currentTheme.primary }}
+        >
+          {loading ? "Locating..." : "Find your coordinates"}
+        </Button>
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-8 items-start">
+
+        {/* Sidebar */}
+        <motion.aside
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="lg:col-span-4 xl:col-span-3 rounded-[2.5rem] p-8 space-y-6 h-fit relative z-10"
+          style={{
+            background: `${currentTheme.surface}B3`,
+            border: `1px solid ${currentTheme.border}`,
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)'
+          }}
+        >
+          <div className="space-y-1 mb-4">
+            <h2 className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.primary }}>
+              Engine Configuration
+            </h2>
+            <p className="text-xl font-bold italic" style={{ color: currentTheme.text }}>Parameters</p>
           </div>
-          <div className="sidebar-actions">
-            <button className="btn" onClick={onSearch} disabled={loading}>
-              {loading ? "Searching..." : "Search"}
-            </button>
-          </div>
-        </aside>
 
-        <main className="main">
-          {!hasSearched ? (
-            <section className="card intro">
-              <h1>Nearby Store Locator</h1>
-              <p>Search for places near any location using the Foursquare Places API.</p>
-            </section>
-          ) : null}
+          {[
+            { label: "Search Query", value: query, setter: setQuery, type: "text" },
+            { label: "Radius (meters)", value: radius, setter: (v: any) => setRadius(Number(v)), type: "number" },
+            { label: "Result Limit", value: limit, setter: (v: any) => setLimit(Number(v)), type: "number" },
+            {
+              label: "Open Now",
+              value: open_now,
+              setter: setOpenNow,
+              type: "select",
+              options: [
+                { label: 'Any', value: '' },
+                { label: 'Yes', value: 'true' },
+                { label: 'No', value: 'false' }
+              ]
+            }
+          ].map((field, i) => (
+            <div key={i} className="space-y-1.5 group">
+              <label
+                className="text-[10px] font-bold uppercase opacity-50 ml-1"
+                style={{ color: currentTheme.textSecondary }}
+              >
+                {field.label}
+              </label>
 
-          {error ? <div className="status error">{error}</div> : null}
-
-          {hasResults ? (
-            <div className="status success">
-              Found {results?.length} places for '{lastSearch?.query}'
-            </div>
-          ) : null}
-
-          {!hasResults && hasSearched ? (
-            <div className="status info">
-              No results found. Adjust your search parameters and try again.
-            </div>
-          ) : null}
-
-          {hasResults ? (
-            <section className="grid">
-              <div>
-                <h2>Results List</h2>
-                <ResultsList places={results ?? []} />
-              </div>
-              <div>
-                <h2>Map View</h2>
-                <MapView
-                  places={results ?? []}
-                  center={{
-                    lat: lastSearch?.latitude ?? latitude,
-                    lon: lastSearch?.longitude ?? longitude
+              {field.type === "select" ? (
+                <select
+                  value={field.value}
+                  onChange={(e) => field.setter(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl text-sm outline-none border transition-all appearance-none cursor-pointer"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    borderColor: currentTheme.border,
+                    color: currentTheme.text,
+                  }}
+                >
+                  {field.options?.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type}
+                  value={field.value}
+                  onChange={(e) => field.setter(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl text-sm outline-none border transition-all focus:ring-2"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    borderColor: currentTheme.border,
+                    color: currentTheme.text,
+                    // @ts-ignore
+                    '--tw-ring-color': currentTheme.primary
                   }}
                 />
+              )}
+            </div>
+          ))}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase opacity-50 ml-1" style={{ color: currentTheme.textSecondary }}>Lat</label>
+              <input type="number" value={latitude} onChange={(e) => setLatitude(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none border"
+                style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border, color: currentTheme.text }} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase opacity-50 ml-1" style={{ color: currentTheme.textSecondary }}>Long</label>
+              <input type="number" value={longitude} onChange={(e) => setLongitude(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none border"
+                style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border, color: currentTheme.text }} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase opacity-50 ml-1" style={{ color: currentTheme.textSecondary }}>Sort Protocol</label>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortOption)}
+              className="w-full px-3 py-3 rounded-2xl text-sm outline-none appearance-none border"
+              style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border, color: currentTheme.text }}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="w-full py-4 rounded-[1.5rem] text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-xl"
+            style={{
+              backgroundColor: currentTheme.primary,
+              boxShadow: `0 10px 20px -5px ${currentTheme.primary}60`
+            }}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Initiate Search"}
+          </button>
+        </motion.aside>
+
+        {/* Dashboard Area */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-8">
+          {!hasSearched && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-[2rem] p-8 flex gap-6 items-center border-2 border-dashed"
+              style={{ borderColor: `${currentTheme.border}`, backgroundColor: `${currentTheme.surface}50` }}
+            >
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: currentTheme.primary }}>
+                <Info className="w-6 h-6 text-white" />
               </div>
-            </section>
-          ) : null}
-
-          {hasResults ? (
-            <section className="card">
-              <h2>Export Data</h2>
-              <ExportButtons places={results ?? []} fileBase={fileBase} />
-            </section>
-          ) : null}
-
-          {hasResults ? (
-            <section className="card table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    {rows.length
-                      ? Object.keys(rows[0]).map((header) => <th key={header}>{header}</th>)
-                      : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, index) => (
-                    <tr key={index}>
-                      {Object.keys(row).map((header) => (
-                        <td key={header}>{row[header]}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          ) : null}
-
-          {!hasResults && !hasSearched && !loading ? (
-            <section className="card">
-              <div className="status info">
-                Enter your search parameters and click Search to find places.
+              <div>
+                <p className="font-bold italic text-lg" style={{ color: currentTheme.text }}>System Standby</p>
+                <p className="text-xs opacity-60" style={{ color: currentTheme.textSecondary }}>
+                  Configure your parameters and execute search to begin.
+                </p>
               </div>
-              <h2>Example Searches</h2>
-              <div className="grid">
-                <div className="card">
-                  <h3>Healthcare</h3>
-                  <p>pharmacy</p>
-                  <p>hospital</p>
-                  <p>clinic</p>
-                  <p>dentist</p>
+            </motion.div>
+          )}
+
+          {error && (
+            <div className="p-4 rounded-2xl text-xs font-bold border border-red-500 bg-red-500/10 text-red-500 uppercase">
+              {error}
+            </div>
+          )}
+
+          {hasResults && (
+            <div className="space-y-8">
+              <div className="grid xl:grid-cols-5 gap-8">
+                {/* List Container */}
+                <div className="xl:col-span-2 rounded-[2.5rem] p-8 space-y-4"
+                  style={{ background: `${currentTheme.surface}B3`, border: `1px solid ${currentTheme.border}` }}>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xs font-black uppercase italic tracking-widest" style={{ color: currentTheme.text }}>
+                      Nearby <span style={{ color: currentTheme.primary }}>Targets</span>
+                    </h2>
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-white/10" style={{ color: currentTheme.text }}>
+                      {results?.length} items
+                    </span>
+                  </div>
+                  <div className="h-125 overflow-y-auto pr-2">
+                    <ResultsList places={results ?? []} />
+                  </div>
                 </div>
-                <div className="card">
-                  <h3>Food & Drink</h3>
-                  <p>restaurant</p>
-                  <p>cafe</p>
-                  <p>pizza</p>
-                  <p>coffee shop</p>
-                </div>
-                <div className="card">
-                  <h3>Shopping</h3>
-                  <p>supermarket</p>
-                  <p>grocery store</p>
-                  <p>shopping mall</p>
-                  <p>bookstore</p>
+
+                {/* Map Container - Ensuring high visibility */}
+                <div className="xl:col-span-3 rounded-[2.5rem] p-2"
+                  style={{ background: `${currentTheme.surface}B3`, border: `1px solid ${currentTheme.border}` }}>
+                  <div className="rounded-[2rem] overflow-hidden h-145 w-full relative border bg-slate-50/10" style={{ borderColor: currentTheme.border }}>
+                    <MapView
+                      places={results ?? []}
+                      center={{
+                        lat: lastSearch?.latitude ?? latitude,
+                        lon: lastSearch?.longitude ?? longitude,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </section>
-          ) : null}
 
-          <footer className="footer">
-            Built with love using Foursquare Places API | Powered by Next.js
-          </footer>
-        </main>
-      </section>
+              {/* Action Bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6"
+                style={{
+                  backgroundColor: `${currentTheme.primary}10`,
+                  border: `1px solid ${currentTheme.primary}30`,
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <div>
+                  <h3 className="font-black uppercase italic text-lg leading-tight" style={{ color: currentTheme.text }}>
+                    Export <span style={{ color: currentTheme.primary }}>Dataset</span>
+                  </h3>
+                  <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest" style={{ color: currentTheme.textSecondary }}>
+                    Available Formats: CSV • XLSX • JSON
+                  </p>
+                </div>
+                <ExportButtons places={results ?? []} fileBase={fileBase} />
+              </motion.div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

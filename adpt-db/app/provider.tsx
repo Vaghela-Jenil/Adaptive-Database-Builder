@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { UserProvider } from "@/context/userContext";
 
 type Theme = "light" | "dark";
 
@@ -29,7 +30,6 @@ export default function Providers({
 }) {
   const [theme, setTheme] = useState<Theme>("light");
 
-  // Apply theme to entire app
   useEffect(() => {
     document.documentElement.classList.toggle(
       "dark",
@@ -63,7 +63,9 @@ export default function Providers({
           baseTheme: theme === "dark" ? dark : undefined,
         }}
       >
-        {children}
+        <UserProvider>
+          {children}
+        </UserProvider>
       </ClerkProvider>
     </ThemeContext.Provider>
   );

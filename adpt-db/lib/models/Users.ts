@@ -4,9 +4,10 @@ const UserSchema = new Schema(
   {
     clerkId: { type: String, required: true, unique: true },
     email: { type: String, required: true },
-    name: { type: String },
+    userName: { type: String },
     role: { type: String, enum: ["admin", "user"], default: "user" },
-    image: { type: String },
+    userImage: { type: String, default: null },
+    password: { type: String, default: null },
     phonenumber: { type: String }
   },
   { timestamps: true }
