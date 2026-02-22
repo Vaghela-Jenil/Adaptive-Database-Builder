@@ -23,7 +23,6 @@ import { DatabaseRecord } from "./types";
 import axios from "axios";
 import { buildZodSchema } from "@/lib/validateRecord";
 import { Checkbox } from "../ui/checkbox";
-import { applyFormulaFields, isFormulaField } from "@/lib/formula";
 
 type DatabaseRecordsViewProps = {
   currentDatabase: DatabaseFolder | null;
@@ -131,22 +130,8 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
     incomingReplenishmentFieldId: "",
   });
 
-  const normalizedFormData = useMemo(
-    () => applyFormulaFields(formSchema, formData),
-    [formSchema, formData]
-  );
-
-  const recordsWithComputedData = useMemo(
-    () =>
-      records.map((record) => ({
-        ...record,
-        data: applyFormulaFields(formSchema, record.data || {}),
-      })),
-    [records, formSchema]
-  );
-
   const filteredRecords = useMemo(() => {
-    return recordsWithComputedData.filter((record) => {
+    return records.filter((record) => {
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
         const matchesSearch = Object.values(record.data).some((value) =>
@@ -161,15 +146,15 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
 
       return true;
     });
-  }, [recordsWithComputedData, searchQuery, dateFilter]);
+  }, [records, searchQuery, dateFilter]);
 
 
   const dataFields = formSchema.filter(
     (field) => field.type !== "text" && field.type !== "separator"
   );
 
-  useEffect(() => {
-    if (!dataFields.length) return;
+  const recommenderfields = useMemo(() => {
+  if (!dataFields.length) return;
 
     setRecommenderFieldMap((prev) => ({
       stockFieldId:
@@ -189,6 +174,10 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
         prev.incomingReplenishmentFieldId ||
         suggestFieldId(dataFields, ["incoming", "replenishment", "restock", "inbound"]),
     }));
+  }, [dataFields.length]);
+
+  useEffect(() => {
+    recommenderfields;
   }, [dataFields]);
 
   const handleOpenForm = () => {
@@ -199,7 +188,7 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
 
   const handleEditRecord = (record: DatabaseRecord) => {
     setEditingRecord(record);
-    setFormData(applyFormulaFields(formSchema, record.data || {}));
+    setFormData(record.data);
     setShowForm(true);
   };
 
@@ -208,7 +197,7 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
     if (!currentDatabase) return;
 
     const schema = buildZodSchema(formSchema);
-    const result = schema.safeParse(normalizedFormData);
+    const result = schema.safeParse(formData);
 
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -227,9 +216,9 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
     setFormErrors({});
 
     if (editingRecord) {
-      handleUpdateRecord(currentDatabase._id, editingRecord.id, normalizedFormData);
+      handleUpdateRecord(currentDatabase._id, editingRecord.id, formData);
     } else {
-      handleAddRecord(currentDatabase._id, normalizedFormData);
+      handleAddRecord(currentDatabase._id, formData);
     }
 
     setShowForm(false);
@@ -245,8 +234,6 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
   };
 
   const handleFieldChange = (fieldId: string, value: unknown) => {
-    const targetField = formSchema.find((field) => field.id === fieldId);
-    if (targetField && isFormulaField(targetField)) return;
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
   };
 
@@ -409,10 +396,9 @@ const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
 
-      const importableFields = dataFields.filter((field) => !isFormulaField(field));
       const formattedRecords = jsonRows.map(row => {
         const recordData: Record<string, unknown> = {};
-        importableFields.forEach(field => {
+        dataFields.forEach(field => {
           const excelValue = row[field.label] || row[field.id];
           if (excelValue !== undefined) recordData[field.id] = excelValue;
         });
@@ -1263,7 +1249,7 @@ const handleConfirmImport = async () => {
                     >
                       <ControlledFieldPreview
                         field={field}
-                        value={normalizedFormData[field.id]}
+                        value={formData[field.id]}
                         onChange={(value) => handleFieldChange(field.id, value)}
                         isEditing={false}
                         formErrors={formErrors}

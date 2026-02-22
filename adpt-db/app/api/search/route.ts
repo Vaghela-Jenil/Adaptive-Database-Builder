@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get("query") ?? "pharmacy";
+  const query = searchParams.get("query") ?? "retail";
   const latitude = Number(searchParams.get("latitude") ?? "0");
   const longitude = Number(searchParams.get("longitude") ?? "0");
   const radius = Number(searchParams.get("radius") ?? "1000");

@@ -42,36 +42,6 @@ export default function ExportButtons({
 }) {
   const rows = useMemo(() => buildExportRows(places), [places]);
 
-  const handlePdfDownload = async () => {
-    if (!rows.length) {
-      downloadBlob(`${fileBase}.pdf`, new Blob([], { type: "application/pdf" }));
-      return;
-    }
-
-    const [{ default: jsPDF }, autoTableModule] = await Promise.all([
-      import("jspdf"),
-      import("jspdf-autotable"),
-    ]);
-
-    const autoTable = autoTableModule.default;
-    const doc = new jsPDF("l", "mm", "a4");
-    const headers = Object.keys(rows[0]);
-    const body = rows.map((row) => headers.map((header) => String(row[header] ?? "")));
-
-    doc.setFontSize(12);
-    doc.text("Nearby Store Search Results", 14, 14);
-    autoTable(doc, {
-      head: [headers],
-      body,
-      startY: 18,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [31, 41, 55] },
-      margin: { left: 8, right: 8 },
-    });
-
-    doc.save(`${fileBase}.pdf`);
-  };
-
   return (
     <div className="export-row">
       <button
@@ -85,9 +55,15 @@ export default function ExportButtons({
       </button>
       <button
         className="btn ghost"
-        onClick={handlePdfDownload}
+        onClick={() => {
+          const json = JSON.stringify(rows, null, 2);
+          downloadBlob(
+            `${fileBase}.json`,
+            new Blob([json], { type: "application/json" })
+          );
+        }}
       >
-        Download PDF
+        Download JSON
       </button>
     </div>
   );
