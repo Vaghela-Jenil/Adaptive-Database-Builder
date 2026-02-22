@@ -40,7 +40,7 @@ type SearchState = {
 export default function NearByStorePage() {
   const { currentTheme } = useTheme();
 
-  const [query, setQuery] = useState("pharmacy");
+  const [query, setQuery] = useState("retail");
   const [latitude, setLatitude] = useState(23.0225);
   const [longitude, setLongitude] = useState(72.5714);
   const [radius, setRadius] = useState(1000);
@@ -368,7 +368,7 @@ export default function NearByStorePage() {
                     Export <span style={{ color: currentTheme.primary }}>Dataset</span>
                   </h3>
                   <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest" style={{ color: currentTheme.textSecondary }}>
-                    Available Formats: CSV • XLSX • JSON
+                    Available Formats: CSV • PDF
                   </p>
                 </div>
                 <ExportButtons places={results ?? []} fileBase={fileBase} />

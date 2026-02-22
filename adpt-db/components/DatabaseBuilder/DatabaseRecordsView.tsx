@@ -1,9 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import {
   Plus,
   Search,
-  Filter,
   Download,
   X,
   Check,
@@ -24,11 +23,71 @@ import { DatabaseRecord } from "./types";
 import axios from "axios";
 import { buildZodSchema } from "@/lib/validateRecord";
 import { Checkbox } from "../ui/checkbox";
+import { applyFormulaFields, isFormulaField } from "@/lib/formula";
 
 type DatabaseRecordsViewProps = {
   currentDatabase: DatabaseFolder | null;
   onOpenChatbot: () => void;
   onBack: () => void;
+};
+
+type ReplenishmentRecommendation = {
+  sku: string;
+  name?: string;
+  action: "order_now" | "order_soon" | "healthy" | "overstock";
+  urgencyScore: number;
+  recommendedOrderQty: number;
+  predictedDailySales: number;
+  predictedHorizonDemand: number;
+  daysUntilStockout: number;
+  projectedStockAtHorizon: number;
+  leadTimeDays: number;
+  safetyStockUnits: number;
+  explanation: string;
+};
+
+type ReplenishmentResponse = {
+  generatedAt: string;
+  forecastDays: number;
+  summary: {
+    totalSkus: number;
+    orderNowCount: number;
+    orderSoonCount: number;
+    healthyCount: number;
+    overstockCount: number;
+    totalRecommendedUnits: number;
+  };
+  recommendations: ReplenishmentRecommendation[];
+  warnings: string[];
+  meta: {
+    databaseId: string;
+    totalRecords: number;
+    validRecordsUsed: number;
+  };
+};
+
+const suggestFieldId = (fields: FieldAttributes[], keywords: string[]) => {
+  const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase());
+  const match = fields.find((field) => {
+    const source = `${field.id} ${field.label}`.toLowerCase();
+    return normalizedKeywords.some((keyword) => source.includes(keyword));
+  });
+  return match?.id || "";
+};
+
+const getActionBadgeStyles = (
+  action: ReplenishmentRecommendation["action"]
+) => {
+  if (action === "order_now") {
+    return { background: "#ef4444", color: "#ffffff", label: "Order Now" };
+  }
+  if (action === "order_soon") {
+    return { background: "#f59e0b", color: "#ffffff", label: "Order Soon" };
+  }
+  if (action === "overstock") {
+    return { background: "#0ea5e9", color: "#ffffff", label: "Overstock" };
+  }
+  return { background: "#10b981", color: "#ffffff", label: "Healthy" };
 };
 
 export default function DatabaseRecordsView({
@@ -39,24 +98,55 @@ export default function DatabaseRecordsView({
   const { currentTheme } = useTheme();
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<DatabaseRecord | null>(null);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [records, setRecords] = useState<DatabaseRecord[]>(currentDatabase ? currentDatabase.records : []);
   const formSchema = useMemo(() => currentDatabase ? currentDatabase.formSchema : [], [currentDatabase]);
-  const [formErrors, setFormErrors] = useState<Record<string, string> | {}>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [deleteRecords, setDeleteRecords] = useState<string[]>([]);
-  const [bulkDelete, setBulkDelete] = useState<Boolean>(false);
+  const [bulkDelete, setBulkDelete] = useState<boolean>(false);
 
   // --- New States for Import ---
   const [showImportModal, setShowImportModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importPreviewCount, setImportPreviewCount] = useState<number>(0);
-const [importData, setImportData] = useState<any[]>([]);
+const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
+  const [showRecommender, setShowRecommender] = useState(false);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [recommendationError, setRecommendationError] = useState("");
+  const [recommendationResult, setRecommendationResult] = useState<ReplenishmentResponse | null>(null);
+  const [forecastDays, setForecastDays] = useState(14);
+  const [topNRecommendations, setTopNRecommendations] = useState(20);
+  const [autoRefreshRecommendations, setAutoRefreshRecommendations] = useState(false);
+  const [recommenderFieldMap, setRecommenderFieldMap] = useState({
+    stockFieldId: "",
+    salesHistoryFieldId: "",
+    skuFieldId: "",
+    nameFieldId: "",
+    reorderPointFieldId: "",
+    leadTimeDaysFieldId: "",
+    safetyStockDaysFieldId: "",
+    incomingReplenishmentFieldId: "",
+  });
+
+  const normalizedFormData = useMemo(
+    () => applyFormulaFields(formSchema, formData),
+    [formSchema, formData]
+  );
+
+  const recordsWithComputedData = useMemo(
+    () =>
+      records.map((record) => ({
+        ...record,
+        data: applyFormulaFields(formSchema, record.data || {}),
+      })),
+    [records, formSchema]
+  );
 
   const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
+    return recordsWithComputedData.filter((record) => {
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
         const matchesSearch = Object.values(record.data).some((value) =>
@@ -71,12 +161,35 @@ const [importData, setImportData] = useState<any[]>([]);
 
       return true;
     });
-  }, [records, searchQuery, dateFilter]);
+  }, [recordsWithComputedData, searchQuery, dateFilter]);
 
 
   const dataFields = formSchema.filter(
     (field) => field.type !== "text" && field.type !== "separator"
   );
+
+  useEffect(() => {
+    if (!dataFields.length) return;
+
+    setRecommenderFieldMap((prev) => ({
+      stockFieldId:
+        prev.stockFieldId || suggestFieldId(dataFields, ["stock", "inventory", "qty", "quantity", "onhand"]),
+      salesHistoryFieldId:
+        prev.salesHistoryFieldId ||
+        suggestFieldId(dataFields, ["saleshistory", "sales_history", "sales", "dailysales", "demand"]),
+      skuFieldId: prev.skuFieldId || suggestFieldId(dataFields, ["sku", "code", "itemid"]),
+      nameFieldId: prev.nameFieldId || suggestFieldId(dataFields, ["name", "product", "item"]),
+      reorderPointFieldId:
+        prev.reorderPointFieldId || suggestFieldId(dataFields, ["reorder", "reorderpoint", "threshold"]),
+      leadTimeDaysFieldId:
+        prev.leadTimeDaysFieldId || suggestFieldId(dataFields, ["leadtime", "lead_time"]),
+      safetyStockDaysFieldId:
+        prev.safetyStockDaysFieldId || suggestFieldId(dataFields, ["safety", "safetystock"]),
+      incomingReplenishmentFieldId:
+        prev.incomingReplenishmentFieldId ||
+        suggestFieldId(dataFields, ["incoming", "replenishment", "restock", "inbound"]),
+    }));
+  }, [dataFields]);
 
   const handleOpenForm = () => {
     setEditingRecord(null);
@@ -86,7 +199,7 @@ const [importData, setImportData] = useState<any[]>([]);
 
   const handleEditRecord = (record: DatabaseRecord) => {
     setEditingRecord(record);
-    setFormData(record.data);
+    setFormData(applyFormulaFields(formSchema, record.data || {}));
     setShowForm(true);
   };
 
@@ -95,7 +208,7 @@ const [importData, setImportData] = useState<any[]>([]);
     if (!currentDatabase) return;
 
     const schema = buildZodSchema(formSchema);
-    const result = schema.safeParse(formData);
+    const result = schema.safeParse(normalizedFormData);
 
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -114,9 +227,9 @@ const [importData, setImportData] = useState<any[]>([]);
     setFormErrors({});
 
     if (editingRecord) {
-      handleUpdateRecord(currentDatabase._id, editingRecord.id, formData);
+      handleUpdateRecord(currentDatabase._id, editingRecord.id, normalizedFormData);
     } else {
-      handleAddRecord(currentDatabase._id, formData);
+      handleAddRecord(currentDatabase._id, normalizedFormData);
     }
 
     setShowForm(false);
@@ -131,7 +244,9 @@ const [importData, setImportData] = useState<any[]>([]);
     setFormErrors({});
   };
 
-  const handleFieldChange = (fieldId: string, value: any) => {
+  const handleFieldChange = (fieldId: string, value: unknown) => {
+    const targetField = formSchema.find((field) => field.id === fieldId);
+    if (targetField && isFormulaField(targetField)) return;
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
   };
 
@@ -143,12 +258,12 @@ const [importData, setImportData] = useState<any[]>([]);
     setColumnWidths((prev) => ({ ...prev, [fieldId]: Math.max(100, newWidth) }));
   };
 
-  const handleAddRecord = async (databaseId: string, data: Record<string, any>) => {
+  const handleAddRecord = async (databaseId: string, data: Record<string, unknown>) => {
     try {
       await axios.post(`/api/databases/${databaseId}/records`, { data });
       const response = await axios.get(`/api/databases/${databaseId}/records`);
       setRecords(response.data);
-    } catch (err) {
+    } catch {
       alert("Failed to add record. Please try again.");
     }
   };
@@ -158,14 +273,14 @@ const [importData, setImportData] = useState<any[]>([]);
       await axios.delete(`/api/databases/${databaseId}/records/${recordId}`);
       const response = await axios.get(`/api/databases/${databaseId}/records`);
       setRecords(response.data);
-    } catch (err) {
+    } catch {
       alert("Failed to delete record. Please try again.");
     }
   };
 
   const handleSelectDelete = async () => {
     try {
-      let databaseId = currentDatabase?._id;
+      const databaseId = currentDatabase?._id;
       await axios.delete(
         `/api/databases/${databaseId}/records`,
         {
@@ -180,7 +295,7 @@ const [importData, setImportData] = useState<any[]>([]);
       setSearchQuery("");
       setDateFilter("");
       setBulkDelete(false);
-    } catch (err) {
+    } catch {
       alert("Failed to delete records.");
     }
   };
@@ -201,15 +316,65 @@ const [importData, setImportData] = useState<any[]>([]);
     console.log(deleteRecords);
   }, [deleteRecords]);
 
-  const handleUpdateRecord = async (databaseId: string, recordId: string, data: Record<string, any>) => {
+  const handleUpdateRecord = async (databaseId: string, recordId: string, data: Record<string, unknown>) => {
     try {
       await axios.put(`/api/databases/${databaseId}/records/${recordId}`, { data });
       const response = await axios.get(`/api/databases/${databaseId}/records`);
       setRecords(response.data);
-    } catch (err) {
+    } catch {
       alert("Failed to update record. Please try again.");
     }
   };
+
+  const fetchRecommendations = useCallback(async () => {
+    if (!currentDatabase) return;
+
+    if (!recommenderFieldMap.stockFieldId || !recommenderFieldMap.salesHistoryFieldId) {
+      setRecommendationError("Please select Stock field and Sales History field.");
+      return;
+    }
+
+    setIsLoadingRecommendations(true);
+    setRecommendationError("");
+
+    try {
+      const response = await axios.post<ReplenishmentResponse>(
+        `/api/databases/${currentDatabase._id}/recommendations/replenishment`,
+        {
+          stockFieldId: recommenderFieldMap.stockFieldId,
+          salesHistoryFieldId: recommenderFieldMap.salesHistoryFieldId,
+          skuFieldId: recommenderFieldMap.skuFieldId || undefined,
+          nameFieldId: recommenderFieldMap.nameFieldId || undefined,
+          reorderPointFieldId: recommenderFieldMap.reorderPointFieldId || undefined,
+          leadTimeDaysFieldId: recommenderFieldMap.leadTimeDaysFieldId || undefined,
+          safetyStockDaysFieldId: recommenderFieldMap.safetyStockDaysFieldId || undefined,
+          incomingReplenishmentFieldId:
+            recommenderFieldMap.incomingReplenishmentFieldId || undefined,
+          forecastDays,
+          topN: topNRecommendations,
+        }
+      );
+      setRecommendationResult(response.data);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      const message =
+        axiosError?.response?.data?.error || "Failed to load recommendations.";
+      setRecommendationError(message);
+      setRecommendationResult(null);
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  }, [currentDatabase, recommenderFieldMap, forecastDays, topNRecommendations]);
+
+  useEffect(() => {
+    if (!showRecommender || !autoRefreshRecommendations || !currentDatabase) return;
+
+    const interval = setInterval(() => {
+      fetchRecommendations();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [showRecommender, autoRefreshRecommendations, currentDatabase, fetchRecommendations]);
 
   // --- Export Functionality ---
   const handleExportCSV = () => {
@@ -242,11 +407,12 @@ const [importData, setImportData] = useState<any[]>([]);
       const data = new Uint8Array(event.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+      const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
 
+      const importableFields = dataFields.filter((field) => !isFormulaField(field));
       const formattedRecords = jsonRows.map(row => {
-        const recordData: Record<string, any> = {};
-        dataFields.forEach(field => {
+        const recordData: Record<string, unknown> = {};
+        importableFields.forEach(field => {
           const excelValue = row[field.label] || row[field.id];
           if (excelValue !== undefined) recordData[field.id] = excelValue;
         });
@@ -257,7 +423,7 @@ const [importData, setImportData] = useState<any[]>([]);
       setImportPreviewCount(formattedRecords.length);
     };
     reader.readAsArrayBuffer(file);
-  } catch (err) {
+  } catch {
     alert("Failed to parse file.");
   } finally {
     setIsImporting(false);
@@ -276,7 +442,7 @@ const handleConfirmImport = async () => {
     setShowImportModal(false);
     setImportData([]);
     setImportPreviewCount(0);
-  } catch (err) {
+  } catch {
     alert("Bulk import failed.");
   } finally {
     setIsImporting(false);
@@ -471,6 +637,320 @@ const handleConfirmImport = async () => {
         >
           <BotMessageSquare className="w-6 h-6 text-white" />
         </button>
+      </div>
+
+      {/* Recommender Panel */}
+      <div
+        className="border-b px-6 py-4"
+        style={{
+          backgroundColor: currentTheme.surface,
+          borderColor: currentTheme.border,
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: currentTheme.text }}>
+              Dynamic Replenishment Recommender
+            </h3>
+            <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+              Real-time stock guidance using future sales prediction.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRecommender((prev) => !prev)}
+              style={{ borderColor: currentTheme.border, color: currentTheme.text }}
+            >
+              {showRecommender ? "Hide Panel" : "Show Panel"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={fetchRecommendations}
+              disabled={isLoadingRecommendations}
+              style={{ backgroundColor: currentTheme.primary, color: "#ffffff" }}
+            >
+              {isLoadingRecommendations ? "Refreshing..." : "Refresh Recommendations"}
+            </Button>
+          </div>
+        </div>
+
+        {showRecommender && (
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Stock Field *</p>
+                <select
+                  value={recommenderFieldMap.stockFieldId}
+                  onChange={(e) =>
+                    setRecommenderFieldMap((prev) => ({ ...prev, stockFieldId: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">Select field</option>
+                  {dataFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label} ({field.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Sales History Field *</p>
+                <select
+                  value={recommenderFieldMap.salesHistoryFieldId}
+                  onChange={(e) =>
+                    setRecommenderFieldMap((prev) => ({ ...prev, salesHistoryFieldId: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">Select field</option>
+                  {dataFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label} ({field.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>SKU Field</p>
+                <select
+                  value={recommenderFieldMap.skuFieldId}
+                  onChange={(e) =>
+                    setRecommenderFieldMap((prev) => ({ ...prev, skuFieldId: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">(Optional)</option>
+                  {dataFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label} ({field.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Product Name Field</p>
+                <select
+                  value={recommenderFieldMap.nameFieldId}
+                  onChange={(e) =>
+                    setRecommenderFieldMap((prev) => ({ ...prev, nameFieldId: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">(Optional)</option>
+                  {dataFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label} ({field.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Forecast Days</p>
+                <Input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={forecastDays}
+                  onChange={(e) => setForecastDays(Math.max(1, Number(e.target.value) || 14))}
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                />
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Top Recommendations</p>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={topNRecommendations}
+                  onChange={(e) => setTopNRecommendations(Math.max(1, Number(e.target.value) || 20))}
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                />
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Lead Time Field</p>
+                <select
+                  value={recommenderFieldMap.leadTimeDaysFieldId}
+                  onChange={(e) =>
+                    setRecommenderFieldMap((prev) => ({ ...prev, leadTimeDaysFieldId: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">(Optional)</option>
+                  {dataFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label} ({field.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Auto Refresh (60s)</p>
+                <div className="h-10 rounded-md px-3 flex items-center" style={{ border: `1px solid ${currentTheme.border}` }}>
+                  <Checkbox
+                    checked={autoRefreshRecommendations}
+                    onCheckedChange={(checked) => setAutoRefreshRecommendations(Boolean(checked))}
+                  />
+                  <span className="text-xs ml-2" style={{ color: currentTheme.textSecondary }}>
+                    Keep recommendations live
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {recommendationError && (
+              <p className="text-sm" style={{ color: "#ef4444" }}>
+                {recommendationError}
+              </p>
+            )}
+
+            {recommendationResult && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Order Now</p>
+                    <p className="text-xl font-bold" style={{ color: "#ef4444" }}>
+                      {recommendationResult.summary.orderNowCount}
+                    </p>
+                  </Card>
+                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Order Soon</p>
+                    <p className="text-xl font-bold" style={{ color: "#f59e0b" }}>
+                      {recommendationResult.summary.orderSoonCount}
+                    </p>
+                  </Card>
+                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Healthy</p>
+                    <p className="text-xl font-bold" style={{ color: "#10b981" }}>
+                      {recommendationResult.summary.healthyCount}
+                    </p>
+                  </Card>
+                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Overstock</p>
+                    <p className="text-xl font-bold" style={{ color: "#0ea5e9" }}>
+                      {recommendationResult.summary.overstockCount}
+                    </p>
+                  </Card>
+                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Recommended Units</p>
+                    <p className="text-xl font-bold" style={{ color: currentTheme.text }}>
+                      {recommendationResult.summary.totalRecommendedUnits}
+                    </p>
+                  </Card>
+                </div>
+
+                <div className="max-h-72 overflow-auto grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {recommendationResult.recommendations.map((recommendation) => {
+                    const badge = getActionBadgeStyles(recommendation.action);
+                    return (
+                      <Card
+                        key={`${recommendation.sku}-${recommendation.urgencyScore}`}
+                        className="p-4"
+                        style={{ border: `1px solid ${currentTheme.border}` }}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <p className="font-semibold" style={{ color: currentTheme.text }}>
+                              {recommendation.name || recommendation.sku}
+                            </p>
+                            <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                              SKU: {recommendation.sku}
+                            </p>
+                          </div>
+                          <span
+                            className="text-xs px-2 py-1 rounded-full"
+                            style={{
+                              backgroundColor: badge.background,
+                              color: badge.color,
+                            }}
+                          >
+                            {badge.label}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                          <p style={{ color: currentTheme.textSecondary }}>
+                            Urgency: <span style={{ color: currentTheme.text }}>{recommendation.urgencyScore}</span>
+                          </p>
+                          <p style={{ color: currentTheme.textSecondary }}>
+                            Order Qty: <span style={{ color: currentTheme.text }}>{recommendation.recommendedOrderQty}</span>
+                          </p>
+                          <p style={{ color: currentTheme.textSecondary }}>
+                            Daily Sales: <span style={{ color: currentTheme.text }}>{recommendation.predictedDailySales}</span>
+                          </p>
+                          <p style={{ color: currentTheme.textSecondary }}>
+                            Stockout (days): <span style={{ color: currentTheme.text }}>{recommendation.daysUntilStockout}</span>
+                          </p>
+                        </div>
+
+                        <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                          {recommendation.explanation}
+                        </p>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {recommendationResult.warnings.length > 0 && (
+                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                    <p className="text-sm font-semibold mb-1" style={{ color: currentTheme.text }}>
+                      Data Warnings
+                    </p>
+                    <div className="max-h-24 overflow-auto space-y-1">
+                      {recommendationResult.warnings.map((warning) => (
+                        <p key={warning} className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                          {warning}
+                        </p>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -783,7 +1263,7 @@ const handleConfirmImport = async () => {
                     >
                       <ControlledFieldPreview
                         field={field}
-                        value={formData[field.id]}
+                        value={normalizedFormData[field.id]}
                         onChange={(value) => handleFieldChange(field.id, value)}
                         isEditing={false}
                         formErrors={formErrors}
