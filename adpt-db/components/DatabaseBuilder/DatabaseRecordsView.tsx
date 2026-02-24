@@ -12,7 +12,10 @@ import {
   Trash2,
   FileSpreadsheet, // Added for Import UI
   Upload,           // Added for Import UI
-  RefreshCcw
+  RefreshCcw,
+  Minimize2,
+  Maximize2,
+  BarChart3Icon
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -27,6 +30,23 @@ import { Checkbox } from "../ui/checkbox";
 import { useInView } from "react-intersection-observer";
 import { record } from "zod";
 import { TableRowSkeleton } from "../Loaders";
+
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+
 type DatabaseRecordsViewProps = {
   currentDatabase: DatabaseFolder;
   onOpenChatbot: () => void;
@@ -75,6 +95,19 @@ const suggestFieldId = (fields: FieldAttributes[], keywords: string[]) => {
     return normalizedKeywords.some((keyword) => source.includes(keyword));
   });
   return match?.id || "";
+};
+
+type AnalyticsVisual = "bar" | "line" | "pie";
+
+const parseNumericValue = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const normalized = value.replace(/,/g, "").trim();
+    if (!normalized) return null;
+    const converted = Number(normalized);
+    return Number.isFinite(converted) ? converted : null;
+  }
+  return null;
 };
 
 const getActionBadgeStyles = (
@@ -138,6 +171,15 @@ export default function DatabaseRecordsView({
     safetyStockDaysFieldId: "",
     incomingReplenishmentFieldId: "",
   });
+
+
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [expandedAnalyticsVisual, setExpandedAnalyticsVisual] = useState<AnalyticsVisual | null>(null);
+  const [analyticsFieldId, setAnalyticsFieldId] = useState("");
+  const [barChartCategoryFieldId, setBarChartCategoryFieldId] = useState("");
+  const [barChartNumericFieldId, setBarChartNumericFieldId] = useState("");
+  const [lineChartCategoryFieldId, setLineChartCategoryFieldId] = useState("");
+  const [lineChartNumericFieldId, setLineChartNumericFieldId] = useState("");
 
   // Effect A: When Filters change, reset to page 1
   useEffect(() => {
@@ -211,33 +253,308 @@ export default function DatabaseRecordsView({
   const dataFields = formSchema.filter(
     (field) => field.type !== "text" && field.type !== "separator"
   );
+  const numericAnalyticsFields = useMemo(
+    () =>
+      dataFields.filter((field) =>
+        records.some((record) => parseNumericValue(record.data[field.id]) !== null)
+      ),
+    [dataFields, records]
+  );
 
-  const recommenderfields = useMemo(() => {
-    if (!dataFields.length) return;
-
-    setRecommenderFieldMap((prev) => ({
-      stockFieldId:
-        prev.stockFieldId || suggestFieldId(dataFields, ["stock", "inventory", "qty", "quantity", "onhand"]),
-      salesHistoryFieldId:
-        prev.salesHistoryFieldId ||
-        suggestFieldId(dataFields, ["saleshistory", "sales_history", "sales", "dailysales", "demand"]),
-      skuFieldId: prev.skuFieldId || suggestFieldId(dataFields, ["sku", "code", "itemid"]),
-      nameFieldId: prev.nameFieldId || suggestFieldId(dataFields, ["name", "product", "item"]),
-      reorderPointFieldId:
-        prev.reorderPointFieldId || suggestFieldId(dataFields, ["reorder", "reorderpoint", "threshold"]),
-      leadTimeDaysFieldId:
-        prev.leadTimeDaysFieldId || suggestFieldId(dataFields, ["leadtime", "lead_time"]),
-      safetyStockDaysFieldId:
-        prev.safetyStockDaysFieldId || suggestFieldId(dataFields, ["safety", "safetystock"]),
-      incomingReplenishmentFieldId:
-        prev.incomingReplenishmentFieldId ||
-        suggestFieldId(dataFields, ["incoming", "replenishment", "restock", "inbound"]),
-    }));
-  }, [dataFields.length]);
+  const categoricalAnalyticsFields = useMemo(
+    () =>
+      dataFields.filter((field) =>
+        records.some((record) => {
+          const value = record.data[field.id];
+          return typeof value === "string" && value.trim().length > 0;
+        })
+      ),
+    [dataFields, records]
+  );
 
   useEffect(() => {
-    recommenderfields;
+    if (
+      analyticsFieldId &&
+      numericAnalyticsFields.some((field) => field.id === analyticsFieldId)
+    ) {
+      return;
+    }
+    setAnalyticsFieldId(numericAnalyticsFields[0]?.id || "");
+  }, [numericAnalyticsFields, analyticsFieldId]);
+
+  useEffect(() => {
+    if (
+      barChartCategoryFieldId &&
+      categoricalAnalyticsFields.some((field) => field.id === barChartCategoryFieldId)
+    ) {
+      return;
+    }
+    setBarChartCategoryFieldId(categoricalAnalyticsFields[0]?.id || "");
+  }, [categoricalAnalyticsFields, barChartCategoryFieldId]);
+
+  useEffect(() => {
+    if (
+      barChartNumericFieldId &&
+      numericAnalyticsFields.some((field) => field.id === barChartNumericFieldId)
+    ) {
+      return;
+    }
+    setBarChartNumericFieldId(numericAnalyticsFields[0]?.id || "");
+  }, [numericAnalyticsFields, barChartNumericFieldId]);
+
+  useEffect(() => {
+    if (
+      lineChartCategoryFieldId &&
+      categoricalAnalyticsFields.some((field) => field.id === lineChartCategoryFieldId)
+    ) {
+      return;
+    }
+    setLineChartCategoryFieldId(categoricalAnalyticsFields[0]?.id || "");
+  }, [categoricalAnalyticsFields, lineChartCategoryFieldId]);
+
+  useEffect(() => {
+    if (
+      lineChartNumericFieldId &&
+      numericAnalyticsFields.some((field) => field.id === lineChartNumericFieldId)
+    ) {
+      return;
+    }
+    setLineChartNumericFieldId(numericAnalyticsFields[0]?.id || "");
+  }, [numericAnalyticsFields, lineChartNumericFieldId]);
+
+  const analyticsTimelineData = useMemo(() => {
+    const dateMap = new Map<
+      string,
+      { records: number; totalValue: number; valueCount: number }
+    >();
+
+    records.forEach((record) => {
+      const date = new Date(record.createdAt).toISOString().split("T")[0];
+      const current = dateMap.get(date) || { records: 0, totalValue: 0, valueCount: 0 };
+      current.records += 1;
+
+      if (analyticsFieldId) {
+        const parsed = parseNumericValue(record.data[analyticsFieldId]);
+        if (parsed !== null) {
+          current.totalValue += parsed;
+          current.valueCount += 1;
+        }
+      }
+      dateMap.set(date, current);
+    });
+
+    return [...dateMap.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .slice(-14)
+      .map(([date, values]) => ({
+        date: date.slice(5),
+        records: values.records,
+        averageValue: values.valueCount ? Number((values.totalValue / values.valueCount).toFixed(2)) : 0,
+      }));
+  }, [records, analyticsFieldId]);
+
+  const analyticsBarChartData = useMemo(() => {
+    if (!barChartCategoryFieldId || !barChartNumericFieldId) return [];
+    const categoryMap = new Map<string, { numericTotal: number; numericCount: number; records: number }>();
+
+    records.forEach((record) => {
+      const rawValue = record.data[barChartCategoryFieldId];
+      const label = String(rawValue ?? "Unknown").trim() || "Unknown";
+      const parsedNumeric = parseNumericValue(record.data[barChartNumericFieldId]);
+      const current = categoryMap.get(label) || { numericTotal: 0, numericCount: 0, records: 0 };
+      current.records += 1;
+      if (parsedNumeric !== null) {
+        current.numericTotal += parsedNumeric;
+        current.numericCount += 1;
+      }
+      categoryMap.set(label, current);
+    });
+
+    return [...categoryMap.entries()]
+      .map(([name, values]) => ({
+        name,
+        metricValue:
+          values.numericCount > 0 ? Number((values.numericTotal / values.numericCount).toFixed(2)) : 0,
+      }))
+      .sort((left, right) => right.metricValue - left.metricValue)
+      .slice(0, 10);
+  }, [records, barChartCategoryFieldId, barChartNumericFieldId]);
+
+  const analyticsLineChartData = useMemo(() => {
+    if (!lineChartCategoryFieldId || !lineChartNumericFieldId) return [];
+
+    const grouped = new Map<string, { records: number; totalNumeric: number; numericCount: number }>();
+
+    records.forEach((record) => {
+      const rawCategory = record.data[lineChartCategoryFieldId];
+      const category = String(rawCategory ?? "Unknown").trim() || "Unknown";
+      const parsedNumeric = parseNumericValue(record.data[lineChartNumericFieldId]);
+
+      const current = grouped.get(category) || { records: 0, totalNumeric: 0, numericCount: 0 };
+      current.records += 1;
+      if (parsedNumeric !== null) {
+        current.totalNumeric += parsedNumeric;
+        current.numericCount += 1;
+      }
+      grouped.set(category, current);
+    });
+
+    return [...grouped.entries()]
+      .map(([category, values]) => ({
+        category,
+        records: values.records,
+        metricValue:
+          values.numericCount > 0
+            ? Number((values.totalNumeric / values.numericCount).toFixed(2))
+            : 0,
+      }))
+      .sort((left, right) => right.records - left.records)
+      .slice(0, 12)
+      .reverse();
+  }, [records, lineChartCategoryFieldId, lineChartNumericFieldId]);
+
+  const analyticsPieData = useMemo(() => {
+    if (!recommendationResult) return [];
+    return [
+      { name: "Order Now", value: recommendationResult.summary.orderNowCount },
+      { name: "Order Soon", value: recommendationResult.summary.orderSoonCount },
+      { name: "Healthy", value: recommendationResult.summary.healthyCount },
+      { name: "Overstock", value: recommendationResult.summary.overstockCount },
+    ];
+  }, [recommendationResult]);
+
+  const barChartCategoryLabel =
+    dataFields.find((field) => field.id === barChartCategoryFieldId)?.label || "Category";
+  const barChartNumericLabel =
+    dataFields.find((field) => field.id === barChartNumericFieldId)?.label || "Numeric Field";
+  const lineChartCategoryLabel =
+    dataFields.find((field) => field.id === lineChartCategoryFieldId)?.label || "Category";
+  const lineChartNumericLabel =
+    dataFields.find((field) => field.id === lineChartNumericFieldId)?.label || "Numeric Field";
+
+  const isBarExpanded = expandedAnalyticsVisual === "bar";
+  const isLineExpanded = expandedAnalyticsVisual === "line";
+  const isPieExpanded = expandedAnalyticsVisual === "pie";
+
+  const displayedBarChartData = useMemo(
+    () => analyticsBarChartData.slice(0, isBarExpanded ? 12 : 6),
+    [analyticsBarChartData, isBarExpanded]
+  );
+
+  const displayedLineChartData = useMemo(
+    () => analyticsLineChartData.slice(0, isLineExpanded ? 12 : 6),
+    [analyticsLineChartData, isLineExpanded]
+  );
+
+  const formatXAxisTick = useCallback(
+    (value: string | number, expanded: boolean) => {
+      const source = String(value ?? "");
+      const maxChars = expanded ? 20 : 10;
+      return source.length > maxChars ? `${source.slice(0, maxChars)}...` : source;
+    },
+    []
+  );
+
+  const analyticsSummary = useMemo(() => {
+    const selectedValues = analyticsFieldId
+      ? records
+          .map((record) => parseNumericValue(record.data[analyticsFieldId]))
+          .filter((value): value is number => value !== null)
+      : [];
+    const selectedField = dataFields.find((field) => field.id === analyticsFieldId);
+    const average =
+      selectedValues.length > 0
+        ? Number(
+            (
+              selectedValues.reduce((sum, current) => sum + current, 0) / selectedValues.length
+            ).toFixed(2)
+          )
+        : 0;
+
+    return {
+      totalRecords: records.length,
+      visibleRecords: records.length,
+      numericFieldsCount: numericAnalyticsFields.length,
+      selectedFieldLabel: selectedField?.label || "Selected metric",
+      selectedFieldAverage: average,
+    };
+  }, [records, records.length, numericAnalyticsFields.length, analyticsFieldId, dataFields]);
+
+  const analyticsRecommendations = useMemo(() => {
+    const recommendations: string[] = [];
+
+    if (records.length === 0) {
+      return ["No records are available yet. Add records to generate analytics recommendations."];
+    }
+
+    if (analyticsTimelineData.length >= 2) {
+      const latest = analyticsTimelineData[analyticsTimelineData.length - 1];
+      const previous = analyticsTimelineData[analyticsTimelineData.length - 2];
+      if (latest.records > previous.records) {
+        recommendations.push("Record inflow is rising. Plan for higher processing and inventory needs.");
+      } else if (latest.records < previous.records) {
+        recommendations.push("Record inflow has slowed. Recheck demand assumptions before placing large orders.");
+      }
+    }
+
+    if (recommendationResult?.recommendations?.length) {
+      recommendationResult.recommendations.slice(0, 2).forEach((item) => {
+        recommendations.push(
+          `${item.name || item.sku}: ${item.explanation} (Recommended qty: ${item.recommendedOrderQty})`
+        );
+      });
+    } else {
+      recommendations.push(
+        "Map Stock and Sales History fields, then refresh recommendations for SKU-level replenishment guidance."
+      );
+    }
+
+    if (analyticsSummary.selectedFieldAverage > 0) {
+      recommendations.push(
+        `Average ${analyticsSummary.selectedFieldLabel.toLowerCase()} is ${analyticsSummary.selectedFieldAverage}. Use this as a baseline for thresholds and alerts.`
+      );
+    }
+
+    return recommendations.slice(0, 4);
+  }, [records.length, analyticsTimelineData, recommendationResult, analyticsSummary]);
+
+
+useEffect(() => {
+    if (!dataFields.length) return;
+    setRecommenderFieldMap((prev) => {
+      const next = {
+        stockFieldId:
+          prev.stockFieldId || suggestFieldId(dataFields, ["stock", "inventory", "qty", "quantity", "onhand"]),
+        salesHistoryFieldId:
+          prev.salesHistoryFieldId ||
+          suggestFieldId(dataFields, ["saleshistory", "sales_history", "sales", "dailysales", "demand"]),
+        skuFieldId: prev.skuFieldId || suggestFieldId(dataFields, ["sku", "code", "itemid"]),
+        nameFieldId: prev.nameFieldId || suggestFieldId(dataFields, ["name", "product", "item"]),
+        reorderPointFieldId:
+          prev.reorderPointFieldId || suggestFieldId(dataFields, ["reorder", "reorderpoint", "threshold"]),
+        leadTimeDaysFieldId:
+          prev.leadTimeDaysFieldId || suggestFieldId(dataFields, ["leadtime", "lead_time"]),
+        safetyStockDaysFieldId:
+          prev.safetyStockDaysFieldId || suggestFieldId(dataFields, ["safety", "safetystock"]),
+        incomingReplenishmentFieldId:
+          prev.incomingReplenishmentFieldId ||
+          suggestFieldId(dataFields, ["incoming", "replenishment", "restock", "inbound"]),
+      };
+
+      const isSame =
+        prev.stockFieldId === next.stockFieldId &&
+        prev.salesHistoryFieldId === next.salesHistoryFieldId &&
+        prev.skuFieldId === next.skuFieldId &&
+        prev.nameFieldId === next.nameFieldId &&
+        prev.reorderPointFieldId === next.reorderPointFieldId &&
+        prev.leadTimeDaysFieldId === next.leadTimeDaysFieldId &&
+        prev.safetyStockDaysFieldId === next.safetyStockDaysFieldId &&
+        prev.incomingReplenishmentFieldId === next.incomingReplenishmentFieldId;
+
+      return isSame ? prev : next;
+    });
   }, [dataFields]);
+
 
   const handleOpenForm = () => {
     setEditingRecord(null);
@@ -462,6 +779,24 @@ export default function DatabaseRecordsView({
     return () => clearInterval(interval);
   }, [showRecommender, autoRefreshRecommendations, currentDatabase, fetchRecommendations]);
 
+  useEffect(() => {
+    if (!showAnalytics || recommendationResult || isLoadingRecommendations) return;
+    if (!recommenderFieldMap.stockFieldId || !recommenderFieldMap.salesHistoryFieldId) return;
+    fetchRecommendations();
+  }, [
+    showAnalytics,
+    recommendationResult,
+    isLoadingRecommendations,
+    recommenderFieldMap.stockFieldId,
+    recommenderFieldMap.salesHistoryFieldId,
+    fetchRecommendations,
+  ]);
+
+  useEffect(() => {
+    if (showAnalytics) return;
+    setExpandedAnalyticsVisual(null);
+  }, [showAnalytics]);
+
   // --- Export Functionality ---
   const handleExportCSV = () => {
     const headers = [...dataFields.map(f => f.label), "Created At"].join(",");
@@ -651,6 +986,19 @@ export default function DatabaseRecordsView({
         </div>
 
         <div className="flex items-center gap-3">
+
+          <Button
+            variant={showAnalytics ? "default" : "outline"}
+            onClick={() => setShowAnalytics((prev) => !prev)}
+            style={
+              showAnalytics
+                ? { backgroundColor: currentTheme.primary, color: "#ffffff" }
+                : { borderColor: currentTheme.border, color: currentTheme.text }
+            }
+          >
+            <BarChart3Icon className="w-4 h-4 mr-2" />
+            {showAnalytics ? "Hide Analytics" : "Analytics"}
+          </Button>
           {/* Export Button */}
           <Button
             variant="outline"
@@ -814,6 +1162,359 @@ export default function DatabaseRecordsView({
           <BotMessageSquare className="w-6 h-6 text-white" />
         </button>
       </div>
+
+      {showAnalytics && (
+        <div
+          className="border-b px-6 py-4 space-y-4 relative"
+          style={{
+            backgroundColor: currentTheme.surface,
+            borderColor: currentTheme.border,
+          }}
+        >
+          {expandedAnalyticsVisual && (
+            <div
+              className="fixed inset-0 z-40 bg-black/45"
+              onClick={() => setExpandedAnalyticsVisual(null)}
+            />
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold" style={{ color: currentTheme.text }}>
+                Database Analytics
+              </h3>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                Visuals and recommendations for the current opened database.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={analyticsFieldId}
+                onChange={(e) => setAnalyticsFieldId(e.target.value)}
+                className="px-3 py-2 rounded-md text-sm"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  color: currentTheme.text,
+                  border: `1px solid ${currentTheme.border}`,
+                }}
+              >
+                <option value="">Select numeric metric</option>
+                {numericAnalyticsFields.map((field) => (
+                  <option key={field.id} value={field.id}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={fetchRecommendations}
+                disabled={isLoadingRecommendations}
+                style={{ backgroundColor: currentTheme.primary, color: "#ffffff" }}
+              >
+                {isLoadingRecommendations ? "Loading..." : "Refresh Recommendations"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #ef4444`,alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary,fontSize:'1.05rem'}}>Total Records</p>
+              <p className="text-xl font-bold" style={{ color: currentTheme.text }}>{analyticsSummary.totalRecords}</p>
+            </Card>
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #f59e0b`,alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary, alignItems: "center",fontSize:'1.05rem' }}>Visible Records</p>
+              <p className="text-xl font-bold" style={{ color: currentTheme.text }}>{analyticsSummary.visibleRecords}</p>
+            </Card>
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #10b981`,alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary,fontSize:'1.05rem' }}>Numeric Fields</p>
+              <p className="text-xl font-bold" style={{ color: currentTheme.text }}>{analyticsSummary.numericFieldsCount}</p>
+            </Card>
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #0ea5e9`,alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary,fontSize:'1.05rem' }}>
+                Avg {analyticsSummary.selectedFieldLabel}
+              </p>
+              <p className="text-xl font-bold" style={{ color: currentTheme.text }}>
+                {analyticsSummary.selectedFieldAverage}
+              </p>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card
+              className={`p-3 ${isBarExpanded ? "fixed inset-6 z-50 overflow-auto shadow-2xl" : ""}p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer`}
+              style={{ backgroundColor: currentTheme.background, border: `1px solid #0ea5e9` }}
+            >
+              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold" style={{ color: currentTheme.text }}>
+                  Bar Graph: Category vs Numeric Field
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedAnalyticsVisual((prev) => (prev === "bar" ? null : "bar"))}
+                  style={{ color: currentTheme.text }}
+                >
+                  {isBarExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-2 mb-3">
+                <select
+                  value={barChartCategoryFieldId}
+                  onChange={(e) => setBarChartCategoryFieldId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">Select bar chart category field</option>
+                  {categoricalAnalyticsFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={barChartNumericFieldId}
+                  onChange={(e) => setBarChartNumericFieldId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">Select bar chart numeric field</option>
+                  {numericAnalyticsFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={isBarExpanded ? "h-[70vh]" : "h-56"}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={displayedBarChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} />
+                    <XAxis
+                      dataKey="name"
+                      stroke={currentTheme.textSecondary}
+                      interval="preserveStartEnd"
+                      minTickGap={isBarExpanded ? 18 : 40}
+                      tickFormatter={(value) => formatXAxisTick(value, isBarExpanded)}
+                      tick={{ fontSize: isBarExpanded ? 12 : 10 }}
+                      angle={isBarExpanded ? 0 : -15}
+                      textAnchor={isBarExpanded ? "middle" : "end"}
+                      height={60}
+                      label={{
+                        value: barChartCategoryLabel,
+                        position: "insideBottom",
+                        offset: -2,
+                        fill: currentTheme.text,
+                      }}
+                    />
+                    <YAxis
+                      stroke={currentTheme.textSecondary}
+                      label={{
+                        value: `Avg ${barChartNumericLabel}`,
+                        angle: -90,
+                        position: "insideLeft",
+                        fill: currentTheme.text,
+                      }}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => `${barChartCategoryLabel}: ${String(label)}`}
+                      formatter={(value) => [String(value), `Avg ${barChartNumericLabel}`]}
+                    />
+                    <Bar dataKey="metricValue" name="Metric Average" fill={currentTheme.primary} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card
+              className={`p-3 ${isLineExpanded ? "fixed inset-6 z-50 overflow-auto shadow-2xl" : ""}p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer`}
+              style={{ backgroundColor: currentTheme.background, border: `1px solid #ef4444` }}
+            >
+              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointermb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold" style={{ color: currentTheme.text }}>
+                  Line Chart: Category vs Numeric Field
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedAnalyticsVisual((prev) => (prev === "line" ? null : "line"))}
+                  style={{ color: currentTheme.text }}
+                >
+                  {isLineExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-2 mb-3">
+                <select
+                  value={lineChartCategoryFieldId}
+                  onChange={(e) => setLineChartCategoryFieldId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">Select line chart category field</option>
+                  {categoricalAnalyticsFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={lineChartNumericFieldId}
+                  onChange={(e) => setLineChartNumericFieldId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    color: currentTheme.text,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                >
+                  <option value="">Select line chart numeric field</option>
+                  {numericAnalyticsFields.map((field) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={isLineExpanded ? "h-[70vh]" : "h-64"}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={displayedLineChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} />
+                    <XAxis
+                      dataKey="category"
+                      stroke={currentTheme.textSecondary}
+                      interval="preserveStartEnd"
+                      minTickGap={isLineExpanded ? 18 : 40}
+                      tickFormatter={(value) => formatXAxisTick(value, isLineExpanded)}
+                      tick={{ fontSize: isLineExpanded ? 12 : 10 }}
+                      angle={isLineExpanded ? 0 : -15}
+                      textAnchor={isLineExpanded ? "middle" : "end"}
+                      height={60}
+                      label={{
+                        value: lineChartCategoryLabel,
+                        position: "insideBottom",
+                        offset: -2,
+                        fill: currentTheme.text,
+                      }}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      stroke={currentTheme.textSecondary}
+                      label={{
+                        value: "Record Count",
+                        angle: -90,
+                        position: "insideLeft",
+                        fill: currentTheme.text,
+                      }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke={currentTheme.textSecondary}
+                      label={{
+                        value: `Avg ${lineChartNumericLabel}`,
+                        angle: 90,
+                        position: "insideRight",
+                        fill: currentTheme.text,
+                      }}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => `${lineChartCategoryLabel}: ${String(label)}`}
+                      formatter={(value, name) => {
+                        if (name === "Record Count") {
+                          return [String(value), "Record Count"];
+                        }
+                        return [String(value), `Avg ${lineChartNumericLabel}`];
+                      }}
+                    />
+                    <Legend />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="records"
+                      name="Record Count"
+                      stroke={currentTheme.primary}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="metricValue"
+                      name="Metric Average"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card
+              className={`p-3 ${isPieExpanded ? "fixed inset-6 z-50 overflow-auto shadow-2xl" : ""}p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer`}
+              style={{ backgroundColor: currentTheme.background, border: `1px solid #f59e0b` }}
+            >
+              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold" style={{ color: currentTheme.text }}>
+                  Pie Chart: Recommendation Mix
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedAnalyticsVisual((prev) => (prev === "pie" ? null : "pie"))}
+                  style={{ color: currentTheme.text }}
+                >
+                  {isPieExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </div>
+              <div className={isPieExpanded ? "h-[70vh]" : "h-64"}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analyticsPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      label
+                    >
+                      {analyticsPieData.map((entry, index) => {
+                        const colors = ["#ef4444", "#f59e0b", "#10b981", "#0ea5e9", currentTheme.primary, "#14b8a6"];
+                        return <Cell key={`${entry.name}-${index}`} fill={colors[index % colors.length]} />;
+                      })}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointerp-4" style={{ backgroundColor: currentTheme.background, border: `1px solid #10b981` }}>
+            <p className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+              Recommendations
+            </p>
+            <div className="space-y-2">
+              {analyticsRecommendations.map((message, index) => (
+                <p key={`${message}-${index}`} className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                  {index + 1}. {message}
+                </p>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Recommender Panel */}
       <div
