@@ -1,0 +1,39 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF RAG Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <section class="chat-card">
+            <div class="chat-header-row">
+                <div>
+                    <h1>PDF RAG Chatbot</h1>
+                </div>
+                <button id="themeToggle" class="secondary theme-btn" type="button">Dark Mode</button>
+            </div>
+
+            <div id="loadStatus" class="status"></div>
+            <div id="pdfInfo" class="info hidden"></div>
+
+            <div id="messages" class="messages">
+                <div class="msg assistant">Preparing knowledge base...</div>
+            </div>
+
+            <div class="chat-input-row">
+                <textarea id="chatInput" rows="2" placeholder="Ask a question..." disabled></textarea>
+                <button id="sendBtn" disabled>Send</button>
+            </div>
+            <div class="chat-meta">
+                <span id="chatStatus"></span>
+                <button id="clearBtn" class="secondary" type="button">Clear</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
