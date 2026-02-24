@@ -6,11 +6,13 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Star, Upload } from 'lucide-react';
+import { Star, Upload, X, Search, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { FieldAttributes } from './types';
 import { useTheme } from '@/context/ThemeContext';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type Props = {
   field: FieldAttributes;
@@ -20,102 +22,104 @@ export default function FieldPreview({ field }: Props) {
   const { currentTheme } = useTheme();
   const [rating, setRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   const showLabel = field.showLabel !== false;
+  const options = field.options || [];
 
-  // Display Elements
+  // 1. DISPLAY ELEMENTS (Standalone)
   if (field.type === 'text') {
-    return (
-      <div className="p-4" style={{ color: currentTheme.text }}>
-        {field.label}
-      </div>
-    );
+    return <div className="p-2 font-medium" style={{ color: currentTheme.text }}>{field.label}</div>;
   }
 
   if (field.type === 'separator') {
-    return (
-      <div className="py-2">
-        <div
-          className="h-px"
-          style={{ backgroundColor: currentTheme.border }}
-        />
-      </div>
-    );
+    return <div className="py-4"><div className="h-px w-full" style={{ backgroundColor: `${currentTheme.border}80` }} /></div>;
   }
 
   return (
-    <div className="space-y-2">
-      {showLabel && (
-        <Label style={{ color: currentTheme.text }}>
+    <div className="space-y-3">
+      {/* Label logic: Hidden for checkbox/switch/text/separator */}
+      {showLabel && !['checkbox', 'switch'].includes(field.type) && (
+        <Label className="text-sm font-semibold" style={{ color: currentTheme.text }}>
           {field.label}
-          {field.required && <span style={{ color: '#ef4444' }}> *</span>}
+          {field.required && <span className="text-red-500 ml-1">*</span>}
         </Label>
       )}
 
-      {/* Text/Email/Phone/URL/Time Inputs */}
-      {field.type.startsWith('input-') && (
-        <Input
-          type={
-            field.type === 'input-number'
-              ? 'number'
-              : field.type === 'input-email'
-              ? 'email'
-              : field.type === 'input-url'
-              ? 'url'
-              : field.type === 'input-time'
-              ? 'time'
-              : 'text'
-          }
-          placeholder={field.placeholder}
-          disabled={field.disabled}
-          required={field.required}
-          min={field.min}
-          max={field.max}
-          step={field.step}
-          minLength={field.minLength}
-          maxLength={field.maxLength}
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        />
-      )}
-
-      {/* Textarea */}
+      {/* 2. TEXTAREA */}
       {field.type === 'textarea' && (
         <Textarea
           placeholder={field.placeholder}
           disabled={field.disabled}
-          required={field.required}
-          rows={field.rows}
-          minLength={field.minLength}
-          maxLength={field.maxLength}
+          rows={field.rows || 4}
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            borderColor: currentTheme.border,
             color: currentTheme.text,
           }}
         />
       )}
 
-      {/* Password */}
+      {/* 3. PASSWORD (Matches Template 'password') */}
       {field.type === 'password' && (
-        <Input
-          type="password"
-          placeholder={field.placeholder}
-          disabled={field.disabled}
-          required={field.required}
-          minLength={field.minLength}
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        />
+        <div className="relative">
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            placeholder={field.placeholder || "••••••••"}
+            disabled={field.disabled}
+            style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+            style={{ color: currentTheme.text }}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
       )}
 
-      {/* OTP Input */}
+      {/* Date Picker Preview */}
+    {/* Date Picker Preview */}
+      {field.type === 'date-picker' && (
+        <div className="relative">
+          <Input
+            type="date"
+            // Ensure we use Date-specific attributes
+            min={field.minDate} 
+            max={field.maxDate}
+            disabled={field.disabled}
+            style={{
+              backgroundColor: currentTheme.surface,
+              borderColor: currentTheme.border,
+              color: currentTheme.text,
+              // Add this to make the calendar icon/picker theme-aware
+              colorScheme: currentTheme.mode === 'dark' ? 'dark' : 'light'
+            }}
+            className="block w-full"
+          />
+        </div>
+      )}
+
+      {/* 4. RATING */}
+      {field.type === 'rating' && (
+        <div className="flex gap-1.5 py-1">
+          {Array.from({ length: field.max || 5 }).map((_, i) => (
+            <Star
+              key={i}
+              size={24}
+              className="cursor-pointer transition-transform hover:scale-110"
+              fill={i < rating ? "#facc15" : "transparent"} // yellow-400
+              style={{ color: i < rating ? "#facc15" : currentTheme.border }}
+              onClick={() => setRating(i + 1)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 5. OTP GRID */}
       {field.type === 'input-otp' && (
         <div className="flex gap-2">
           {Array.from({ length: field.otpLength || 6 }).map((_, i) => (
@@ -123,254 +127,174 @@ export default function FieldPreview({ field }: Props) {
               key={i}
               type="text"
               maxLength={1}
-              className="w-12 text-center"
-              disabled={field.disabled}
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
-                color: currentTheme.text,
-              }}
+              className="w-10 h-12 text-center text-lg font-bold"
+              style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
             />
           ))}
         </div>
       )}
 
-      {/* Checkbox */}
-      {field.type === 'checkbox' && (
-        <div className="flex items-center gap-2">
-          <Checkbox disabled={field.disabled} />
-          {!showLabel && (
-            <span className="text-sm" style={{ color: currentTheme.text }}>
-              {field.label}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Switch */}
+      {/* 6. SWITCH */}
       {field.type === 'switch' && (
-        <div className="flex items-center gap-2">
-          <Switch disabled={field.disabled} />
-          {!showLabel && (
-            <span className="text-sm" style={{ color: currentTheme.text }}>
-              {field.label}
-            </span>
-          )}
+        <div className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.surface }}>
+          <Label htmlFor={field.id} style={{ color: currentTheme.text }} className="cursor-pointer font-medium">
+            {field.label}
+          </Label>
+          <Switch id={field.id} disabled={field.disabled} />
         </div>
       )}
 
-      {/* Date Picker */}
-      {field.type === 'date-picker' && (
+      {/* 7. STANDARD INPUTS (Catch-all for email, phone, url, etc.) */}
+      {field.type.startsWith('input-') && field.type !== 'input-otp' && (
         <Input
-          type="date"
-          disabled={field.disabled}
-          required={field.required}
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        />
-      )}
-
-      {/* Tag Input */}
-      {field.type === 'tag-input' && (
-        <div>
-          <div
-            className="flex flex-wrap gap-2 p-2 rounded-lg min-h-10.5"
-            style={{
-              backgroundColor: currentTheme.surface,
-              border: `1px solid ${currentTheme.border}`,
-            }}
-          >
-            {tags.map((tag, i) => (
-              <span
-                key={i}
-                className="px-2 py-1 rounded text-sm"
-                style={{
-                  backgroundColor: currentTheme.primary,
-                  color: '#ffffff',
-                }}
-              >
-                {tag}
-                <button
-                  onClick={() => setTags(tags.filter((_, idx) => idx !== i))}
-                  className="ml-1"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            <input
-              type="text"
-              placeholder={field.placeholder}
-              disabled={field.disabled}
-              className="flex-1 bg-transparent outline-none min-w-25"
-              style={{ color: currentTheme.text }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.currentTarget.value) {
-                  setTags([...tags, e.currentTarget.value]);
-                  e.currentTarget.value = '';
-                }
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Select */}
-      {field.type === 'select' && (
-        <select
-          disabled={field.disabled}
-          required={field.required}
-          className="w-full px-3 py-2 rounded-lg outline-none"
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        >
-          <option value="">{field.placeholder}</option>
-          {(field.options || []).map((opt, i) => (
-            <option key={i} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {/* Combobox - simplified as select for preview */}
-      {field.type === 'combobox' && (
-        <Input
-          type="text"
-          list={`options-${field.id}`}
+          type={field.type.replace('input-', '') === 'phone' ? 'tel' : field.type.replace('input-', '')}
           placeholder={field.placeholder}
           disabled={field.disabled}
           style={{
             backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
+            borderColor: currentTheme.border,
             color: currentTheme.text,
           }}
         />
       )}
 
-      {/* Multi Select */}
-      {field.type === 'multi-select' && (
-        <select
-          multiple
-          disabled={field.disabled}
-          required={field.required}
-          size={4}
-          className="w-full px-3 py-2 rounded-lg outline-none"
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        >
-          {(field.options || []).map((opt, i) => (
-            <option key={i} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {/* Toggle Group */}
-      {field.type === 'toggle' && (
-        <div className="flex flex-wrap gap-2">
-          {(field.options || []).map((opt, i) => (
-            <button
-              key={i}
-              disabled={field.disabled}
-              className="px-4 py-2 rounded-lg transition-all"
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
-                color: currentTheme.text,
-              }}
-            >
-              {opt}
-            </button>
-          ))}
+      {/* 8. SELECT & COMBOBOX */}
+      {(field.type === 'select' || field.type === 'combobox') && (
+        <div className="relative">
+          {field.type === 'select' ? (
+            <div className="relative">
+              <select
+                disabled={field.disabled}
+                defaultValue=""
+                className="flex h-10 w-full rounded-md border px-3 py-2 text-sm appearance-none outline-none focus:ring-2"
+                style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+              >
+                <option value="" disabled>{field.placeholder || "Choose one..."}</option>
+                {options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50 pointer-events-none" />
+            </div>
+          ) : (
+            <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" style={{ color: currentTheme.text }} />
+               <Input
+                 list={`list-${field.id}`}
+                 className="pl-9"
+                 placeholder={field.placeholder}
+                 style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+               />
+               <datalist id={`list-${field.id}`}>
+                 {options.map((opt, i) => <option key={i} value={opt} />)}
+               </datalist>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Radio Group */}
-      {field.type === 'radio' && (
-        <RadioGroup disabled={field.disabled}>
-          {(field.options || []).map((opt, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <RadioGroupItem value={opt} id={`${field.id}-${i}`} />
-              <Label htmlFor={`${field.id}-${i}`} style={{ color: currentTheme.text }}>
-                {opt}
-              </Label>
+      {/* 9. CHECKBOX & MULTI-SELECT */}
+      {(field.type === 'checkbox' || field.type === 'multi-select') && (
+        <div className="space-y-3">
+          {options.length > 0 ? (
+            options.map((opt, i) => (
+              <div key={`${field.id}-${i}`} className="flex items-center space-x-2">
+                <Checkbox id={`${field.id}-${i}`} disabled={field.disabled} />
+                <Label htmlFor={`${field.id}-${i}`} style={{ color: currentTheme.text }}>{opt}</Label>
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center space-x-2 py-1">
+              <Checkbox id={field.id} disabled={field.disabled} />
+              <Label htmlFor={field.id} style={{ color: currentTheme.text }}>{field.label}</Label>
             </div>
-          ))}
-        </RadioGroup>
+          )}
+        </div>
       )}
 
-      {/* Slider */}
+      {/* 10. RADIO & TOGGLE */}
+      {(field.type === 'radio' || field.type === 'toggle') && (
+        <div className={field.type === 'radio' ? "space-y-2" : "flex flex-wrap gap-2"}>
+          {options.length > 0 ? (
+            field.type === 'radio' ? (
+              <RadioGroup disabled={field.disabled}>
+                {options.map((opt, i) => (
+                  <div key={`${field.id}-${i}`} className="flex items-center gap-2">
+                    <RadioGroupItem value={opt} id={`${field.id}-${i}`} />
+                    <Label htmlFor={`${field.id}-${i}`} style={{ color: currentTheme.text }}>{opt}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            ) : (
+              options.map((opt, i) => (
+                <button
+                  key={`${field.id}-${i}`}
+                  className="px-3 py-1 text-sm rounded-md border hover:opacity-80"
+                  style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+                >
+                  {opt}
+                </button>
+              ))
+            )
+          ) : (
+             <p className="text-xs italic opacity-40" style={{ color: currentTheme.text }}>No options added</p>
+          )}
+        </div>
+      )}
+
+      {/* 11. SLIDER */}
       {field.type === 'slider' && (
-        <div className="space-y-2">
+        <div className="pt-4 pb-2 px-1">
           <Slider
             disabled={field.disabled}
             min={field.min}
             max={field.max}
             step={field.step}
-            defaultValue={[field.defaultValue as number || 50]}
+            defaultValue={[Number(field.defaultValue) || 0]}
+            className={cn("w-full", "**:data-[slot=slider-track]:bg-slate-200 dark:**:data-[slot=slider-track]:bg-slate-800")}
           />
-          <div className="flex justify-between text-xs" style={{ color: currentTheme.textSecondary }}>
+          <div className="flex justify-between mt-2 text-[10px] font-bold" style={{ color: currentTheme.text }}>
             <span>{field.min}</span>
+            <span style={{ color: currentTheme.primary }}>{field.defaultValue}</span>
             <span>{field.max}</span>
           </div>
         </div>
       )}
 
-      {/* File Upload */}
-      {field.type === 'file-upload' && (
-        <div
-          className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-all"
-          style={{
-            backgroundColor: currentTheme.surface,
-            borderColor: currentTheme.border,
-          }}
-        >
-          <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: currentTheme.textSecondary }} />
-          <p className="text-sm" style={{ color: currentTheme.text }}>
-            {field.multiple ? 'Click to upload files' : 'Click to upload file'}
-          </p>
-          <p className="text-xs mt-1" style={{ color: currentTheme.textSecondary }}>
-            {field.accept}
-          </p>
-        </div>
-      )}
-
-      {/* Rating */}
-      {field.type === 'rating' && (
-        <div className="flex gap-1">
-          {Array.from({ length: field.max || 5 }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setRating(i + 1)}
-              disabled={field.disabled}
-              className="transition-all hover:scale-110"
-            >
-              <Star
-                className="w-6 h-6"
-                fill={i < rating ? currentTheme.primary : 'none'}
-                style={{
-                  color: i < rating ? currentTheme.primary : currentTheme.border,
-                }}
-              />
-            </button>
+      {/* 12. TAG INPUT */}
+      {field.type === 'tag-input' && (
+        <div className="flex flex-wrap gap-2 p-2 border rounded-md" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+          {tags.map((tag, i) => (
+            <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-white bg-primary">
+              {tag} <X size={12} className="cursor-pointer" onClick={() => setTags(tags.filter((_, idx) => idx !== i))} />
+            </span>
           ))}
+          <input
+            className="bg-transparent outline-none text-sm flex-1"
+            placeholder={field.placeholder}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.currentTarget.value) {
+                setTags([...tags, e.currentTarget.value]);
+                e.currentTarget.value = '';
+              }
+            }}
+          />
         </div>
       )}
 
-      {/* Helper Text */}
+      {/* 13. FILE UPLOAD */}
+      {field.type === 'file-upload' && (
+        <div 
+          className="border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-2"
+          style={{ borderColor: currentTheme.border, backgroundColor: `${currentTheme.surface}50` }}
+        >
+          <Upload className="w-6 h-6 opacity-50" style={{ color: currentTheme.text }} />
+          <span className="text-sm font-medium" style={{ color: currentTheme.text }}>{field.placeholder || "Upload Files"}</span>
+          <Button variant="outline" size="sm">Select File</Button>
+        </div>
+      )}
+
+      {/* HELPER TEXT */}
       {field.helperText && (
-        <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+        <p className="text-[11px] mt-1 italic opacity-60" style={{ color: currentTheme.text }}>
           {field.helperText}
         </p>
       )}

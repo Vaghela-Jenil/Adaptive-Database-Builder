@@ -3,15 +3,15 @@ import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "../../../lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
 
+
 export async function GET() {
   try {
     await connectDB();
-
     const { userId } = await auth();
     if (!userId)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const databases = await DatabaseModel.find({ clerkId: userId }).sort({
+    const databases = await DatabaseModel.find({ clerkId: userId}, { records: 0  }).sort({
       createdAt: -1,
     });
 
@@ -104,4 +104,5 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
 

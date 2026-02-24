@@ -23,6 +23,8 @@ const FieldSchema = new Schema(
     min: Number,
     max: Number,
     step: Number,
+    minDate: String,
+    maxDate: String,
 
     minLength: Number,
     maxLength: Number,

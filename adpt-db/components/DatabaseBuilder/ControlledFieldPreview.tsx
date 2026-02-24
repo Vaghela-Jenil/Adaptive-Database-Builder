@@ -7,11 +7,12 @@ import { Switch } from '../ui/switch';
 import { Slider } from '../ui/slider';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Star, Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { Star, Upload, X, Search, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { FieldAttributes } from './types';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '../ui/button';
+import { cn } from '@/lib/utils';
 
 type Props = {
   field: FieldAttributes;
@@ -23,423 +24,383 @@ type Props = {
 
 export default function ControlledFieldPreview({ field, value, onChange, isEditing = true, formErrors }: Props) {
   const { currentTheme } = useTheme();
-  const [localTags, setLocalTags] = useState<string[]>(
-    Array.isArray(value) ? value : value ? [value] : []
-  );
+  const [localTags, setLocalTags] = useState<string[]>(Array.isArray(value) ? value : []);
   const [tagInput, setTagInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    setLocalTags(Array.isArray(value) ? value : []);
+  }, [value]);
 
   const showLabel = field.showLabel !== false;
   const errorMessage = formErrors?.[field.id];
+  const options = field.options || [];
 
-  if (field.type === 'text') {
-    return (
-      <div className="p-4" style={{ color: currentTheme.text }}>
-        {field.label}
-      </div>
-    );
-  }
-
-  if (field.type === 'separator') {
-    return (
-      <div className="py-2">
-        <div className="h-px" style={{ backgroundColor: currentTheme.border }} />
-      </div>
-    );
-  }
+  const handleTagRemove = (tag: string) => {
+    const next = localTags.filter((t) => t !== tag);
+    setLocalTags(next);
+    onChange?.(next);
+  };
 
   const handleTagAdd = () => {
     if (tagInput.trim() && !localTags.includes(tagInput.trim())) {
-      const newTags = [...localTags, tagInput.trim()];
-      setLocalTags(newTags);
-      onChange?.(newTags);
+      const next = [...localTags, tagInput.trim()];
+      setLocalTags(next);
+      onChange?.(next);
       setTagInput('');
     }
   };
 
-  const handleTagRemove = (tag: string) => {
-    const newTags = localTags.filter((t) => t !== tag);
-    setLocalTags(newTags);
-    onChange?.(newTags);
-  };
-
   return (
-    <div className="space-y-2">
-      {showLabel && (
-        <Label style={{ color: currentTheme.text }}>
+    <div className="space-y-2.5">
+      {/* Universal Label */}
+      {showLabel && !['checkbox', 'switch'].includes(field.type) && (
+        <Label style={{ color: currentTheme.text }} className="text-sm font-semibold">
           {field.label}
-          {field.required && <span style={{ color: '#ef4444' }}> *</span>}
+          {field.required && <span className="text-red-500"> *</span>}
         </Label>
       )}
 
-      {/* Text/Email/Phone/URL/Time/Number Inputs */}
-      {field.type.startsWith('input-') && (
-        <Input
-          type={
-            field.type === 'input-number'
-              ? 'number'
-              : field.type === 'input-email'
-                ? 'email'
-                : field.type === 'input-phone'
-                  ? 'tel'
-                  : field.type === 'input-url'
-                    ? 'url'
-                    : field.type === 'input-time'
-                      ? 'time'
-                      : 'text'
-          }
-          value={value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
-          placeholder={field.placeholder}
-          disabled={field.disabled}
-          required={field.required}
-          min={field.min}
-          max={field.max}
-          step={field.step}
-          minLength={field.minLength}
-          maxLength={field.maxLength}
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-
-            color: currentTheme.text,
-          }}
-        />
-      )}
-
-      {/* Textarea */}
+      {/* 1. Textarea */}
       {field.type === 'textarea' && (
         <Textarea
           value={value || ''}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder={field.placeholder}
-          disabled={field.disabled}
-          required={field.required}
-          rows={field.rows}
-          minLength={field.minLength}
-          maxLength={field.maxLength}
+          rows={field.rows || 4}
           style={{
             backgroundColor: currentTheme.surface,
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
+            borderColor: errorMessage ? "#ef4444" : currentTheme.border,
+            color: currentTheme.text
           }}
         />
       )}
 
-      {/* Password */}
-      {field.type === 'password' && (
-        <Input
-          type="password"
-          value={value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
-          placeholder={field.placeholder}
-          disabled={field.disabled}
-          required={field.required}
-          minLength={field.minLength}
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-
-            color: currentTheme.text,
-          }}
-        />
-      )}
-
-      {/* OTP Input */}
-      {field.type === 'input-otp' && (
-        <div className="flex gap-2">
-          {Array.from({ length: field.otpLength || 6 }).map((_, i) => (
-            <Input
-              key={i}
-              type="text"
-              maxLength={1}
-              value={value?.[i] || ''}
-              onChange={(e) => {
-                const newOtp = (value || '').split('');
-                newOtp[i] = e.target.value;
-                onChange?.(newOtp.join(''));
-              }}
-              className="w-12 text-center"
-              disabled={field.disabled}
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: errorMessage
-                  ? "1px solid #ef4444"
-                  : `1px solid ${currentTheme.border}`,
-
-                color: currentTheme.text,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Checkbox */}
-      {field.type === 'checkbox' && (
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={!!value}
-            onCheckedChange={(checked) => onChange?.(checked)}
-            disabled={field.disabled}
-          />
-          {!showLabel && (
-            <span className="text-sm" style={{ color: currentTheme.text }}>
-              {field.label}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Switch */}
-      {field.type === 'switch' && (
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={!!value}
-            onCheckedChange={(checked) => onChange?.(checked)}
-            disabled={field.disabled}
-          />
-          {!showLabel && (
-            <span className="text-sm" style={{ color: currentTheme.text }}>
-              {field.label}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Date Picker */}
-      {field.type === 'date-picker' && (
-        <Input
-          type="date"
-          value={value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
-          disabled={field.disabled}
-          required={field.required}
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        />
-      )}
-
-      {/* Tag Input */}
-      {field.type === 'tag-input' && (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleTagAdd())}
-              placeholder="Type and press Enter"
-              disabled={field.disabled}
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: errorMessage
-                  ? "1px solid #ef4444"
-                  : `1px solid ${currentTheme.border}`,
-
-                color: currentTheme.text,
-              }}
-            />
-            <Button type="button" onClick={handleTagAdd} disabled={field.disabled}>
-              Add
-            </Button>
-          </div>
-          {localTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {localTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-1 rounded-md text-sm flex items-center gap-1"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    border: errorMessage
-                      ? "1px solid #ef4444"
-                      : `1px solid ${currentTheme.border}`,
-                    color: currentTheme.text,
-                  }}
-                >
-                  {tag}
-                  {!field.disabled && (
-                    <button
-                      type="button"
-                      onClick={() => handleTagRemove(tag)}
-                      className="hover:scale-110 transition-transform"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Select */}
-      {field.type === 'select' && (
-        <select
-          value={value || ''}
-          onChange={(e) => onChange?.(e.target.value)}
-          disabled={field.disabled}
-          required={field.required}
-          className="w-full px-3 py-2 rounded-md"
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-          }}
-        >
-          <option value="">Select an option</option>
-          {field.options?.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {/* Multi-Select */}
-      {field.type === 'multi-select' && (
-        <select
-          multiple
-          value={Array.isArray(value) ? value : []}
-          onChange={(e) => {
-            const selected = Array.from(e.target.selectedOptions, (option) => option.value);
-            onChange?.(selected);
-          }}
-          disabled={field.disabled}
-          required={field.required}
-          className="w-full px-3 py-2 rounded-md"
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-            color: currentTheme.text,
-            minHeight: '100px',
-          }}
-        >
-          {field.options?.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {/* Radio Group */}
-      {field.type === 'radio' && (
-        <RadioGroup
-          value={value || ''}
-          onValueChange={(val) => onChange?.(val)}
-          disabled={field.disabled}
-        >
-          {field.options?.map((opt) => (
-            <div key={opt} className="flex items-center gap-2">
-              <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
-              <Label htmlFor={`${field.id}-${opt}`} style={{ color: currentTheme.text }}>
-                {opt}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      )}
-
-      {/* Slider */}
-      {field.type === 'slider' && (
-        <div className="space-y-2">
-          <Slider
-            value={[value || field.min || 0]}
-            onValueChange={(vals) => onChange?.(vals[0])}
-            min={field.min || 0}
-            max={field.max || 100}
-            step={field.step || 1}
-            disabled={field.disabled}
-          />
-          <div className="text-sm text-center" style={{ color: currentTheme.textSecondary }}>
-            {value || field.min || 0}
-          </div>
-        </div>
-      )}
-
-      {/* File Upload */}
-      {field.type === 'file-upload' && (
-        <label
-          className="block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-opacity-50 transition-all"
-          style={{
-            border: errorMessage
-              ? "1px solid #ef4444"
-              : `1px solid ${currentTheme.border}`,
-          }}
-        >
-          <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: currentTheme.textSecondary }} />
-          <p className="text-sm" style={{ color: currentTheme.text }}>
-            {value ? `Selected: ${value}` : 'Click to upload or drag and drop'}
-          </p>
-          <p className="text-xs mt-1" style={{ color: currentTheme.textSecondary }}>
-            {field.accept || 'Any file type'}
-          </p>
-          <input
-            type="file"
-            accept={field.accept}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                onChange?.(file.name);
-              }
-            }}
-            disabled={field.disabled}
-            className="hidden"
-          />
-        </label>
-      )}
-
-      {/* Rating */}
+      {/* 2. Rating (Rate This) */}
       {field.type === 'rating' && (
-        <div className="flex gap-1">
+        <div className="flex gap-1.5 py-1">
           {Array.from({ length: field.max || 5 }).map((_, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => !field.disabled && onChange?.(i + 1)}
-              disabled={field.disabled}
-              className="hover:scale-110 transition-transform"
+              onClick={() => onChange?.(i + 1)}
+              className="transition-transform hover:scale-110 active:scale-95"
             >
               <Star
-                className="w-6 h-6"
-                style={{
-                  fill: i < (value || 0) ? '#fbbf24' : 'transparent',
-                  color: i < (value || 0) ? '#fbbf24' : currentTheme.textSecondary,
-                }}
+                className={cn("w-7 h-7", i < (value || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-300")}
               />
             </button>
           ))}
         </div>
       )}
 
-      {errorMessage && (
-        <p className="text-red-500 text-xs mt-1">
-          {errorMessage}
-        </p>
+      {/* 3. Password Field */}
+      {field.type === 'password' && (
+        <div className="relative">
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            value={value || ''}
+            onChange={(e) => onChange?.(e.target.value)}
+            placeholder={field.placeholder || "••••••••"}
+            style={{ backgroundColor: currentTheme.surface, borderColor: errorMessage ? "#ef4444" : currentTheme.border, color: currentTheme.text }}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+            style={{ color: currentTheme.text }}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
       )}
 
-      {/* Helper Text */}
-      {field.helperText && (
-        <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-          {field.helperText}
-        </p>
+      {/* 4. Switch / Toggle */}
+      {field.type === 'switch' && (
+        <div className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.surface }}>
+          <Label htmlFor={field.id} style={{ color: currentTheme.text }} className="cursor-pointer font-medium">
+            {field.label}
+          </Label>
+          <Switch id={field.id} checked={!!value} onCheckedChange={(c) => onChange?.(c)} />
+        </div>
       )}
+
+      {/* 5. Slider (with background container) */}
+      {field.type === 'slider' && (
+        <div className="py-5 px-4 rounded-xl border" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+          <Slider
+            value={[value || field.min || 0]}
+            onValueChange={(vals) => onChange?.(vals[0])}
+            min={field.min || 0}
+            max={field.max || 100}
+            step={field.step || 1}
+            className={cn("w-full", "**:data-[slot=slider-track]:bg-slate-300 dark:**:data-[slot=slider-track]:bg-slate-700")}
+          />
+          <div className="flex justify-between mt-3 text-[10px] font-bold" style={{ color: currentTheme.text }}>
+            <span>{field.min || 0}</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-primary text-white">{value || field.min || 0}</span>
+            <span>{field.max || 100}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 6. File Upload */}
+      {field.type === 'file-upload' && (
+        <div
+          className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2"
+          style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.surface + '40' }}
+        >
+          <Upload className="w-8 h-8 opacity-40" style={{ color: currentTheme.text }} />
+          <input type="file" className="hidden" id={`file-${field.id}`} onChange={(e) => onChange?.(e.target.files?.[0]?.name)} />
+          <Button variant="outline" size="sm" onClick={() => document.getElementById(`file-${field.id}`)?.click()}>
+            Upload File
+          </Button>
+          {value && <span className="text-xs font-medium text-primary mt-2">{value}</span>}
+        </div>
+      )}
+
+      {/* 7. OTP Grid */}
+      {field.type === 'input-otp' && (
+        <div className="flex gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Input
+              key={i}
+              type="text"
+              maxLength={1}
+              className="w-12 h-12 text-center text-lg font-bold"
+              style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+              onChange={(e) => {
+                const char = e.target.value;
+                const current = (value || "").split("");
+                current[i] = char;
+                onChange?.(current.join(""));
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 8. Combobox (Search) */}
+      {field.type === 'combobox' && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" />
+          <Input
+            list={`list-${field.id}`}
+            value={value || ''}
+            onChange={(e) => onChange?.(e.target.value)}
+            placeholder={field.placeholder || "Search..."}
+            className="pl-9"
+            style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+          />
+          <datalist id={`list-${field.id}`}>
+            {options.map((opt) => <option key={opt} value={opt} />)}
+          </datalist>
+        </div>
+      )}
+
+      {/* Date Picker Controlled */}
+      {field.type === 'date-picker' && (
+        <div className="space-y-1">
+          <Input
+            type="date"
+            // Added these back to ensure the browser calendar respects constraints
+            min={field.minDate}
+            max={field.maxDate}
+            value={value || ''}
+            onChange={(e) => onChange?.(e.target.value)}
+            disabled={field.disabled}
+            style={{
+              backgroundColor: currentTheme.surface,
+              borderColor: errorMessage ? "#ef4444" : currentTheme.border,
+              color: currentTheme.text,
+              // Vital for dark mode calendar popups
+              colorScheme: currentTheme.mode === 'dark' ? 'dark' : 'light'
+            }}
+          />
+        </div>
+      )}
+
+      {/* 9. Multi-Select (Tags) */}
+      {field.type === 'multi-select' && (
+        <div className="space-y-2">
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value && !localTags.includes(e.target.value)) {
+                onChange?.([...localTags, e.target.value]);
+              }
+            }}
+            className="w-full h-10 px-3 rounded-md border"
+            style={{ backgroundColor: currentTheme.surface, color: currentTheme.text, borderColor: currentTheme.border }}
+          >
+            <option value="" disabled>Select multiple...</option>
+            {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          <div className="flex flex-wrap gap-2">
+            {localTags.map((tag) => (
+              <span key={tag} className="flex items-center gap-1 px-2 py-1 rounded text-xs border" style={{ backgroundColor: currentTheme.background, color: currentTheme.text }}>
+                {tag} <X className="w-3 h-3 cursor-pointer" onClick={() => handleTagRemove(tag)} />
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 10. Standard Inputs (text, email, tel, date, etc.) */}
+      {field.type.startsWith('input-') && !['input-password', 'input-otp'].includes(field.type) && (
+        <Input
+          type={field.type.split('-')[1]}
+          value={value || ''}
+          onChange={(e) => onChange?.(e.target.value)}
+          placeholder={field.placeholder}
+          style={{ backgroundColor: currentTheme.surface, borderColor: errorMessage ? "#ef4444" : currentTheme.border, color: currentTheme.text }}
+        />
+      )}
+
+      {/* 11. Select, Radio, Checkbox */}
+      {field.type === 'select' && (
+        <div className="relative">
+          <select value={value || ''} onChange={(e) => onChange?.(e.target.value)} className="w-full h-10 px-3 pr-10 rounded-md border appearance-none outline-none" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}>
+            <option value="" disabled>{field.placeholder || "Select option"}</option>
+            {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" />
+        </div>
+      )}
+
+      {field.type === 'radio' && (
+        <RadioGroup value={value || ''} onValueChange={(val) => onChange?.(val)} className="flex flex-col gap-2">
+          {options.map((opt) => (
+            <div key={opt} className="flex items-center gap-2">
+              <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
+              <Label htmlFor={`${field.id}-${opt}`} style={{ color: currentTheme.text }}>{opt}</Label>
+            </div>
+          ))}
+        </RadioGroup>
+      )}
+
+      {field.type === 'checkbox' && (
+        <div className="flex items-center gap-2 py-1">
+          <Checkbox id={field.id} checked={!!value} onCheckedChange={(c) => onChange?.(c)} />
+          <Label htmlFor={field.id} style={{ color: currentTheme.text }} className="text-sm">{field.label}</Label>
+        </div>
+      )}
+
+      {/* 12. Tag Input (Controlled) */}
+      {field.type === 'tag-input' && (
+        <div className="space-y-2">
+          <div
+            className={cn(
+              "flex flex-wrap gap-2 p-2 min-h-10.5 border rounded-md transition-all",
+              errorMessage ? "border-red-500" : ""
+            )}
+            style={{
+              backgroundColor: currentTheme.surface,
+              borderColor: errorMessage ? "#ef4444" : currentTheme.border
+            }}
+          >
+            {/* Render existing tags from the value prop */}
+            {Array.isArray(value) && value.map((tag: string, i: number) => (
+              <span
+                key={`${tag}-${i}`}
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-white animate-in fade-in zoom-in duration-200"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextTags = value.filter((_: any, idx: number) => idx !== i);
+                    onChange?.(nextTags);
+                  }}
+                  className="hover:bg-black/20 rounded-full p-0.5 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+
+            {/* Input for typing new tags */}
+            <input
+              type="text"
+              value={tagInput}
+              disabled={field.disabled}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault(); // Prevent form submission
+                  const trimmed = tagInput.trim();
+                  if (trimmed) {
+                    const currentTags = Array.isArray(value) ? value : [];
+                    // Prevent duplicates
+                    if (!currentTags.includes(trimmed)) {
+                      onChange?.([...currentTags, trimmed]);
+                    }
+                    setTagInput(''); // Clear local input
+                  }
+                } else if (e.key === 'Backspace' && !tagInput && Array.isArray(value) && value.length > 0) {
+                  // Optional: Delete last tag on backspace if input is empty
+                  const nextTags = value.slice(0, -1);
+                  onChange?.(nextTags);
+                }
+              }}
+              placeholder={Array.isArray(value) && value.length > 0 ? "" : field.placeholder || "Type and press Enter..."}
+              className="flex-1 bg-transparent outline-none text-sm min-w-30"
+              style={{ color: currentTheme.text }}
+            />
+          </div>
+          {/* Helper text for the user */}
+          <p className="text-[10px] opacity-50" style={{ color: currentTheme.text }}>
+            Press <span className="font-bold">Enter</span> to add tags
+          </p>
+        </div>
+      )}
+
+      {/* 13. Toggle Group (Controlled) */}
+      {field.type === 'toggle' && (
+        <div className="flex flex-wrap gap-2">
+          {options.length > 0 ? (
+            options.map((opt) => {
+              const isActive = value === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  disabled={field.disabled}
+                  onClick={() => onChange?.(opt)}
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-md border transition-all active:scale-95",
+                    isActive ? "shadow-md" : "hover:bg-black/5"
+                  )}
+                  style={{
+                    backgroundColor: isActive ? currentTheme.primary : currentTheme.surface,
+                    borderColor: isActive ? currentTheme.primary : currentTheme.border,
+                    color: isActive ? "#ffffff" : currentTheme.text,
+                    opacity: field.disabled ? 0.5 : 1,
+                    cursor: field.disabled ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {opt}
+                </button>
+              );
+            })
+          ) : (
+            <p className="text-xs italic opacity-40" style={{ color: currentTheme.text }}>
+              No options configured
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Error / Helper */}
+      {errorMessage ? (
+        <p className="text-red-500 text-xs font-medium">{errorMessage}</p>
+      ) : field.helperText ? (
+        <p className="text-xs opacity-60" style={{ color: currentTheme.text }}>{field.helperText}</p>
+      ) : null}
     </div>
+
+
   );
 }

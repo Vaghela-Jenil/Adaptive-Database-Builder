@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PanelLeft,
+  RefreshCcw,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useContext, useState, useMemo, useEffect } from "react";
@@ -18,10 +19,10 @@ import { UserContext } from "@/context/userContext";
 type NavBarProps = {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
-  onChange: () => void;
+  onRefresh: () => void;
 };
 
-export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onChange }: NavBarProps) {
+export default function DashboardNavbar({  isSidebarOpen, setIsSidebarOpen, onRefresh }: NavBarProps) {
   const [notifications, setNotifications] = useState(3);
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
@@ -55,6 +56,20 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onCha
             )}
           </button>
 
+          <button
+            className="p-2 rounded-lg transition-all active:scale-90"
+            onClick={onRefresh} 
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+            }}
+          >
+            <RefreshCcw
+              className="w-5 h-5 transition-transform active:rotate-180 duration-500"
+              style={{ color: currentTheme.text }}
+            />
+          </button>
+
           <div className="relative max-w-md w-full">
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
@@ -75,7 +90,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onCha
           <Button
             size="sm"
             className="text-white border-0"
-            onClick={onChange}
+            onClick={() => ('database')}
             style={{ backgroundColor: currentTheme.primary }}          >
             <Plus className="w-4 h-4 mr-2" />
             New Database

@@ -67,3 +67,55 @@ export async function POST(
         );
     }
 }
+
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const databaseId = (await params).id;
+
+    // We use findOneAndUpdate to ensure the user owns this database
+    const updatedDatabase = await DatabaseModel.findOneAndUpdate(
+      {
+        _id: databaseId,
+        clerkId: userId,
+      },
+      {
+        $set: { 
+          records: [],      // Empty the array
+          recordCount: 0    // Reset the counter
+        },
+      },
+      { new: true } // Return the fresh version
+    );
+
+    if (!updatedDatabase) {
+      return NextResponse.json(
+        { error: "Database not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "All records cleared successfully",
+      records: [],
+    });
+
+  } catch (error) {
+    console.error("Clear All Error:", error);
+    return NextResponse.json(
+      { error: "Failed to clear database" },
+      { status: 500 }
+    );
+  }
+}

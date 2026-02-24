@@ -183,7 +183,7 @@ export const fieldTemplates: FieldTemplate[] = [
       required: false,
       disabled: false,
       span: 1,
-      otpLength: 6,
+      otpLength: 4,
       showLabel: true,
     },
   },
@@ -225,7 +225,7 @@ export const fieldTemplates: FieldTemplate[] = [
   },
 
   // DATE PICKER
-  {
+{
     id: 'date-picker',
     type: 'date-picker',
     label: 'Date Picker',
@@ -239,6 +239,8 @@ export const fieldTemplates: FieldTemplate[] = [
       disabled: false,
       span: 1,
       showLabel: true,
+      minDate: '', // Added for constraints
+      maxDate: '', // Added for constraints
     },
   },
 
@@ -274,7 +276,7 @@ export const fieldTemplates: FieldTemplate[] = [
       required: false,
       disabled: false,
       span: 1,
-      options: ['Option 1', 'Option 2', 'Option 3'],
+      options: [], // Start empty so user adds their own
       showLabel: true,
     },
   },
@@ -283,7 +285,7 @@ export const fieldTemplates: FieldTemplate[] = [
   {
     id: 'combobox',
     type: 'combobox',
-    label: 'Combobox',
+    label: 'Search & Select',
     category: 'field',
     icon: CheckCheck,
     defaultSpan: 1,
@@ -293,7 +295,7 @@ export const fieldTemplates: FieldTemplate[] = [
       required: false,
       disabled: false,
       span: 1,
-      options: ['Option 1', 'Option 2', 'Option 3'],
+      options: [], 
       showLabel: true,
     },
   },
@@ -312,7 +314,7 @@ export const fieldTemplates: FieldTemplate[] = [
       required: false,
       disabled: false,
       span: 2,
-      options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+      options: [],
       multiple: true,
       showLabel: true,
     },
@@ -331,7 +333,7 @@ export const fieldTemplates: FieldTemplate[] = [
       required: false,
       disabled: false,
       span: 2,
-      options: ['Option 1', 'Option 2', 'Option 3'],
+      options: [],
       showLabel: true,
     },
   },
@@ -349,7 +351,7 @@ export const fieldTemplates: FieldTemplate[] = [
       required: false,
       disabled: false,
       span: 1,
-      options: ['Option 1', 'Option 2', 'Option 3'],
+      options: [],
       showLabel: true,
     },
   },

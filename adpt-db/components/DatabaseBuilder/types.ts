@@ -51,6 +51,8 @@ export type FieldAttributes = {
   otpLength?: number; // for OTP
   marks?: boolean; // for slider
   showLabel?: boolean;
+  minDate?: string;
+  maxDate?: string;
 };
 
 export type FieldTemplate = {

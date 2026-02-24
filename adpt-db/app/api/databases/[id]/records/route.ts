@@ -1,31 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
-import { auth } from "@clerk/nextjs/server";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
-    const { userId } = await auth();
-
     const id = (await params).id;
-    const db = await DatabaseModel.findOne({
-      _id: id,
-      clerkId: userId,
-    });
+    const { searchParams } = new URL(req.url);
 
-    if (!db) {
-      return NextResponse.json({ error: "Database not found" }, { status: 404 });
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
+    const dateQuery = searchParams.get("date") || "";
+    const skip = (page - 1) * limit;
+
+    const db = await DatabaseModel.findById(id);
+    if (!db) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    let filtered = [...db.records];
+
+    // --- Defensive Date Filter ---
+    if (dateQuery) {
+      filtered = filtered.filter((r: any) => {
+        if (!r.createdAt) return false;
+
+        const d = new Date(r.createdAt);
+        if (isNaN(d.getTime())) return false;
+
+        // Convert UTC to "YYYY-MM-DD" based on a specific timezone
+        // Using 'en-CA' because it natively outputs YYYY-MM-DD format
+        const recordLocalDate = d.toLocaleDateString('en-CA', {
+          timeZone: 'Asia/Kolkata', // Set this to your local timezone
+        });
+
+        // Now comparing "2026-02-24" (Local) === "2026-02-24" (Picker)
+        return recordLocalDate === dateQuery;
+      });
     }
 
-    return NextResponse.json(db.records);
-  } catch (err) {
-    return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
+    // --- Search Filter Logic ---
+    if (search) {
+      const s = search.toLowerCase();
+      filtered = filtered.filter((r: any) =>
+        r.data && Object.values(r.data).some(val =>
+          String(val || "").toLowerCase().includes(s)
+        )
+      );
+    }
+
+    // --- Defensive Sort ---
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime() || 0;
+      const dateB = new Date(b.createdAt).getTime() || 0;
+      return dateB - dateA;
+    });
+
+    const totalCount = filtered.length;
+    const paginatedRecords = filtered.slice(skip, skip + limit);
+
+    return NextResponse.json({
+      records: paginatedRecords,
+      totalCount: totalCount
+    });
+  } catch (err: any) {
+    console.error("API Error:", err.message); // This will show in your terminal
+    return NextResponse.json({ error: "Fetch failed", details: err.message }, { status: 500 });
   }
 }
+
 
 export async function POST(
   req: NextRequest,
@@ -62,7 +105,7 @@ export async function POST(
 
     await db.save();
 
-    return NextResponse.json({message: "Record added successfully"}, { status: 201 });
+    return NextResponse.json({ message: "Record added successfully" }, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Insert failed" }, { status: 500 });

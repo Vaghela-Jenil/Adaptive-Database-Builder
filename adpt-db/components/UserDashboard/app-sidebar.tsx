@@ -61,15 +61,15 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
   ];
 
   return (
-    <div suppressHydrationWarning>
+    <div suppressHydrationWarning className="relative"
+            style={{
+          backgroundColor: currentTheme.surface,
+          borderRight: `1px solid ${currentTheme.border}`,
+        }}>
       <motion.aside
         initial={false}
         animate={{ width: isSidebarOpen ? 280 : 0 }}
         className="overflow-hidden shrink-0"
-        style={{
-          backgroundColor: currentTheme.surface,
-          borderRight: `1px solid ${currentTheme.border}`,
-        }}
       >
         <div className="w-70 h-full flex flex-col">
           {/* Logo */}
@@ -152,8 +152,10 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
 
           {/* Bottom Items - Settings */}
           <div
-            className="p-4"
-            style={{ borderTop: `1px solid ${currentTheme.border}` }}
+            className="absolute bottom-0 p-4"
+            style={{ borderTop: `1px solid ${currentTheme.border}`,
+              backgroundColor: currentTheme.surface
+             }}
           >
             {bottomItems.map((item) => {
               const Icon = item.icon;

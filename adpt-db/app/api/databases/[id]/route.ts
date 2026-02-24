@@ -72,6 +72,8 @@ export async function DELETE(
   }
 }
 
+// update
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

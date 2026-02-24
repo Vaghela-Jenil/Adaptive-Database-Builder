@@ -318,6 +318,7 @@ export default function FormBuilderPage({
                     <div className="mt-8 flex justify-end gap-3">
                       <Button
                         variant="outline"
+                        onClick={() => setPreviewMode(false)}
                         style={{
                           backgroundColor: currentTheme.background,
                           border: `1px solid ${currentTheme.border}`,

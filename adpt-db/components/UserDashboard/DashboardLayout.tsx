@@ -18,24 +18,28 @@ import NearByStorePage from "../UserDashboard/pages/NearbyStore";
 export default function DashboardLayout() {
   const [activePage, setActivePage] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const { currentTheme } = useTheme();
   const [editingDatabase, setEditingDatabase] = useState<DatabaseFolder | null>(null);
   const [viewingDatabase, setViewingDatabase] = useState<DatabaseFolder | null>(null);
 
+  const handleRefresh = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+      setIsLoading(false);
+    }, 500);
+  };
+
   const renderPage = () => {
     switch (activePage) {
-      case "dashboard":
-        return <DashboardHome />;
-      case "analytics":
-        return <Analytics />;
-      case "chatbot":
-        return <Chatbot />;
-      case "history":
-        return <History />;
-      case "settings":
-        return <Settings />;
-      case "nearby-stores":
-        return <NearByStorePage/>
+      case "dashboard": return <DashboardHome />;
+      case "analytics": return <Analytics />;
+      case "chatbot": return <Chatbot />;
+      case "history": return <History />;
+      case "settings": return <Settings />;
+      case "nearby-stores": return <NearByStorePage />;
       case "database":
         return (
           <Database
@@ -54,39 +58,28 @@ export default function DashboardLayout() {
           />
         );
       case "form-builder":
-        return (
-          <FormBuilderPage
-            onBack={(activePage) => setActivePage(activePage)}
-            editingDatabase={editingDatabase}
-          />
-        );
+        return <FormBuilderPage onBack={(p) => setActivePage(p)} editingDatabase={editingDatabase} />;
       case "database-records":
         return viewingDatabase ? (
           <DatabaseRecordsView
             currentDatabase={viewingDatabase}
             onOpenChatbot={() => setActivePage("database-chatbot")}
-            onBack={() => {
-              setViewingDatabase(null);
-              setActivePage("database");
-            }}
+            onBack={() => { setViewingDatabase(null); setActivePage("database"); }}
           />
         ) : null;
       case "database-chatbot":
         return viewingDatabase ? (
-          <DatabaseChatbot
-            database={viewingDatabase}
-            onBack={() => setActivePage("database-records")}
-          />
+          <DatabaseChatbot database={viewingDatabase} onBack={() => setActivePage("database-records")} />
         ) : null;
       default:
         return <DashboardHome />;
     }
   };
 
-  // Full-page routes (no sidebar/navbar)
-  if (activePage === "form-builder" || activePage === "database-records" || activePage === "database-chatbot") {
+  // Full-page routes
+  if (["form-builder", "database-records", "database-chatbot"].includes(activePage)) {
     return (
-      <div style={{ backgroundColor: currentTheme.background }}>
+      <div key={refreshKey} style={{ backgroundColor: currentTheme.background }}>
         {renderPage()}
       </div>
     );
@@ -94,25 +87,34 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: currentTheme.background }}>
-      {/* Sidebar - persistent, never re-renders */}
-      <DashboardSidebar 
-        activePage={activePage} 
+      <DashboardSidebar
+        activePage={activePage}
         setActivePage={setActivePage}
         isSidebarOpen={isSidebarOpen}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Navbar - persistent, never re-renders */}
-        <DashboardNavbar 
+        <DashboardNavbar
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
-          onChange={() => setActivePage('database')}
+          onRefresh={handleRefresh}
         />
 
-        {/* Page Content - only this changes */}
-        <main className="flex-1 overflow-y-auto" style={{ backgroundColor: currentTheme.background }}>
-          {renderPage()}
+        <main
+          key={refreshKey}
+          className="flex-1 overflow-y-auto relative"
+          style={{ backgroundColor: currentTheme.background }}
+        >
+          {isLoading ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+                style={{ borderColor: `${currentTheme.primary} transparent transparent ${currentTheme.primary}` }}
+              />
+            </div>
+          ) : (
+            renderPage()
+          )}
         </main>
       </div>
     </div>

@@ -87,16 +87,10 @@ export default function FormBuilderSidebar() {
         </div>
       </div>
 
-      {/* Separator */}
-      <div
-        className="my-4 h-px"
-        style={{ backgroundColor: currentTheme.border }}
-      />
-
       {/* Field Elements */}
       <div>
         <p
-          className="text-xs font-semibold uppercase tracking-wider mb-3"
+          className="text-xs font-semibold uppercase tracking-wider mb-2"
           style={{ color: currentTheme.textSecondary }}
         >
           Field Elements

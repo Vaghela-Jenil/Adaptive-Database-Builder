@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Palette, Check, Moon, Sun, RotateCcw } from "lucide-react";
+import { Palette, Check, Moon, Sun } from "lucide-react";
 import { useTheme, themeDefs, ThemeName } from "@/context/ThemeContext";
 
 export default function NavbarThemeSwitcher() {
@@ -10,7 +10,8 @@ export default function NavbarThemeSwitcher() {
   const { colorTheme, mode, changeTheme, toggleMode, currentTheme } = useTheme();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const colors: ThemeName[] = ['red', 'blue', 'green', 'purple', 'orange', 'pink'];
+  // Blue is now the default, but still available in the list to switch back to
+  const colors: ThemeName[] = ['blue', 'red', 'green', 'purple', 'orange', 'pink'];
 
   useEffect(() => {
     const clickOut = (e: MouseEvent) => {
@@ -47,26 +48,26 @@ export default function NavbarThemeSwitcher() {
               backdropFilter: 'blur(12px)'
             }}
           >
-            {/* 1. DARK/LIGHT TOGGLE (The "First Circle") */}
+            {/* 1. DARK/LIGHT TOGGLE */}
             <button
               onClick={toggleMode}
-              className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 border-2"
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 border shadow-sm"
               style={{ 
-                backgroundColor: mode === 'dark' ? '#ffffff' : '#000000',
-                borderColor: mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
+                backgroundColor: currentTheme.text, 
+                borderColor: currentTheme.border 
               }}
             >
               {mode === 'light' ? (
-                <Moon className="w-4 h-4 text-white" />
+                <Moon className="w-4 h-4" style={{ color: currentTheme.background }} />
               ) : (
-                <Sun className="w-4 h-4 text-black" />
+                <Sun className="w-4 h-4" style={{ color: currentTheme.background }} />
               )}
             </button>
 
             <div className="w-[1px] h-5 bg-zinc-300 dark:bg-zinc-700 mx-1" />
 
             {/* 2. COLOR CIRCLES */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 pr-1">
               {colors.map((name) => (
                 <button
                   key={name}
@@ -83,19 +84,6 @@ export default function NavbarThemeSwitcher() {
                 </button>
               ))}
             </div>
-
-            {/* 3. RESET TO BLACK & WHITE (Last Circle) */}
-            <div className="w-[1px] h-5 bg-zinc-300 dark:bg-zinc-700 mx-1" />
-            <button
-              onClick={() => { changeTheme('neutral'); setIsOpen(false); }}
-              className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:rotate-180 border"
-              style={{ 
-                backgroundColor: currentTheme.background,
-                borderColor: currentTheme.border 
-              }}
-            >
-              <RotateCcw className="w-3.5 h-3.5" style={{ color: currentTheme.textSecondary }} />
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
