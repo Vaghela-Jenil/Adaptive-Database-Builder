@@ -15,7 +15,8 @@ import {
   RefreshCcw,
   Minimize2,
   Maximize2,
-  BarChart3Icon
+  BarChart3Icon,
+  Badge
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -383,15 +384,14 @@ export default function DatabaseRecordsView({
   const analyticsLineChartData = useMemo(() => {
     if (!lineChartCategoryFieldId || !lineChartNumericFieldId) return [];
 
-    const grouped = new Map<string, { records: number; totalNumeric: number; numericCount: number }>();
+    const grouped = new Map<string, { totalNumeric: number; numericCount: number }>();
 
     records.forEach((record) => {
       const rawCategory = record.data[lineChartCategoryFieldId];
       const category = String(rawCategory ?? "Unknown").trim() || "Unknown";
       const parsedNumeric = parseNumericValue(record.data[lineChartNumericFieldId]);
 
-      const current = grouped.get(category) || { records: 0, totalNumeric: 0, numericCount: 0 };
-      current.records += 1;
+      const current = grouped.get(category) || { totalNumeric: 0, numericCount: 0 };
       if (parsedNumeric !== null) {
         current.totalNumeric += parsedNumeric;
         current.numericCount += 1;
@@ -402,16 +402,14 @@ export default function DatabaseRecordsView({
     return [...grouped.entries()]
       .map(([category, values]) => ({
         category,
-        records: values.records,
         metricValue:
           values.numericCount > 0
             ? Number((values.totalNumeric / values.numericCount).toFixed(2))
             : 0,
       }))
-      .sort((left, right) => right.records - left.records)
       .slice(0, 12)
       .reverse();
-  }, [records, lineChartCategoryFieldId, lineChartNumericFieldId]);
+  }, [lineChartCategoryFieldId, lineChartNumericFieldId]);
 
   const analyticsPieData = useMemo(() => {
     if (!recommendationResult) return [];
@@ -458,17 +456,17 @@ export default function DatabaseRecordsView({
   const analyticsSummary = useMemo(() => {
     const selectedValues = analyticsFieldId
       ? records
-          .map((record) => parseNumericValue(record.data[analyticsFieldId]))
-          .filter((value): value is number => value !== null)
+        .map((record) => parseNumericValue(record.data[analyticsFieldId]))
+        .filter((value): value is number => value !== null)
       : [];
     const selectedField = dataFields.find((field) => field.id === analyticsFieldId);
     const average =
       selectedValues.length > 0
         ? Number(
-            (
-              selectedValues.reduce((sum, current) => sum + current, 0) / selectedValues.length
-            ).toFixed(2)
-          )
+          (
+            selectedValues.reduce((sum, current) => sum + current, 0) / selectedValues.length
+          ).toFixed(2)
+        )
         : 0;
 
     return {
@@ -519,7 +517,7 @@ export default function DatabaseRecordsView({
   }, [records.length, analyticsTimelineData, recommendationResult, analyticsSummary]);
 
 
-useEffect(() => {
+  useEffect(() => {
     if (!dataFields.length) return;
     setRecommenderFieldMap((prev) => {
       const next = {
@@ -992,8 +990,8 @@ useEffect(() => {
             onClick={() => setShowAnalytics((prev) => !prev)}
             style={
               showAnalytics
-                ? { backgroundColor: currentTheme.primary, color: currentTheme.text }
-                : { backgroundColor: currentTheme.primary, color: currentTheme.text }
+                ? { backgroundColor: currentTheme.primary }
+                : { borderColor: currentTheme.border, color: currentTheme.text, backgroundColor: currentTheme.primary }
             }
           >
             <BarChart3Icon className="w-4 h-4 mr-2" />
@@ -1005,7 +1003,7 @@ useEffect(() => {
             onClick={handleExportCSV}
             style={{
               backgroundColor: currentTheme.primary,
-             color: currentTheme.text,
+              color: currentTheme.text,
             }}
           >
             <Download className="w-4 h-4 mr-2" />
@@ -1216,21 +1214,21 @@ useEffect(() => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            
-            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #ef4444`,alignItems: "center" }}>
-              <p className="text-xs" style={{ color: currentTheme.textSecondary,fontSize:'1.05rem'}}>Total Records</p>
+
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #ef4444`, alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: '1.05rem' }}>Total Records</p>
               <p className="text-xl font-bold" style={{ color: currentTheme.text }}>{analyticsSummary.totalRecords}</p>
             </Card>
-            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #f59e0b`,alignItems: "center" }}>
-              <p className="text-xs" style={{ color: currentTheme.textSecondary, alignItems: "center",fontSize:'1.05rem' }}>Visible Records</p>
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #f59e0b`, alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary, alignItems: "center", fontSize: '1.05rem' }}>Visible Records</p>
               <p className="text-xl font-bold" style={{ color: currentTheme.text }}>{analyticsSummary.visibleRecords}</p>
             </Card>
-            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #10b981`,alignItems: "center" }}>
-              <p className="text-xs" style={{ color: currentTheme.textSecondary,fontSize:'1.05rem' }}>Numeric Fields</p>
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #10b981`, alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: '1.05rem' }}>Numeric Fields</p>
               <p className="text-xl font-bold" style={{ color: currentTheme.text }}>{analyticsSummary.numericFieldsCount}</p>
             </Card>
-            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #0ea5e9`,alignItems: "center" }}>
-              <p className="text-xs" style={{ color: currentTheme.textSecondary,fontSize:'1.05rem' }}>
+            <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ backgroundColor: currentTheme.background, border: `1px solid #0ea5e9`, alignItems: "center" }}>
+              <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: '1.05rem' }}>
                 Avg {analyticsSummary.selectedFieldLabel}
               </p>
               <p className="text-xl font-bold" style={{ color: currentTheme.text }}>
@@ -1244,7 +1242,7 @@ useEffect(() => {
               className={`p-3 ${isBarExpanded ? "fixed inset-6 z-50 overflow-auto shadow-2xl" : ""}p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer`}
               style={{ backgroundColor: currentTheme.background, border: `1px solid #0ea5e9` }}
             >
-              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer mb-2 flex items-center justify-between gap-2">
+              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer mb-2 flex items-center justify-between gap-2 ">
                 <p className="text-sm font-semibold" style={{ color: currentTheme.text }}>
                   Bar Graph: Category vs Numeric Field
                 </p>
@@ -1438,14 +1436,7 @@ useEffect(() => {
                       }}
                     />
                     <Legend />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="records"
-                      name="Record Count"
-                      stroke={currentTheme.primary}
-                      strokeWidth={2}
-                    />
+
                     <Line
                       yAxisId="right"
                       type="monotone"
@@ -1453,6 +1444,7 @@ useEffect(() => {
                       name="Metric Average"
                       stroke="#f59e0b"
                       strokeWidth={2}
+                    
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1539,9 +1531,9 @@ useEffect(() => {
               size="sm"
               onClick={() => setShowRecommender((prev) => !prev)}
               style={{
-              backgroundColor: currentTheme.primary,
-             color: currentTheme.text
-            }}
+                backgroundColor: currentTheme.primary,
+                color: currentTheme.text
+              }}
             >
               {showRecommender ? "Hide Panel" : "Show Panel"}
             </Button>
@@ -1622,7 +1614,7 @@ useEffect(() => {
                   <option value="">(Optional)</option>
                   {dataFields.map((field) => (
                     <option key={field.id} value={field.id}>
-                      {field.label} 
+                      {field.label}
                     </option>
                   ))}
                 </select>
@@ -1645,7 +1637,7 @@ useEffect(() => {
                   <option value="">(Optional)</option>
                   {dataFields.map((field) => (
                     <option key={field.id} value={field.id}>
-                      {field.label} 
+                      {field.label}
                     </option>
                   ))}
                 </select>
@@ -1729,32 +1721,32 @@ useEffect(() => {
             {recommendationResult && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Order Now</p>
+                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ border: `1px solid #ef4444`, backgroundColor: currentTheme.background, alignItems: "center" }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Order Now</p>
                     <p className="text-xl font-bold" style={{ color: "#ef4444" }}>
                       {recommendationResult.summary.orderNowCount}
                     </p>
                   </Card>
-                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Order Soon</p>
+                  <Card className=" p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ border: `1px solid #f59e0b`, backgroundColor: currentTheme.background, alignItems: "center" }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Order Soon</p>
                     <p className="text-xl font-bold" style={{ color: "#f59e0b" }}>
                       {recommendationResult.summary.orderSoonCount}
                     </p>
                   </Card>
-                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Healthy</p>
+                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer p-3" style={{ border: `1px solid #10b981`, backgroundColor: currentTheme.background, alignItems: "center" }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Healthy</p>
                     <p className="text-xl font-bold" style={{ color: "#10b981" }}>
                       {recommendationResult.summary.healthyCount}
                     </p>
                   </Card>
-                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Overstock</p>
+                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer p-3" style={{ border: `1px solid #0ea5e9`, backgroundColor: currentTheme.background, alignItems: "center" }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Overstock</p>
                     <p className="text-xl font-bold" style={{ color: "#0ea5e9" }}>
                       {recommendationResult.summary.overstockCount}
                     </p>
                   </Card>
-                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Recommended Units</p>
+                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer p-3" style={{ border: `1px solid #8b5cf6`, backgroundColor: currentTheme.background, alignItems: "center" }}>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Recommended Units</p>
                     <p className="text-xl font-bold" style={{ color: currentTheme.text }}>
                       {recommendationResult.summary.totalRecommendedUnits}
                     </p>
@@ -1767,8 +1759,8 @@ useEffect(() => {
                     return (
                       <Card
                         key={`${recommendation.sku}-${recommendation.urgencyScore}`}
-                        className="p-4"
-                        style={{ border: `1px solid ${currentTheme.border}` }}
+                        className="p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer"
+                        style={{ border: `1px solid ${badge.background}`, backgroundColor: currentTheme.background }}
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div>
@@ -1792,7 +1784,7 @@ useEffect(() => {
 
                         <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                           <p style={{ color: currentTheme.textSecondary }}>
-                            Urgency: <span style={{ color: currentTheme.text }}>{recommendation.urgencyScore}</span>
+                            Urgency Score: <span style={{ color: currentTheme.text }}>{recommendation.urgencyScore}</span>
                           </p>
                           <p style={{ color: currentTheme.textSecondary }}>
                             Order Qty: <span style={{ color: currentTheme.text }}>{recommendation.recommendedOrderQty}</span>
@@ -1805,7 +1797,7 @@ useEffect(() => {
                           </p>
                         </div>
 
-                        <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                        <p className="text-xs" style={{ color: currentTheme.text, backgroundColor: badge.background, padding: '4px', borderRadius: '4px' }}>
                           {recommendation.explanation}
                         </p>
                       </Card>
@@ -1814,7 +1806,7 @@ useEffect(() => {
                 </div>
 
                 {recommendationResult.warnings.length > 0 && (
-                  <Card className="p-3" style={{ border: `1px solid ${currentTheme.border}` }}>
+                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ border: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.background }}>
                     <p className="text-sm font-semibold mb-1" style={{ color: currentTheme.text }}>
                       Data Warnings
                     </p>
@@ -2064,7 +2056,9 @@ useEffect(() => {
                         </td>
                       </tr>
                     </tbody>
-            </table>)}
+                  </table>
+
+                )}
         </div>
 
         {/* Import Modal Overlay */}
