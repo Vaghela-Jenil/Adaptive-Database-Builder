@@ -992,8 +992,8 @@ useEffect(() => {
             onClick={() => setShowAnalytics((prev) => !prev)}
             style={
               showAnalytics
-                ? { backgroundColor: currentTheme.primary, color: "#ffffff" }
-                : { borderColor: currentTheme.border, color: currentTheme.text }
+                ? { backgroundColor: currentTheme.primary, color: currentTheme.text }
+                : { backgroundColor: currentTheme.primary, color: currentTheme.text }
             }
           >
             <BarChart3Icon className="w-4 h-4 mr-2" />
@@ -2064,9 +2064,7 @@ useEffect(() => {
                         </td>
                       </tr>
                     </tbody>
-                  </table>
-
-                )}
+            </table>)}
         </div>
 
         {/* Import Modal Overlay */}

@@ -22,7 +22,7 @@ type NavBarProps = {
   onRefresh: () => void;
 };
 
-export default function DashboardNavbar({  isSidebarOpen, setIsSidebarOpen, onRefresh }: NavBarProps) {
+export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRefresh }: NavBarProps) {
   const [notifications, setNotifications] = useState(3);
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
@@ -58,7 +58,7 @@ export default function DashboardNavbar({  isSidebarOpen, setIsSidebarOpen, onRe
 
           <button
             className="p-2 rounded-lg transition-all active:scale-90"
-            onClick={onRefresh} 
+            onClick={onRefresh}
             style={{
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,

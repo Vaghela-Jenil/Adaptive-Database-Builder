@@ -18,7 +18,15 @@ if CORS is not None:
     CORS(app)
 
 engine = RAGEngine()
-DEFAULT_PDF = r"C:\Users\jha02\OneDrive\Desktop\langchain\CORE SYSTEM OVERVIEW.pdf"
+DEFAULT_PDF = r"C:\Users\jenil\Documents\Final-year-project\chatbot-Ai\RAG_PDF_Chatbot\CORE SYSTEM OVERVIEW.pdf"
+
+# --- ADD THIS LOGIC HERE ---
+print(f"Initializing Knowledge Base with: {DEFAULT_PDF}")
+try:
+    engine.load_pdf(DEFAULT_PDF)
+    print("Knowledge Base is ready!")
+except Exception as e:
+    print(f"Warning: Could not auto-load default PDF: {e}")
 
 
 @app.route("/")

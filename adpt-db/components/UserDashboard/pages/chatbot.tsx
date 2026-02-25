@@ -11,69 +11,96 @@ import {
   Zap,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import axios from "axios";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
 
 export default function Chatbot() {
   const { currentTheme } = useTheme();
-  const [messages, setMessages] = useState([
+
+  const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hi! I'm your AI assistant. I can help you manage your databases, analyze data, generate reports, and answer questions about your records. How can I assist you today?",
+      content:
+        "Hi! I'm your AI assistant. I can help you manage your databases, analyze data, generate reports, and answer questions about your records. How can I assist you today?",
       timestamp: new Date(Date.now() - 300000),
     },
   ]);
-  const [input, setInput] = useState("");
+
+  const [input, setInput] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   const quickPrompts = [
     {
       icon: Database,
-      label: "Show my database stats",
-      prompt: "Can you show me statistics about my databases?",
+      label: "Create a Database",
+      prompt: "How to create database?",
     },
     {
       icon: FileText,
-      label: "Generate a report",
-      prompt: "Generate a summary report of this month's activity",
+      label: "Find a near store",
+      prompt: "About near by store",
     },
     {
       icon: TrendingUp,
-      label: "Analyze trends",
-      prompt: "Analyze usage trends over the last 3 months",
+      label: "AI Assistance",
+      prompt: "About AI assistant",
     },
     {
       icon: Zap,
-      label: "Optimize queries",
-      prompt: "Suggest ways to optimize my database queries",
+      label: "Change Setting",
+      prompt: "How to change settings",
     },
   ];
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async (customMessage?: string) => {
+    const messageToSend = customMessage || input;
 
-    const userMessage = {
+    if (!messageToSend.trim() || loading) return;
+
+    const userMessage: Message = {
       role: "user",
-      content: input,
+      content: messageToSend,
       timestamp: new Date(),
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
+    try {
+      const res = await axios.post("/api/chatbot", { payload: messageToSend });
+      const aiResponse: Message = {
         role: "assistant",
-        content:
-          "I understand you're asking about " +
-          input +
-          ". Based on your data, here's what I found: Your databases are performing well with 12,458 total records across 24 active databases. Would you like me to provide more detailed insights?",
+        content: res.data.response || "No response from Python",
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error) {
+      console.error("Chat Error:", error);
+
+      const errorMessage: Message = {
+        role: "assistant",
+        content:
+          "Sorry, I'm having trouble connecting to my Python brain.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleQuickPrompt = (prompt : any) => {
-    setInput(prompt);
+  const handleQuickPrompt = (prompt: string) => {
+    handleSend(prompt);
   };
 
   return (
@@ -158,29 +185,35 @@ export default function Chatbot() {
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                 style={{
-                  backgroundColor: message.role === "assistant" ? currentTheme.primary : currentTheme.background,
+                  backgroundColor: currentTheme.primary,
                   border: message.role === "user" ? `2px solid ${currentTheme.border}` : "none",
                 }}
               >
                 {message.role === "assistant" ? (
                   <Bot className="w-5 h-5 text-white" />
                 ) : (
-                  <User className="w-5 h-5" style={{ color: currentTheme.text }} />
+                  <User className="w-5 h-5 text-white" />
                 )}
               </div>
 
               {/* Message */}
               <div
-                className={`flex-1 max-w-[80%] p-4 rounded-2xl ${
-                  message.role === "user" ? "rounded-tr-sm" : "rounded-tl-sm"
-                }`}
+                className={`flex-1 max-w-[80%] p-2 rounded-2xl ${message.role === "user" ? "rounded-tr-sm" : "rounded-tl-sm"
+                  }`}
                 style={{
                   backgroundColor: message.role === "assistant" ? currentTheme.background : currentTheme.primary,
                   border: `1px solid ${message.role === "assistant" ? currentTheme.border : currentTheme.primary}`,
                   color: message.role === "assistant" ? currentTheme.text : "#ffffff",
                 }}
               >
-                <p className="text-sm leading-relaxed">{message.content}</p>
+                <div className={`p-4 rounded-xl`}>
+                  {/* Move the prose classes here */}
+                  <div className="prose dark:prose-invert prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                </div>
                 <p
                   className="text-xs mt-2"
                   style={{
@@ -227,7 +260,7 @@ export default function Chatbot() {
             />
           </div>
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             className="px-6 py-3 rounded-xl font-medium text-white transition-all"
             style={{ backgroundColor: currentTheme.primary }}
           >
