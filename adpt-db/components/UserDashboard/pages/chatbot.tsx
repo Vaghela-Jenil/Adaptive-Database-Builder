@@ -45,17 +45,17 @@ export default function Chatbot() {
     {
       icon: FileText,
       label: "Find a near store",
-      prompt: "About near by store",
+      prompt: "How to find near by store?",
     },
     {
       icon: TrendingUp,
       label: "AI Assistance",
-      prompt: "About AI assistant",
+      prompt: "Tell me about AI assistant",
     },
     {
       icon: Zap,
       label: "Change Setting",
-      prompt: "How to change settings",
+      prompt: "How to change settings?",
     },
   ];
 
@@ -173,30 +173,9 @@ export default function Chatbot() {
             border: `1px solid ${currentTheme.border}`,
           }}
         >
+          {/* 1. First, map your messages as usual */}
           {messages.map((message, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-            >
-              {/* Avatar */}
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: currentTheme.primary,
-                  border: message.role === "user" ? `2px solid ${currentTheme.border}` : "none",
-                }}
-              >
-                {message.role === "assistant" ? (
-                  <Bot className="w-5 h-5 text-white" />
-                ) : (
-                  <User className="w-5 h-5 text-white" />
-                )}
-              </div>
-
-              {/* Message */}
+            <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-4`}>
               <div
                 className={`flex-1 max-w-[80%] p-2 rounded-2xl ${message.role === "user" ? "rounded-tr-sm" : "rounded-tl-sm"
                   }`}
@@ -206,8 +185,7 @@ export default function Chatbot() {
                   color: message.role === "assistant" ? currentTheme.text : "#ffffff",
                 }}
               >
-                <div className={`p-4 rounded-xl`}>
-                  {/* Move the prose classes here */}
+                <div className="p-4 rounded-xl">
                   <div className="prose dark:prose-invert prose-sm max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {message.content}
@@ -215,19 +193,44 @@ export default function Chatbot() {
                   </div>
                 </div>
                 <p
-                  className="text-xs mt-2"
+                  className="text-xs mt-1 ml-5"
                   style={{
                     color: message.role === "assistant" ? currentTheme.textSecondary : "rgba(255,255,255,0.7)",
                   }}
                 >
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
-            </motion.div>
+            </div>
           ))}
+
+          {/* 2. Place the Loading state OUTSIDE the map, specifically for the assistant */}
+          {loading && (
+            <div className="flex justify-start mb-4 animate-in fade-in duration-300">
+              <div
+                className="max-w-[80%] p-6 rounded-2xl rounded-tl-sm shadow-sm"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                }}
+              >
+                <div className="flex space-x-2 justify-center items-center h-4">
+                  <div
+                    className="h-2 w-2 rounded-full animate-bounce [animation-delay:-0.3s]"
+                    style={{ backgroundColor: currentTheme.primary }}
+                  ></div>
+                  <div
+                    className="h-2 w-2 rounded-full animate-bounce [animation-delay:-0.15s]"
+                    style={{ backgroundColor: currentTheme.primary }}
+                  ></div>
+                  <div
+                    className="h-2 w-2 rounded-full animate-bounce"
+                    style={{ backgroundColor: currentTheme.primary }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Input Area */}

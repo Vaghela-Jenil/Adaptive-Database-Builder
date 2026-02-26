@@ -33,7 +33,7 @@ export default function RootLayout({
 
   return (
     <html  lang="en"  className={bricolage.variable}>
-      <body className={bricolage.className}>
+      <body className={bricolage.className} suppressContentEditableWarning={true}>
        <ThemeProvider>
          <Providers>{children}</Providers>
        </ThemeProvider>

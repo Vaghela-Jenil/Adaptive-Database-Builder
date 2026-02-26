@@ -14,16 +14,16 @@ export default function CreateUserOnSignIn() {
 
     calledRef.current = true;
 
-    async function createUser() {
-      try {
-        const res = await axios.post("/api/auth/verify-user");
-        console.log("Create user response:", res.data);
-      } catch (err) {
-        console.error("Create user failed", err);
+    const syncUser = async () => {
+    try {
+      await axios.post("/api/auth/verify-user");
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        throw new Error('You are banned from this application')
       }
     }
-
-    createUser();
+  };
+  if (isSignedIn) syncUser();
   }, [isLoaded, isSignedIn, user?.id]);
 
   return null;

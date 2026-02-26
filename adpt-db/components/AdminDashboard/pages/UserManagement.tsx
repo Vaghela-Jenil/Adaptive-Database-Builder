@@ -1,271 +1,256 @@
-import { motion } from "motion/react";
-import { Search, MoreVertical, UserCheck, UserX, Mail, Eye } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Trash2, Ban, ChevronLeft, ChevronRight, X, UserPlus,
+  Eye, EyeOff, ShieldAlert, Mail, Calendar, Phone
+} from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function UserManagement() {
   const { currentTheme } = useTheme();
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const limit = 8;
 
-  const users = [
-    {
-      id: 1,
-      name: "Sarah Chen",
-      email: "sarah.chen@company.com",
-      role: "Administrator",
-      status: "active",
-      lastActive: "2 hours ago",
-      avatar: "SC",
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      email: "mike.j@company.com",
-      role: "Editor",
-      status: "active",
-      lastActive: "5 minutes ago",
-      avatar: "MJ",
-    },
-    {
-      id: 3,
-      name: "Emily Rodriguez",
-      email: "emily.r@company.com",
-      role: "Viewer",
-      status: "inactive",
-      lastActive: "3 days ago",
-      avatar: "ER",
-    },
-    {
-      id: 4,
-      name: "Alex Turner",
-      email: "alex.turner@company.com",
-      role: "Editor",
-      status: "active",
-      lastActive: "1 hour ago",
-      avatar: "AT",
-    },
-    {
-      id: 5,
-      name: "Jessica Williams",
-      email: "j.williams@company.com",
-      role: "Administrator",
-      status: "active",
-      lastActive: "30 minutes ago",
-      avatar: "JW",
-    },
-    {
-      id: 6,
-      name: "David Kim",
-      email: "david.kim@company.com",
-      role: "Viewer",
-      status: "inactive",
-      lastActive: "1 week ago",
-      avatar: "DK",
-    },
-  ];
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [confirmPanel, setConfirmPanel] = useState<{ show: boolean, type: 'delete' | 'ban', user: any | null }>({
+    show: false, type: 'delete', user: null
+  });
 
-  const stats = [
-    { label: "Total Users", value: "248", change: "+12" },
-    { label: "Active Now", value: "142", change: "+8" },
-    { label: "New This Week", value: "23", change: "+15%" },
-    { label: "Pending Invites", value: "7", change: "-2" },
-  ];
+  const [formData, setFormData] = useState({
+  email: "",
+  password: "",
+  firstName: "",
+  lastName: "",
+  role: "user",
+  phonenumber: ""
+});
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.get(`/api/admin/users?limit=${limit}&offset=${page * limit}`);
+      setUsers(data.data);
+      setTotalUsers(data.totalCount);
+    } catch (err) { console.error("Fetch failed", err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchUsers(); }, [page]);
+
+  const handleAction = async () => {
+    const { type, user } = confirmPanel;
+    if (!user) return;
+    setLoading(true);
+    try {
+      if (type === 'delete') {
+        await axios.delete(`/api/admin/users/${user.id}`);
+      } else {
+        const isCurrentlyBanned = user.status === 'banned';
+        await axios.patch(`/api/admin/users/${user.id}`, {
+          banned: !isCurrentlyBanned,
+          role: user.role
+        });
+      }
+      setConfirmPanel({ show: false, type: 'delete', user: null });
+      fetchUsers();
+    } catch (err) { alert("Action failed"); }
+    finally { setLoading(false); }
+  };
+
+  const handleChange = (e: any) => {
+    const {key, value} = e.target
+    setFormData((prev) =>( {
+      ...prev, 
+      [key] : value
+    }));
+  }
+
+const handleCreateUser = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+    alert("Please fill in all required fields (Name, Email, Password).");
+    return;
+  }
+  setLoading(true);
+  try {
+    await axios.post("/api/admin/users", formData);
+    setIsCreateModalOpen(false);
+    setFormData({ email: "", password: "", firstName: "", lastName: "", role: "user", phonenumber: "" });
+    fetchUsers();
+    alert("User created successfully!");
+  } catch (err: any) {
+    console.error(err);
+    alert(err.response?.data?.error || "Failed to create user.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
-    <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-6 rounded-xl"
-            style={{
-              backgroundColor: currentTheme.surface,
-              border: `1px solid ${currentTheme.border}`,
-            }}
-          >
-            <p className="text-sm mb-2" style={{ color: currentTheme.textSecondary }}>
-              {stat.label}
-            </p>
-            <div className="flex items-end justify-between">
-              <h3 className="text-3xl font-bold" style={{ color: currentTheme.text }}>
-                {stat.value}
-              </h3>
-              <span className="text-sm font-medium" style={{ color: currentTheme.primary }}>
-                {stat.change}
-              </span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Search and Actions */}
-      <div className="flex items-center gap-4">
-        <div
-          className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl"
-          style={{
-            backgroundColor: currentTheme.surface,
-            border: `1px solid ${currentTheme.border}`,
-          }}
-        >
-          <Search className="w-5 h-5" style={{ color: currentTheme.textSecondary }} />
-          <input
-            type="text"
-            placeholder="Search users by name or email..."
-            className="flex-1 bg-transparent outline-none"
-            style={{ color: currentTheme.text }}
-          />
-        </div>
-        <button
-          className="px-6 py-3 rounded-xl font-medium text-white"
-          style={{ backgroundColor: currentTheme.primary }}
-        >
-          Add User
+    <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-black" style={{ color: currentTheme.text }}>Identity Manager</h2>
+        <button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-105 transition-all">
+          <UserPlus size={20} /> Add User
         </button>
       </div>
 
-      {/* Users Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="rounded-xl overflow-hidden"
-        style={{
-          backgroundColor: currentTheme.surface,
-          border: `1px solid ${currentTheme.border}`,
-        }}
-      >
-        <div className="overflow-x-auto">
+      <div className="flex-1 rounded-3xl border overflow-hidden flex flex-col" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+        <div className="overflow-auto flex-1">
           <table className="w-full">
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${currentTheme.border}` }}>
-                <th
-                  className="text-left px-6 py-4 font-medium text-sm"
-                  style={{ color: currentTheme.textSecondary }}
-                >
-                  User
-                </th>
-                <th
-                  className="text-left px-6 py-4 font-medium text-sm"
-                  style={{ color: currentTheme.textSecondary }}
-                >
-                  Role
-                </th>
-                <th
-                  className="text-left px-6 py-4 font-medium text-sm"
-                  style={{ color: currentTheme.textSecondary }}
-                >
-                  Status
-                </th>
-                <th
-                  className="text-left px-6 py-4 font-medium text-sm"
-                  style={{ color: currentTheme.textSecondary }}
-                >
-                  Last Active
-                </th>
-                <th
-                  className="text-left px-6 py-4 font-medium text-sm"
-                  style={{ color: currentTheme.textSecondary }}
-                >
-                  Actions
-                </th>
+            <thead className="sticky top-0 z-10" style={{ backgroundColor: currentTheme.background }}>
+              <tr className="text-left border-b" style={{ borderColor: currentTheme.border }}>
+                <th className="p-5 text-xs font-bold uppercase" style={{ color: currentTheme.textSecondary }}>User</th>
+                <th className="p-5 text-xs font-bold uppercase" style={{ color: currentTheme.textSecondary }}>Contact</th>
+                <th className="p-5 text-xs font-bold uppercase" style={{ color: currentTheme.textSecondary }}>Presence</th>
+                <th className="p-5 text-xs font-bold uppercase text-right" style={{ color: currentTheme.textSecondary }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user, index) => (
-                <motion.tr
-                  key={user.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + index * 0.05 }}
-                  style={{ borderBottom: `1px solid ${currentTheme.border}` }}
-                  className="hover:bg-opacity-50 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
-                        style={{ backgroundColor: currentTheme.primary }}
-                      >
-                        {user.avatar}
+              {users.map((user) => {
+                const isToday = user.lastActiveAt && new Date(user.lastActiveAt).toDateString() === new Date().toDateString();
+                const isBanned = user.status === 'banned';
+                return (
+                  <tr key={user.id} className="border-b last:border-0 hover:bg-black/5" style={{ borderColor: currentTheme.border }}>
+                    <td className="p-5">
+                      <div className="flex items-center gap-4">
+                        <img src={user.imageUrl} className="w-11 h-11 rounded-xl border object-cover" alt="" />
+                        <div>
+                          <p className="font-bold text-sm" style={{ color: currentTheme.text }}>{user.name}</p>
+                          <p className="text-[10px] font-bold text-indigo-500 uppercase">{user.role}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium" style={{ color: currentTheme.text }}>
-                          {user.name}
-                        </p>
-                        <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                          {user.email}
-                        </p>
+                    </td>
+                    <td className="p-5 text-xs" style={{ color: currentTheme.textSecondary }}>
+                      <div className="flex items-center gap-2 truncate max-w-50"><Mail size={12} /> {user.email}</div>
+                      <div className="flex items-center gap-2"><Phone size={12} /> {user.phonenumber || 'N/A'}</div>
+                    </td>
+                    <td className="p-5 text-xs font-bold">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${isBanned ? 'bg-red-500' : isToday ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                        <span style={{ color: isBanned ? '#ef4444' : isToday ? '#22c55e' : currentTheme.textSecondary }}>
+                          {isBanned ? "BANNED" : isToday ? "ACTIVE TODAY" : new Date(user.lastActiveAt).toLocaleDateString()}
+                        </span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className="px-3 py-1 rounded-full text-sm font-medium"
-                      style={{
-                        backgroundColor: currentTheme.background,
-                        border: `1px solid ${currentTheme.border}`,
-                        color: currentTheme.text,
-                      }}
-                    >
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          user.status === "active" ? "bg-green-500" : "bg-gray-400"
-                        }`}
-                      />
-                      <span className="text-sm capitalize" style={{ color: currentTheme.text }}>
-                        {user.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                      {user.lastActive}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="p-2 rounded-lg hover:bg-opacity-80 transition-colors"
-                        style={{
-                          backgroundColor: currentTheme.background,
-                          border: `1px solid ${currentTheme.border}`,
-                        }}
-                      >
-                        <Eye className="w-4 h-4" style={{ color: currentTheme.text }} />
-                      </button>
-                      <button
-                        className="p-2 rounded-lg hover:bg-opacity-80 transition-colors"
-                        style={{
-                          backgroundColor: currentTheme.background,
-                          border: `1px solid ${currentTheme.border}`,
-                        }}
-                      >
-                        <Mail className="w-4 h-4" style={{ color: currentTheme.text }} />
-                      </button>
-                      <button
-                        className="p-2 rounded-lg hover:bg-opacity-80 transition-colors"
-                        style={{
-                          backgroundColor: currentTheme.background,
-                          border: `1px solid ${currentTheme.border}`,
-                        }}
-                      >
-                        <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+                    </td>
+                    <td className="p-5 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setConfirmPanel({ show: true, type: 'ban', user })} className={`p-2 rounded-lg transition-all ${isBanned ? 'bg-red-500 text-white' : 'hover:bg-orange-500/10 text-orange-500'}`}><Ban size={18} /></button>
+                        <button onClick={() => setConfirmPanel({ show: true, type: 'delete', user })} className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg"><Trash2 size={18} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </motion.div>
+
+        <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: currentTheme.border }}>
+          <p className="text-xs font-bold" style={{ color: currentTheme.textSecondary }}>PAGE {page + 1} OF {Math.max(1, Math.ceil(totalUsers / limit))}</p>
+          <div className="flex gap-2">
+            <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg border disabled:opacity-20"><ChevronLeft /></button>
+            <button disabled={(page + 1) * limit >= totalUsers} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg border disabled:opacity-20"><ChevronRight /></button>
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isCreateModalOpen && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg p-10 rounded-[40px] shadow-2xl relative">
+            <div className="flex justify-between items-center mb-6 text-black">
+              <h3 className="text-2xl font-black">New Operative</h3>
+              <button onClick={() => setIsCreateModalOpen(false)}><X /></button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-4 text-black">
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  required
+                  placeholder="First Name"
+                  value={formData.firstName}
+                  className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+                 onChange={e => handleChange(e)}
+                />
+                <input
+                  required
+                  placeholder="Last Name"
+                  value={formData.lastName}
+                  className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+                  onChange={e => handleChange(e)}
+                />
+              </div>
+
+              <input
+                required
+                type="email"
+                placeholder="Email Address"
+                value={formData.email}
+                className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+               onChange={e => handleChange(e)}
+              />
+
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password (8+ chars)"
+                  value={formData.password}
+                  className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+                 onChange={e => handleChange(e)}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+
+              <input
+                placeholder="Phone Number (Optional)"
+                value={formData.phonenumber}
+                className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+                onChange={e => handleChange(e)}
+              />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 disabled:bg-gray-400"
+              >
+                {loading ? "Processing..." : "Create Account"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmPanel.show && (
+          <div className="fixed inset-0 z-110 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="max-w-sm w-full p-8 rounded-[32px]" style={{ backgroundColor: currentTheme.surface }}>
+              <ShieldAlert size={48} className="text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-black text-center mb-2">Confirm {confirmPanel.type === 'delete' ? 'Delete' : 'Status'}</h3>
+              <p className="text-sm text-center mb-8 opacity-70">Apply changes to <b>{confirmPanel.user?.name}</b>?</p>
+              <div className="flex gap-3">
+                <button onClick={() => setConfirmPanel({ show: false, type: 'delete', user: null })} className="flex-1 py-3 rounded-xl bg-gray-500/10 font-bold">Cancel</button>
+                <button onClick={handleAction} disabled={loading} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold">{loading ? "Wait..." : "Confirm"}</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

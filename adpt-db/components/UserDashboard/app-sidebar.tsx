@@ -41,11 +41,6 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       icon: MessageSquare,
     },
     {
-      id: "history",
-      label: "History",
-      icon: Clock,
-    },
-    {
       id: 'nearby-stores',
       label: 'Nearby Stores',
       icon: FolderLock,
