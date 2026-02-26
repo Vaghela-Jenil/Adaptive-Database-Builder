@@ -64,13 +64,13 @@ export default function UserManagement() {
     finally { setLoading(false); }
   };
 
-  const handleChange = (e: any) => {
-    const {key, value} = e.target
-    setFormData((prev) =>( {
-      ...prev, 
-      [key] : value
-    }));
-  }
+const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target; 
+  setFormData((prev) => ({
+    ...prev,
+    [name]: value, 
+  })); 
+};
 
 const handleCreateUser = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -92,6 +92,7 @@ const handleCreateUser = async (e: React.FormEvent) => {
     setLoading(false);
   }
 };
+
 
   return (
     <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
@@ -171,66 +172,74 @@ const handleCreateUser = async (e: React.FormEvent) => {
               <button onClick={() => setIsCreateModalOpen(false)}><X /></button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-4 text-black">
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  required
-                  placeholder="First Name"
-                  value={formData.firstName}
-                  className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
-                 onChange={e => handleChange(e)}
-                />
-                <input
-                  required
-                  placeholder="Last Name"
-                  value={formData.lastName}
-                  className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
-                  onChange={e => handleChange(e)}
-                />
-              </div>
+           
+      <form onSubmit={handleCreateUser} className="space-y-4 text-black">
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            name="firstName"
+            required
+            placeholder="First Name"
+            value={formData.firstName}
+            onChange={handleChange}
+            className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+          />
 
-              <input
-                required
-                type="email"
-                placeholder="Email Address"
-                value={formData.email}
-                className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
-               onChange={e => handleChange(e)}
-              />
+          <input
+            name="lastName"
+            required
+            placeholder="Last Name"
+            value={formData.lastName}
+            onChange={handleChange}
+            className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+          />
+        </div>
 
-              <div className="relative">
-                <input
-                  required
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password (8+ chars)"
-                  value={formData.password}
-                  className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
-                 onChange={e => handleChange(e)}
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
+        <input
+          name="email"
+          type="email"
+          required
+          placeholder="Email Address"
+          value={formData.email}
+          onChange={handleChange}
+          className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+        />
 
-              <input
-                placeholder="Phone Number (Optional)"
-                value={formData.phonenumber}
-                className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
-                onChange={e => handleChange(e)}
-              />
+        <div className="relative">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            required
+            placeholder="Password (8+ chars)"
+            value={formData.password}
+            onChange={handleChange}
+            className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+          />
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? "Processing..." : "Create Account"}
-              </button>
-            </form>
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 opacity-60"
+          >
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        </div>
+
+        <input
+          name="phonenumber"
+          placeholder="Phone Number (Optional)"
+          value={formData.phonenumber}
+          onChange={handleChange}
+          className="w-full p-4 rounded-2xl border border-gray-300 outline-none"
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 disabled:bg-gray-400 transition"
+        >
+          {loading ? "Creating..." : "Create Account"}
+        </button>
+      </form>
           </div>
         </div>
       )}
