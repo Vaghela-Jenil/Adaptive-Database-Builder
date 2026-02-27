@@ -10,7 +10,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { useContext, useState, useMemo, useEffect } from "react";
+import { useContext, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 import { UserButton } from "@clerk/nextjs";

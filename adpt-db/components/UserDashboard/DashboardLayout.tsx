@@ -6,7 +6,6 @@ import DashboardNavbar from "../UserDashboard/app-navbar";
 import DashboardHome from "../UserDashboard/pages/DashboardHome";
 import Analytics from "../UserDashboard/pages/Analytics";
 import Chatbot from "../UserDashboard/pages/chatbot";
-import Settings from "../UserDashboard/pages/setting";
 import Database from "../UserDashboard/pages/Database";
 import FormBuilderPage from "../DatabaseBuilder/FormBuilderPage";
 import DatabaseRecordsView from "../DatabaseBuilder/DatabaseRecordsView";
@@ -36,7 +35,6 @@ export default function DashboardLayout() {
       case "dashboard": return <DashboardHome />;
       case "analytics": return <Analytics />;
       case "chatbot": return <Chatbot />;
-      case "settings": return <Settings />;
       case "nearby-stores": return <NearByStorePage />;
       case "database":
         return (

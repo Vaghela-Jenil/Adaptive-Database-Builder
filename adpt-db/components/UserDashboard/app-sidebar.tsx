@@ -4,8 +4,6 @@ import {
   LayoutDashboard,
   BarChart3,
   MessageSquare,
-  Clock,
-  Settings,
   Database,
   FolderLock,
   ChevronRight,
@@ -14,10 +12,12 @@ import { useTheme } from "@/context/ThemeContext";
 import { UserButton } from "@clerk/nextjs";
 import { useContext } from "react";
 import { UserContext } from "@/context/userContext";
+import Image from "next/image";
+import logo from '../../public/logo.png'
 
 export default function DashboardSidebar({ activePage, setActivePage, isSidebarOpen }: { activePage: string; setActivePage: (page: string) => void; isSidebarOpen: boolean; }) {
   const { currentTheme } = useTheme();
-  const { user } = useContext<any>(UserContext);
+  const { user } = useContext(UserContext);
 
   const navigationItems = [
     {
@@ -47,27 +47,19 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     }
   ];
 
-  const bottomItems = [
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Settings,
-    },
-  ];
 
   return (
     <div suppressHydrationWarning className="relative"
-            style={{
-          backgroundColor: currentTheme.surface,
-          borderRight: `1px solid ${currentTheme.border}`,
-        }}>
+      style={{
+        backgroundColor: currentTheme.surface,
+        borderRight: `1px solid ${currentTheme.border}`,
+      }}>
       <motion.aside
         initial={false}
         animate={{ width: isSidebarOpen ? 280 : 0 }}
         className="overflow-hidden shrink-0"
       >
         <div className="w-70 h-full flex flex-col">
-          {/* Logo */}
           <div
             className="p-6"
             style={{ borderBottom: `1px solid ${currentTheme.border}` }}
@@ -75,10 +67,17 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: currentTheme.primary }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
+                  style={{ backgroundColor: `${currentTheme.primary}10` }} // Subtle brand-colored background
                 >
-                  <Database className="w-5 h-5 text-white" />
+                  <Image
+                    src={logo}
+                    alt="Sysnera Logo"
+                    width={40}
+                    height={40}
+                    className="object-contain p-1" // Ensures logo doesn't touch the edges
+                    priority // Loads logo immediately for better LCP
+                  />
                 </div>
               </div>
               <div>
@@ -86,7 +85,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                   Sysnera
                 </h2>
                 <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                  Enterprise Edition
+                 Data Intelligence
                 </p>
               </div>
             </div>
@@ -100,25 +99,25 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                 const isActive = activePage === item.id;
 
                 return (
-                 <div key={item.id}>
-                   <motion.button 
-                    key={item.id}
-                    onClick={() => setActivePage(item.id)}
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
-                    style={{
-                      backgroundColor: isActive
-                        ? currentTheme.primary
-                        : "transparent",
-                      color: isActive ? "#ffffff" : currentTheme.text,
-                    }}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                  </motion.button> 
-                 </div>
+                  <div key={item.id}>
+                    <motion.button
+                      key={item.id}
+                      onClick={() => setActivePage(item.id)}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
+                      style={{
+                        backgroundColor: isActive
+                          ? currentTheme.primary
+                          : "transparent",
+                        color: isActive ? "#ffffff" : currentTheme.text,
+                      }}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                      {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                    </motion.button>
+                  </div>
                 );
               })}
             </div>
@@ -147,35 +146,13 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
 
           {/* Bottom Items - Settings */}
           <div
-            className="absolute bottom-0 p-4"
-            style={{ borderTop: `1px solid ${currentTheme.border}`,
+            className="w-full absolute bottom-0 p-4"
+            title="Setting"
+            style={{
+              borderTop: `1px solid ${currentTheme.border}`,
               backgroundColor: currentTheme.surface
-             }}
+            }}
           >
-            {bottomItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activePage === item.id;
-
-              return (
-                <motion.button
-                  key={item.id}
-                  onClick={() => setActivePage(item.id)}
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-4"
-                  style={{
-                    backgroundColor: isActive
-                      ? currentTheme.primary
-                      : "transparent",
-                    color: isActive ? "#ffffff" : currentTheme.text,
-                  }}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                </motion.button>
-              );
-            })}
-
             <div
               className="p-3 rounded-xl"
               style={{
@@ -185,14 +162,9 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             >
               <div className="flex items-center gap-3">
                 <UserButton />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: currentTheme.text }}>
-                    {user && user?.userName}
-                  </p>
-                  <p className="text-xs truncate" style={{ color: currentTheme.textSecondary }}>
-                    {user && user.email}
-                  </p>
-                </div>
+                <p className="w-full text-sm font-medium truncate" style={{ color: currentTheme.text }}>
+                  Setting
+                </p>
               </div>
             </div>
           </div>

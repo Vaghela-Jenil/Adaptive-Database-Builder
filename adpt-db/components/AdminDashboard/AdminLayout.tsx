@@ -16,7 +16,6 @@ import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 import UserManagement from "./pages/UserManagement";
 import EmailCenter from "./pages/EmailCenter";
 import QueryManagement from "./pages/QueryManagement";
-;import SettingsPanel from "./pages/SettingsPanel";
 
 export default function AdminLayout() {
   const [activePage, setActivePage] = useState("users");
@@ -39,8 +38,6 @@ export default function AdminLayout() {
         return <EmailCenter />;
       case "queries":
         return <QueryManagement />;
-      case "settings":
-        return <SettingsPanel />;
       default:
         return <UserManagement />;
     }

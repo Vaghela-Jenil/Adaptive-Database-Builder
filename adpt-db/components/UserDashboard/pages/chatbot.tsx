@@ -142,14 +142,15 @@ export default function Chatbot() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleQuickPrompt(prompt.prompt)}
-                className="p-4 rounded-xl text-left transition-all"
+                className="p-2 flex rounded-xl text-left transition-all"
                 style={{
                   backgroundColor: currentTheme.surface,
                   border: `1px solid ${currentTheme.border}`,
                 }}
               >
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
+                <div className="flex items-center justify-center gap-3">
+                  <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center "
                   style={{ backgroundColor: currentTheme.primary }}
                 >
                   <Icon className="w-4 h-4 text-white" />
@@ -157,6 +158,7 @@ export default function Chatbot() {
                 <p className="text-sm font-medium" style={{ color: currentTheme.text }}>
                   {prompt.label}
                 </p>
+                </div>
               </motion.button>
             );
           })}
@@ -184,7 +186,7 @@ export default function Chatbot() {
                   border: `1px solid ${message.role === "assistant" ? currentTheme.border : currentTheme.primary}`,
                   color: message.role === "assistant" ? currentTheme.text : "#ffffff",
                 }}
-              >
+              >               
                 <div className="p-4 rounded-xl">
                   <div className="prose dark:prose-invert prose-sm max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
