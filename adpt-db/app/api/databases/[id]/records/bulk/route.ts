@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
+import { computeColumnValue } from "@/lib/computedColumns";
 
 export async function POST(
     req: NextRequest,
@@ -25,12 +26,38 @@ export async function POST(
             );
         }
 
-        const recordsToInsert = records.map((data) => ({
-            id: crypto.randomUUID(),
-            data,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        }));
+        // Get the database to access computed columns and formSchema
+        const db = await DatabaseModel.findOne({
+            _id: id,
+            clerkId: userId
+        });
+
+        if (!db) {
+            return NextResponse.json(
+                { error: "Database not found." },
+                { status: 404 }
+            );
+        }
+
+        const recordsToInsert = records.map((data) => {
+            // Calculate computed columns if they exist
+            let enrichedData = { ...data };
+            if (db.computedColumns && db.computedColumns.length > 0) {
+                for (const column of db.computedColumns) {
+                    const computedValue = computeColumnValue(enrichedData, column, db.formSchema);
+                    if (computedValue !== null) {
+                        enrichedData[column.id] = computedValue;
+                    }
+                }
+            }
+
+            return {
+                id: crypto.randomUUID(),
+                data: enrichedData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+        });
 
         const updatedDatabase = await DatabaseModel.findByIdAndUpdate(
             {_id : id,
@@ -48,7 +75,6 @@ export async function POST(
             );
         }
 
-        updatedDatabase.recordCount = recordsToInsert.length;
         updatedDatabase.recordCount = updatedDatabase.records.length;
         updatedDatabase.save();
 

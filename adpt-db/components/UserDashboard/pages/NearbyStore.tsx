@@ -296,18 +296,176 @@ export default function NearByStorePage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-[2rem] p-8 flex gap-6 items-center border-2 border-dashed"
-              style={{ borderColor: `${currentTheme.border}`, backgroundColor: `${currentTheme.surface}50` }}
+              exit={{ opacity: 0, y: 10 }}
+              className="space-y-6"
             >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: currentTheme.primary }}>
-                <Info className="w-6 h-6 text-white" />
+              {/* Getting Started Guide */}
+              <div
+                className="rounded-[2rem] p-8 border-2"
+                style={{ borderColor: `${currentTheme.primary}40`, backgroundColor: `${currentTheme.primary}08` }}
+              >
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-black uppercase italic tracking-tight" style={{ color: currentTheme.text }}>
+                      How to Find <span style={{ color: currentTheme.primary }}>Nearby Stores</span>
+                    </h2>
+                    <p className="text-sm opacity-70" style={{ color: currentTheme.textSecondary }}>
+                      Follow these simple steps to discover stores around your location
+                    </p>
+                  </div>
+
+                  {/* Steps Guide */}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Step 1 */}
+                    <div className="flex gap-4 p-4 rounded-xl" style={{ backgroundColor: `${currentTheme.background}80` }}>
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-black text-white"
+                        style={{ backgroundColor: currentTheme.primary }}
+                      >
+                        1
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm mb-1" style={{ color: currentTheme.text }}>
+                          Enter Store Name
+                        </p>
+                        <p className="text-[11px] opacity-70" style={{ color: currentTheme.textSecondary }}>
+                          Type the store type you're looking for (e.g., "pharmacy", "cafe", "hotel", "restaurant")
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="flex gap-4 p-4 rounded-xl" style={{ backgroundColor: `${currentTheme.background}80` }}>
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-black text-white"
+                        style={{ backgroundColor: currentTheme.primary }}
+                      >
+                        2
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm mb-1" style={{ color: currentTheme.text }}>
+                          Set Your Location
+                        </p>
+                        <p className="text-[11px] opacity-70" style={{ color: currentTheme.textSecondary }}>
+                          Use "Find your coordinates" to auto-detect, or enter latitude & longitude manually
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex gap-4 p-4 rounded-xl" style={{ backgroundColor: `${currentTheme.background}80` }}>
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-black text-white"
+                        style={{ backgroundColor: currentTheme.primary }}
+                      >
+                        3
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm mb-1" style={{ color: currentTheme.text }}>
+                          Adjust Search Parameters
+                        </p>
+                        <p className="text-[11px] opacity-70" style={{ color: currentTheme.textSecondary }}>
+                          Fine-tune radius (meters), result limit, sort order, and filter by "Open Now"
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="flex gap-4 p-4 rounded-xl" style={{ backgroundColor: `${currentTheme.background}80` }}>
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-black text-white"
+                        style={{ backgroundColor: currentTheme.primary }}
+                      >
+                        4
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm mb-1" style={{ color: currentTheme.text }}>
+                          Click "Initiate Search"
+                        </p>
+                        <p className="text-[11px] opacity-70" style={{ color: currentTheme.textSecondary }}>
+                          See results on the map and list. Export data as CSV, XLSX, or JSON
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="font-bold italic text-lg" style={{ color: currentTheme.text }}>System Standby</p>
-                <p className="text-xs opacity-60" style={{ color: currentTheme.textSecondary }}>
-                  Configure your parameters and execute search to begin.
-                </p>
+
+              {/* Store Categories Guide */}
+              <div
+                className="rounded-[2rem] p-8 border"
+                style={{ borderColor: currentTheme.border, backgroundColor: `${currentTheme.surface}80` }}
+              >
+                <div className="space-y-4 mb-2">
+                  <h3 className="text-lg font-black uppercase italic tracking-tight" style={{ color: currentTheme.text }}>
+                    Store <span style={{ color: currentTheme.primary }}>Categories</span>
+                  </h3>
+                  <p className="text-xs opacity-70" style={{ color: currentTheme.textSecondary }}>
+                    Each marker color represents a different store category:
+                  </p>
+                </div>
+
+                {/* Categories Grid */}
+                <div className="grid md:grid-cols-3 gap-3">
+                  {[
+                    { name: "Pharmacy", color: "#e63946", examples: "Drugstore, Medical Center" },
+                    { name: "Hospital", color: "#3a86ff", examples: "Clinic, Doctor, Dentist" },
+                    { name: "Restaurant", color: "#fb5607", examples: "Food, Diner" },
+                    { name: "Cafe", color: "#ffbe0b", examples: "Coffee, Tea, Juice Bar" },
+                    { name: "Bar/Pub", color: "#ffd166", examples: "Brewery, Nightlife" },
+                    { name: "Retail", color: "#2a9d8f", examples: "Shop, Mall, Boutique" },
+                    { name: "Supermarket", color: "#06d6a0", examples: "Grocery, Market" },
+                    { name: "Hotel", color: "#4361ee", examples: "Lodging, Accommodation" },
+                    { name: "Bank", color: "#4cc9f0", examples: "ATM, Finance" },
+                    { name: "Park", color: "#2b9348", examples: "Garden, Recreation" },
+                    { name: "School", color: "#8d99ae", examples: "University, College, Education" },
+                    { name: "Gas Station", color: "#6c757d", examples: "Fuel, Petrol" },
+                  ].map((category, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 rounded-xl border"
+                      style={{ borderColor: category.color, backgroundColor: `${category.color}15` }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full shrink-0 border-2 border-white"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold" style={{ color: currentTheme.text }}>
+                          {category.name}
+                        </p>
+                        <p className="text-[10px] opacity-60 truncate" style={{ color: currentTheme.textSecondary }}>
+                          {category.examples}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Tips */}
+              <div
+                className="rounded-[2rem] p-6 border-l-4 flex gap-4"
+                style={{ borderColor: currentTheme.primary, backgroundColor: `${currentTheme.primary}10` }}
+              >
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: currentTheme.primary }}
+                >
+                  <span className="text-white font-black text-lg">💡</span>
+                </div>
+                <div className="space-y-2 flex-1">
+                  <p className="font-bold text-sm" style={{ color: currentTheme.text }}>
+                    Pro Tips
+                  </p>
+                  <ul className="text-xs space-y-1 opacity-70" style={{ color: currentTheme.textSecondary }}>
+                    <li>✓ Smaller radius = faster results & more accurate location</li>
+                    <li>✓ Sort by "DISTANCE" to find the closest stores first</li>
+                    <li>✓ Use "RATING" sort to find the best-reviewed places</li>
+                    <li>✓ Change "Open Now" to only see currently operating stores</li>
+                  </ul>
+                </div>
               </div>
             </motion.div>
           )}

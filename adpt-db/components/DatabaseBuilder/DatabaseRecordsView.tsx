@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import {
   Plus,
@@ -16,7 +16,8 @@ import {
   Minimize2,
   Maximize2,
   BarChart3Icon,
-  Badge
+  Badge,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -31,6 +32,8 @@ import { Checkbox } from "../ui/checkbox";
 import { useInView } from "react-intersection-observer";
 import { record } from "zod";
 import { TableRowSkeleton } from "../Loaders";
+import ComputedColumnPanel, { ComputedColumnField } from "./ComputedColumnPanel";
+import { computeColumnValue, validateComputedColumn } from "@/lib/computedColumns";
 
 import {
   ResponsiveContainer,
@@ -111,6 +114,30 @@ const parseNumericValue = (value: unknown): number | null => {
   return null;
 };
 
+const compareValues = (a: unknown, b: unknown, order: 'asc' | 'desc'): number => {
+  // Handle null/undefined
+  if (a == null && b == null) return 0;
+  if (a == null) return order === 'asc' ? 1 : -1;
+  if (b == null) return order === 'asc' ? -1 : 1;
+
+  // Try numeric comparison
+  const numA = parseNumericValue(a);
+  const numB = parseNumericValue(b);
+  
+  if (numA !== null && numB !== null) {
+    const result = numA - numB;
+    return order === 'asc' ? result : -result;
+  }
+
+  // String comparison
+  const strA = String(a).toLowerCase();
+  const strB = String(b).toLowerCase();
+  
+  if (strA < strB) return order === 'asc' ? -1 : 1;
+  if (strA > strB) return order === 'asc' ? 1 : -1;
+  return 0;
+};
+
 const getActionBadgeStyles = (
   action: ReplenishmentRecommendation["action"]
 ) => {
@@ -143,6 +170,21 @@ export default function DatabaseRecordsView({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [deleteRecords, setDeleteRecords] = useState<string[]>([]);
   const [bulkDelete, setBulkDelete] = useState<boolean>(false);
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState<{
+    fieldId: string;
+    order: 'asc' | 'desc';
+  } | null>(null);
+  const [openSortMenuId, setOpenSortMenuId] = useState<string | null>(null);
+  const [hoveredHeaderId, setHoveredHeaderId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const sortButtonRefs = useRef<Record<string, HTMLButtonElement>>({});
+
+  // Computed Columns
+  const [showComputedColumnPanel, setShowComputedColumnPanel] = useState(false);
+  const [computedColumns, setComputedColumns] = useState<ComputedColumnField[]>([]);
+  const [isComputingColumns, setIsComputingColumns] = useState(false);
 
   //pagination
   const [page, setPage] = useState(1);
@@ -254,6 +296,20 @@ export default function DatabaseRecordsView({
   const dataFields = formSchema.filter(
     (field) => field.type !== "text" && field.type !== "separator"
   );
+
+  // Identify computed columns (those with specific ID pattern or disabled flag)
+  const computedColumnIds = useMemo(() => {
+    return formSchema
+      .filter((field) => field.disabled && field.helperText?.includes("Computed:"))
+      .map((field) => field.id);
+  }, [formSchema]);
+
+  // Form fields (exclude computed columns)
+  const editableFormFields = useMemo(
+    () => formSchema.filter((field) => !computedColumnIds.includes(field.id)),
+    [formSchema, computedColumnIds]
+  );
+
   const numericAnalyticsFields = useMemo(
     () =>
       dataFields.filter((field) =>
@@ -562,7 +618,12 @@ export default function DatabaseRecordsView({
 
   const handleEditRecord = (record: DatabaseRecord) => {
     setEditingRecord(record);
-    setFormData(record.data);
+    // Exclude computed columns from editable form data
+    const editableData: Record<string, unknown> = {};
+    editableFormFields.forEach((field) => {
+      editableData[field.id] = record.data[field.id];
+    });
+    setFormData(editableData);
     setShowForm(true);
   };
 
@@ -570,8 +631,12 @@ export default function DatabaseRecordsView({
   const handleSaveForm = () => {
     if (!currentDatabase) return;
 
-    const schema = buildZodSchema(formSchema);
-    const result = schema.safeParse(formData);
+    // Build schema excluding computed columns
+    const schemaForValidation = editableFormFields.length > 0 
+      ? buildZodSchema(editableFormFields) 
+      : buildZodSchema(formSchema);
+    
+    const result = schemaForValidation.safeParse(formData);
 
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -618,6 +683,36 @@ export default function DatabaseRecordsView({
   const handleColumnResize = (fieldId: string, newWidth: number) => {
     setColumnWidths((prev) => ({ ...prev, [fieldId]: Math.max(100, newWidth) }));
   };
+
+  const handleSort = (fieldId: string, order: 'asc' | 'desc') => {
+    // If clicking the same field and order, toggle it off
+    if (sortConfig?.fieldId === fieldId && sortConfig?.order === order) {
+      setSortConfig(null);
+    } else {
+      // Replace with new sort (single sort only)
+      setSortConfig({ fieldId, order });
+    }
+  };
+
+  const removeSorting = () => {
+    setSortConfig(null);
+  };
+
+  // Sorted records based on current sort configuration
+  const sortedRecords = useMemo(() => {
+    if (!sortConfig) return records;
+
+    const sorted = [...records];
+    
+    sorted.sort((recordA, recordB) => {
+      const valA = recordA.data[sortConfig.fieldId];
+      const valB = recordB.data[sortConfig.fieldId];
+      
+      return compareValues(valA, valB, sortConfig.order);
+    });
+
+    return sorted;
+  }, [records, sortConfig]);
 
   const handleAddRecord = async (databaseId: string, data: Record<string, unknown>) => {
     try {
@@ -724,6 +819,60 @@ export default function DatabaseRecordsView({
       await loadMoreRecords(1, true);
     } catch {
       alert("Failed to update record. Please try again.");
+    }
+  };
+
+  const handleCreateComputedColumn = async (column: ComputedColumnField) => {
+    try {
+      // Validate the column
+      const validation = validateComputedColumn(column, formSchema);
+      if (!validation.valid) {
+        throw new Error(validation.error || "Invalid column configuration");
+      }
+
+      setIsComputingColumns(true);
+
+      // Create a new field attribute for the computed column
+      const newFieldAttribute: FieldAttributes = {
+        id: column.id,
+        label: column.name,
+        span: 1,
+        type: "input-text",
+        disabled: true, // Make computed columns read-only
+        helperText: `Computed: ${column.operation}`,
+        showLabel: true,
+      };
+
+      // Call API to save the computed column and update all records
+      const response = await axios.post(
+        `/api/databases/${currentDatabase._id}/computed-columns`,
+        {
+          column: {
+            ...column,
+            computedAt: new Date().toISOString(),
+          },
+          fieldAttribute: newFieldAttribute,
+        }
+      );
+
+      if (response.status === 200 || response.status === 201) {
+        // Update local state to include the new column
+        setComputedColumns([...computedColumns, column]);
+
+        // Reload records to get computed values
+        setPage(1);
+        setHasMore(true);
+        await loadMoreRecords(1, true);
+
+        alert("Computed column created successfully!");
+      }
+    } catch (error) {
+      console.error("Error creating computed column:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create computed column";
+      throw new Error(errorMessage);
+    } finally {
+      setIsComputingColumns(false);
     }
   };
 
@@ -952,7 +1101,7 @@ export default function DatabaseRecordsView({
   };
 
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: currentTheme.background }}>
+    <div className="h-screen flex flex-col" style={{ backgroundColor: currentTheme.background }} onClick={() => setOpenSortMenuId(null)}>
       <div
         className="border-b px-6 py-4 flex items-center justify-between"
         style={{
@@ -1444,7 +1593,7 @@ export default function DatabaseRecordsView({
                       name="Metric Average"
                       stroke="#f59e0b"
                       strokeWidth={2}
-                    
+
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1545,6 +1694,24 @@ export default function DatabaseRecordsView({
             >
               {isLoadingRecommendations ? "Refreshing..." : "Refresh Recommendations"}
             </Button>
+            {/* Add Computed Column Button - Above Table */}
+            <div
+              onClick={() => setShowComputedColumnPanel(true)}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                title="Add computed column"
+                style={{
+                  borderColor: currentTheme.border,
+                  color: currentTheme.primary,
+                  backgroundColor: currentTheme.surface,
+                }}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Column
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1826,9 +1993,9 @@ export default function DatabaseRecordsView({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden flex flex-col relative">
         {/* Table View */}
-        <div className="h-full overflow-auto">
+        <div className="flex-1 overflow-auto relative">
           {
             loading ?
               [...Array(10)].map((_, i) => (
@@ -1858,7 +2025,7 @@ export default function DatabaseRecordsView({
                 (
                   <table className="w-full border-collapse">
                     <thead
-                      className="sticky top-0 z-10"
+                      className="sticky top-0 z-20"
                       style={{ backgroundColor: currentTheme.surface }}
                     >
                       <tr>
@@ -1875,19 +2042,137 @@ export default function DatabaseRecordsView({
                         {dataFields.map((field) => (
                           <th
                             key={field.id}
-                            className="px-2 py-2 border-b text-sm truncate border border-white relative group hover:border-black "
+                            className="px-2 py-2 border-b text-sm truncate border border-white relative"
                             style={{
                               color: currentTheme.text,
                               borderColor: currentTheme.border,
                               width: `${getColumnWidth(field.id)}px`,
                               minWidth: "100px",
                             }}
+                            onMouseEnter={() => setHoveredHeaderId(field.id)}
+                            onMouseLeave={() => setHoveredHeaderId(null)}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                               <span className="truncate">{field.label}</span>
+
+                              {/* Sort Icon - Show on hover or if sorted */}
+                              {(hoveredHeaderId === field.id || sortConfig?.fieldId === field.id) && (
+                                <div className="relative flex-shrink-0">
+                                  <button
+                                    ref={(el) => {
+                                      if (el) sortButtonRefs.current[field.id] = el;
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (openSortMenuId === field.id) {
+                                        setOpenSortMenuId(null);
+                                      } else {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setMenuPosition({
+                                          top: rect.top - 10,
+                                          left: rect.left + rect.width / 2,
+                                        });
+                                        setOpenSortMenuId(field.id);
+                                      }
+                                    }}
+                                    className="p-1 rounded transition-all"
+                                    style={{
+                                      backgroundColor:
+                                        sortConfig?.fieldId === field.id
+                                          ? currentTheme.primary
+                                          : `${currentTheme.primary}20`,
+                                      color: sortConfig?.fieldId === field.id ? '#ffffff' : currentTheme.text,
+                                    }}
+                                    title="Sort options"
+                                  >
+                                    <ChevronDown className="w-4 h-4" />
+                                  </button>
+
+                                  {/* Sort Menu Dropdown - Positioned above to avoid table hiding */}
+                                  <AnimatePresence>
+                                    {openSortMenuId === field.id && (
+                                      <motion.div
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        className="fixed z-[99999] rounded-lg border shadow-2xl p-2 flex flex-col gap-1 whitespace-nowrap"
+                                        style={{
+                                          backgroundColor: currentTheme.surface,
+                                          borderColor: currentTheme.border,
+                                          top: `${menuPosition.top}px`,
+                                          left: `${menuPosition.left}px`,
+                                          transform: 'translate(-50%, -100%)',
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <button
+                                          onClick={() => {
+                                            handleSort(field.id, 'asc');
+                                            setOpenSortMenuId(null);
+                                          }}
+                                          className="px-3 py-1.5 text-xs font-bold rounded hover:opacity-80 transition-all text-left whitespace-nowrap"
+                                          style={{
+                                            backgroundColor:
+                                              sortConfig?.fieldId === field.id && sortConfig?.order === 'asc'
+                                                ? currentTheme.primary
+                                                : currentTheme.background,
+                                            color:
+                                              sortConfig?.fieldId === field.id && sortConfig?.order === 'asc'
+                                                ? '#ffffff'
+                                                : currentTheme.text,
+                                            border: `1px solid ${currentTheme.border}`,
+                                          }}
+                                          title="Sort Ascending"
+                                        >
+                                          A→Z ↑
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            handleSort(field.id, 'desc');
+                                            setOpenSortMenuId(null);
+                                          }}
+                                          className="px-3 py-1.5 text-xs font-bold rounded hover:opacity-80 transition-all text-left whitespace-nowrap"
+                                          style={{
+                                            backgroundColor:
+                                              sortConfig?.fieldId === field.id && sortConfig?.order === 'desc'
+                                                ? currentTheme.primary
+                                                : currentTheme.background,
+                                            color:
+                                              sortConfig?.fieldId === field.id && sortConfig?.order === 'desc'
+                                                ? '#ffffff'
+                                                : currentTheme.text,
+                                            border: `1px solid ${currentTheme.border}`,
+                                          }}
+                                          title="Sort Descending"
+                                        >
+                                          Z→A ↓
+                                        </button>
+                                        {sortConfig?.fieldId === field.id && (
+                                          <button
+                                            onClick={() => {
+                                              removeSorting();
+                                              setOpenSortMenuId(null);
+                                            }}
+                                            className="px-3 py-1.5 text-xs font-bold rounded hover:opacity-80 transition-all text-left whitespace-nowrap"
+                                            style={{
+                                              backgroundColor: currentTheme.background,
+                                              color: currentTheme.text,
+                                              border: `1px solid ${currentTheme.border}`,
+                                            }}
+                                            title="Remove Sort"
+                                          >
+                                            ✕ Clear
+                                          </button>
+                                        )}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              )}
+
                               {/* Resize handle */}
                               <div
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 hover:opacity-100 transition-opacity"
                                 style={{ backgroundColor: currentTheme.primary }}
                                 onMouseDown={(e) => {
                                   e.preventDefault();
@@ -1908,6 +2193,26 @@ export default function DatabaseRecordsView({
                                   document.addEventListener("mouseup", handleMouseUp);
                                 }}
                               />
+                            </div>
+                          </th>
+                        ))}
+                        {/* Computed Columns Headers */}
+                        {computedColumns.map((column) => (
+                          <th
+                            key={column.id}
+                            className="px-2 py-2 border-b text-sm truncate border border-white relative group hover:border-black"
+                            style={{
+                              color: currentTheme.primary,
+                              borderColor: currentTheme.border,
+                              width: "150px",
+                              minWidth: "100px",
+                              backgroundColor: `${currentTheme.primary}10`,
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="truncate font-medium" title={column.name}>
+                                {column.name}
+                              </span>
                             </div>
                           </th>
                         ))}
@@ -1934,7 +2239,7 @@ export default function DatabaseRecordsView({
                       </tr>
                     </thead>
                     <tbody>
-                      {records.map((record, index) => (
+                      {sortedRecords.map((record, index) => (
                         <tr
                           key={`${record.id}-${index}`}
                           className="hover:bg-opacity-50 cursor-pointer"
@@ -1977,6 +2282,25 @@ export default function DatabaseRecordsView({
 
                             </td>
                           ))}
+                          {/* Computed Column Cells */}
+                          {computedColumns.map((column) => {
+                            const computedValue = computeColumnValue(record.data, column, formSchema);
+                            return (
+                              <td
+                                key={column.id}
+                                className="px-4 py-3 border-b text-sm truncate border border-white"
+                                style={{
+                                  color: currentTheme.primary,
+                                  borderColor: currentTheme.border,
+                                  backgroundColor: `${currentTheme.primary}05`,
+                                  fontWeight: "500",
+                                }}
+                                title={computedValue !== null ? String(computedValue) : "N/A"}
+                              >
+                                {computedValue !== null ? String(computedValue) : "-"}
+                              </td>
+                            );
+                          })}
                           <td
                             className="px-4 py-3 border-b text-sm truncate border border-white hover:border-black"
                             style={{
@@ -2184,7 +2508,7 @@ export default function DatabaseRecordsView({
                 {/* Scrollable Content */}
                 <div className="p-8 overflow-y-auto max-h-[60vh]">
                   <div className="grid grid-cols-3 gap-6 auto-rows-min">
-                    {formSchema.map((field) => (
+                    {editableFormFields.map((field) => (
                       <div
                         key={field.id}
                         style={{
@@ -2201,6 +2525,54 @@ export default function DatabaseRecordsView({
                       </div>
                     ))}
                   </div>
+
+                  {/* Computed Columns Display (Read-Only) */}
+                  {computedColumnIds.length > 0 && (
+                    <div className="mt-8 pt-6 border-t" style={{ borderColor: currentTheme.border }}>
+                      <h3 className="text-sm font-semibold mb-4" style={{ color: currentTheme.text }}>
+                        Computed Fields (Auto-calculated)
+                      </h3>
+                      <div className="grid grid-cols-3 gap-6 auto-rows-min">
+                        {formSchema
+                          .filter((field) => computedColumnIds.includes(field.id))
+                          .map((field) => (
+                            <div
+                              key={field.id}
+                              style={{
+                                gridColumn: `span ${field.span || 1}`,
+                              }}
+                            >
+                              <label
+                                className="block text-sm font-medium mb-2"
+                                style={{ color: currentTheme.text }}
+                              >
+                                {field.label}
+                              </label>
+                              <div
+                                className="px-3 py-2 rounded-lg border text-sm"
+                                style={{
+                                  backgroundColor: `${currentTheme.primary}10`,
+                                  borderColor: currentTheme.primary,
+                                  color: currentTheme.text,
+                                }}
+                              >
+                                {formData[field.id] !== undefined && formData[field.id] !== null
+                                  ? String(formData[field.id])
+                                  : "—"}
+                              </div>
+                              {field.helperText && (
+                                <p
+                                  className="text-xs mt-1"
+                                  style={{ color: currentTheme.textSecondary }}
+                                >
+                                  {field.helperText}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Sticky Footer - Always Visible */}
@@ -2237,6 +2609,16 @@ export default function DatabaseRecordsView({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Computed Column Panel */}
+        <ComputedColumnPanel
+          isOpen={showComputedColumnPanel}
+          onClose={() => setShowComputedColumnPanel(false)}
+          dataFields={dataFields}
+          onCreateColumn={handleCreateComputedColumn}
+          currentTheme={currentTheme}
+          isCreating={isComputingColumns}
+        />
       </div>
     </div>
   );

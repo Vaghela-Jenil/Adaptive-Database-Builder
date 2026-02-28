@@ -52,6 +52,19 @@ const RecordSchema = new Schema(
   { _id: false }
 );
 
+const ComputedColumnSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    operation: { type: String, required: true }, // 'average', 'sum', 'concatenate', etc.
+    sourceFields: { type: [String], required: true },
+    formula: { type: String, default: null },
+    createdAt: String,
+    updatedAt: String,
+  },
+  { _id: false }
+);
+
 const DatabaseSchema = new Schema(
   {
     clerkId: { type: String, required: true, index: true },
@@ -69,6 +82,11 @@ const DatabaseSchema = new Schema(
 
     records: {
       type: [RecordSchema],
+      default: [],
+    },
+
+    computedColumns: {
+      type: [ComputedColumnSchema],
       default: [],
     },
   },

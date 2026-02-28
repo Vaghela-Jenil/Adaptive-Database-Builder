@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
+import { computeColumnValue } from "@/lib/computedColumns";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -93,9 +94,20 @@ export async function POST(
       return NextResponse.json({ error: "Database not found" }, { status: 404 });
     }
 
+    // Calculate computed columns if they exist
+    let enrichedData = { ...data };
+    if (db.computedColumns && db.computedColumns.length > 0) {
+      for (const column of db.computedColumns) {
+        const computedValue = computeColumnValue(enrichedData, column, db.formSchema);
+        if (computedValue !== null) {
+          enrichedData[column.id] = computedValue;
+        }
+      }
+    }
+
     const record = {
       id: crypto.randomUUID(),
-      data: data,
+      data: enrichedData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

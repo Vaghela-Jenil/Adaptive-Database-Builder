@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
+import { computeColumnValue } from "@/lib/computedColumns";
 
 
 export async function PUT(req: NextRequest, { params}: { params: Promise<{ id: string; recordId: string }> }) {
@@ -40,7 +41,20 @@ export async function PUT(req: NextRequest, { params}: { params: Promise<{ id: s
       );
     }
 
-    record.data = data;
+    // Preserve existing computed column values
+    let enrichedData = { ...data };
+    
+    // Keep existing computed column values, but recalculate them
+    if (db.computedColumns && db.computedColumns.length > 0) {
+      for (const column of db.computedColumns) {
+        const computedValue = computeColumnValue(enrichedData, column, db.formSchema);
+        if (computedValue !== null) {
+          enrichedData[column.id] = computedValue;
+        }
+      }
+    }
+
+    record.data = enrichedData;
     record.updatedAt = new Date().toISOString();
 
     await db.save();
