@@ -1043,6 +1043,8 @@ export default function DatabaseRecordsView({
             recommenderFieldMap.incomingReplenishmentFieldId || undefined,
           forecastDays,
           topN: topNRecommendations,
+          search: searchQuery || undefined,
+          date: dateFilter || undefined,
         }
       );
       setRecommendationResult(response.data);
@@ -1055,7 +1057,7 @@ export default function DatabaseRecordsView({
     } finally {
       setIsLoadingRecommendations(false);
     }
-  }, [currentDatabase, recommenderFieldMap, forecastDays, topNRecommendations]);
+  }, [currentDatabase, recommenderFieldMap, forecastDays, topNRecommendations, searchQuery, dateFilter]);
 
   useEffect(() => {
     if (!showRecommender || !autoRefreshRecommendations || !currentDatabase) return;

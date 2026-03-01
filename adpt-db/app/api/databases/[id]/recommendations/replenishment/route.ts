@@ -21,6 +21,8 @@ type RecommenderRequestBody = {
   defaultLeadTimeDays?: number;
   defaultSafetyStockDays?: number;
   topN?: number;
+  search?: string;
+  date?: string;
 };
 
 const toNumber = (value: unknown): number | null => {
@@ -135,7 +137,55 @@ export async function POST(
     const warnings: string[] = [];
     const items: ReplenishmentItem[] = [];
 
-    database.records.forEach(
+    // Apply the same filters as the records list so recommendations match the visible data
+    let filteredRecords = [...database.records];
+
+    if (body.date) {
+      const dateQuery = body.date;
+      const dateFieldIds = (database.formSchema || [])
+        .filter((f: any) => f.type === 'date-picker')
+        .map((f: any) => f.id);
+
+      filteredRecords = filteredRecords.filter((r: any) => {
+        // Check createdAt
+        if (r.createdAt) {
+          const d = new Date(r.createdAt);
+          if (!isNaN(d.getTime())) {
+            const recordLocalDate = d.toLocaleDateString('en-CA', {
+              timeZone: 'Asia/Kolkata',
+            });
+            if (recordLocalDate === dateQuery) return true;
+          }
+        }
+        // Check user-defined date columns
+        if (r.data && dateFieldIds.length > 0) {
+          for (const fieldId of dateFieldIds) {
+            const val = r.data[fieldId];
+            if (!val) continue;
+            const parsed = new Date(val);
+            if (!isNaN(parsed.getTime())) {
+              const localDate = parsed.toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Kolkata',
+              });
+              if (localDate === dateQuery) return true;
+            }
+            if (typeof val === 'string' && val.slice(0, 10) === dateQuery) return true;
+          }
+        }
+        return false;
+      });
+    }
+
+    if (body.search) {
+      const s = body.search.toLowerCase();
+      filteredRecords = filteredRecords.filter((r: any) =>
+        r.data && Object.values(r.data).some((val: unknown) =>
+          String(val || "").toLowerCase().includes(s)
+        )
+      );
+    }
+
+    filteredRecords.forEach(
       (
         record: {
           id?: string;
@@ -230,7 +280,7 @@ export async function POST(
       warnings,
       meta: {
         databaseId,
-        totalRecords: database.records.length,
+        totalRecords: filteredRecords.length,
         validRecordsUsed: items.length,
       },
     });

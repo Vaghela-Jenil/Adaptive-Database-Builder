@@ -334,9 +334,9 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
                   if (trimmed) {
                     const currentTags = Array.isArray(value) ? value : [];
                     // Prevent duplicates
-                    if (!currentTags.includes(trimmed)) {
-                      onChange?.([...currentTags, trimmed]);
-                    }
+                    
+                    onChange?.([...currentTags, trimmed]);
+                    
                     setTagInput(''); // Clear local input
                   }
                 } else if (e.key === 'Backspace' && !tagInput && Array.isArray(value) && value.length > 0) {

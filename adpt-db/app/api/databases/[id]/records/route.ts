@@ -21,22 +21,43 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     let filtered = [...db.records];
 
-    // --- Defensive Date Filter ---
+    // Identify user-defined date-picker field IDs from the schema
+    const dateFieldIds = (db.formSchema || [])
+      .filter((f: any) => f.type === 'date-picker')
+      .map((f: any) => f.id);
+
+    // --- Defensive Date Filter (createdAt + user date columns) ---
     if (dateQuery) {
       filtered = filtered.filter((r: any) => {
-        if (!r.createdAt) return false;
+        // Check createdAt
+        if (r.createdAt) {
+          const d = new Date(r.createdAt);
+          if (!isNaN(d.getTime())) {
+            const recordLocalDate = d.toLocaleDateString('en-CA', {
+              timeZone: 'Asia/Kolkata',
+            });
+            if (recordLocalDate === dateQuery) return true;
+          }
+        }
 
-        const d = new Date(r.createdAt);
-        if (isNaN(d.getTime())) return false;
+        // Check user-defined date columns
+        if (r.data && dateFieldIds.length > 0) {
+          for (const fieldId of dateFieldIds) {
+            const val = r.data[fieldId];
+            if (!val) continue;
+            const parsed = new Date(val);
+            if (!isNaN(parsed.getTime())) {
+              const localDate = parsed.toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Kolkata',
+              });
+              if (localDate === dateQuery) return true;
+            }
+            // Also support direct YYYY-MM-DD string match
+            if (typeof val === 'string' && val.slice(0, 10) === dateQuery) return true;
+          }
+        }
 
-        // Convert UTC to "YYYY-MM-DD" based on a specific timezone
-        // Using 'en-CA' because it natively outputs YYYY-MM-DD format
-        const recordLocalDate = d.toLocaleDateString('en-CA', {
-          timeZone: 'Asia/Kolkata', // Set this to your local timezone
-        });
-
-        // Now comparing "2026-02-24" (Local) === "2026-02-24" (Picker)
-        return recordLocalDate === dateQuery;
+        return false;
       });
     }
 
