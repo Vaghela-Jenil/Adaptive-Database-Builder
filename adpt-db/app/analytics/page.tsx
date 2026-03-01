@@ -1,8 +1,10 @@
 'use client';
-import { ToastContainer } from "react-toastify";
-import MultiDatabaseAnalytics from "@/components/Analytics/MultiDatabaseAnalytics";
 
-export default function Analytics() {
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import MultiDatabaseAnalytics from '@/components/Analytics/MultiDatabaseAnalytics';
+
+export default function AnalyticsPage() {
   return (
     <>
       <ToastContainer
@@ -15,7 +17,7 @@ export default function Analytics() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="light"
+        theme="colored"
       />
       <MultiDatabaseAnalytics />
     </>

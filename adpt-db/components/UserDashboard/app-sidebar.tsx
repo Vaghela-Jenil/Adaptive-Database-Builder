@@ -163,7 +163,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
               <div className="flex items-center gap-3">
                 <UserButton />
                 <p className="w-full text-sm font-medium truncate" style={{ color: currentTheme.text }}>
-                  Setting
+                  Settings
                 </p>
               </div>
             </div>

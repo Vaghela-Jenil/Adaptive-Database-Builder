@@ -25,7 +25,10 @@ export async function GET(
     if (!database)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    return NextResponse.json(database);
+    const responseData = database.toObject ? database.toObject() : database;
+    responseData.totalRecords = database.records ? database.records.length : 0;
+
+    return NextResponse.json(responseData);
   } catch (err) {
     console.error(err);
     return NextResponse.json(

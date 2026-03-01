@@ -17,7 +17,8 @@ import {
   Maximize2,
   BarChart3Icon,
   Badge,
-  ChevronDown
+  ChevronDown,
+  RotateCcw
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -25,6 +26,9 @@ import { Card } from "../ui/card";
 import { DatabaseFolder, FieldAttributes } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import ControlledFieldPreview from "./ControlledFieldPreview";
+import { showToast } from "@/lib/toast";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { DatabaseRecord } from "./types";
 import axios from "axios";
 import { buildZodSchema } from "@/lib/validateRecord";
@@ -50,6 +54,16 @@ import {
   Cell,
   Legend,
 } from "recharts";
+
+type UndoAction = {
+  type: 'add' | 'update' | 'delete' | 'bulkDelete';
+  timestamp: number;
+  recordId?: string;
+  recordIds?: string[];
+  oldData?: Record<string, unknown>;
+  newData?: Record<string, unknown>;
+  oldRecords?: DatabaseRecord[];
+};
 
 type DatabaseRecordsViewProps = {
   currentDatabase: DatabaseFolder;
@@ -223,6 +237,9 @@ export default function DatabaseRecordsView({
   const [barChartNumericFieldId, setBarChartNumericFieldId] = useState("");
   const [lineChartCategoryFieldId, setLineChartCategoryFieldId] = useState("");
   const [lineChartNumericFieldId, setLineChartNumericFieldId] = useState("");
+
+  // Undo/Redo History
+  const [undoHistory, setUndoHistory] = useState<UndoAction[]>([]);
 
   // Effect A: When Filters change, reset to page 1
   useEffect(() => {
@@ -698,6 +715,79 @@ export default function DatabaseRecordsView({
     setSortConfig(null);
   };
 
+  // Undo functionality
+  const addToHistory = useCallback((action: UndoAction) => {
+    setUndoHistory((prev) => {
+      const newHistory = [...prev];
+      // Keep only last 50 actions to prevent memory issues
+      if (newHistory.length >= 50) {
+        newHistory.shift();
+      }
+      return [...newHistory, action];
+    });
+  }, []);
+
+  const handleUndo = useCallback(async () => {
+    if (undoHistory.length === 0) return;
+
+    const action = undoHistory[undoHistory.length - 1];
+
+    try {
+      if (action.type === 'add' && action.recordId) {
+        // Undo add by deleting the record
+        await axios.delete(`/api/databases/${currentDatabase._id}/records/${action.recordId}`);
+        setPage(1);
+        setHasMore(true);
+        await loadMoreRecords(1, true);
+      } else if (action.type === 'update' && action.recordId && action.oldData) {
+        // Undo update by restoring old data
+        await axios.put(`/api/databases/${currentDatabase._id}/records/${action.recordId}`, {
+          data: action.oldData,
+        });
+        setPage(1);
+        setHasMore(true);
+        await loadMoreRecords(1, true);
+      } else if (action.type === 'delete' && action.recordId && action.oldData) {
+        // Undo delete by re-creating the record
+        await axios.post(`/api/databases/${currentDatabase._id}/records`, {
+          data: action.oldData,
+        });
+        setPage(1);
+        setHasMore(true);
+        await loadMoreRecords(1, true);
+      } else if (action.type === 'bulkDelete' && action.recordIds && action.oldRecords) {
+        // Undo bulk delete by re-creating all records
+        const recordsToAdd = action.oldRecords.map((r) => r.data);
+        await axios.post(`/api/databases/${currentDatabase._id}/records/bulk`, {
+          records: recordsToAdd,
+        });
+        setPage(1);
+        setHasMore(true);
+        await loadMoreRecords(1, true);
+      }
+
+      // Remove from history after successful undo
+      setUndoHistory((prev) => prev.slice(0, -1));
+      showToast.success('Action undone successfully!');
+    } catch (error) {
+      console.error('Undo failed:', error);
+      alert('Failed to undo action');
+    }
+  }, [undoHistory, currentDatabase, loadMoreRecords]);
+
+  // Keyboard shortcut for Undo (Ctrl+Z or Cmd+Z)
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [handleUndo]);
+
   // Sorted records based on current sort configuration
   const sortedRecords = useMemo(() => {
     if (!sortConfig) return records;
@@ -716,27 +806,49 @@ export default function DatabaseRecordsView({
 
   const handleAddRecord = async (databaseId: string, data: Record<string, unknown>) => {
     try {
-      await axios.post(`/api/databases/${databaseId}/records`, { data });
-      const response = await axios.get(`/api/databases/${databaseId}/records`);
-      // setRecords(response.data);
+      const response = await axios.post(`/api/databases/${databaseId}/records`, { data });
+      const newRecordId = response.data?._id || response.data?.id;
+      
+      // Add to undo history
+      addToHistory({
+        type: 'add',
+        timestamp: Date.now(),
+        recordId: newRecordId,
+        newData: data,
+      });
+
       setPage(1);
       setHasMore(true);
       await loadMoreRecords(1, true);
-    } catch {
-      alert("Failed to add record. Please try again.");
+    } catch (error) {
+      showToast.error("Failed to add record. Please try again.");
     }
   };
 
   const handleDeleteRecord = async (databaseId: string, recordId: string) => {
     try {
+      // Find the record to store its data for undo
+      const recordToDelete = records.find((r) => r.id === recordId);
+      
       await axios.delete(`/api/databases/${databaseId}/records/${recordId}`);
+      
+      // Add to undo history
+      if (recordToDelete) {
+        addToHistory({
+          type: 'delete',
+          timestamp: Date.now(),
+          recordId: recordId,
+          oldData: recordToDelete.data,
+        });
+      }
+
       const response = await axios.get(`/api/databases/${databaseId}/records`);
       setRecords([]);      // Wipe the local array
       setPage(1);
       setHasMore(true);
       await loadMoreRecords(1, true);
-    } catch {
-      alert("Failed to delete record. Please try again.");
+    } catch (error) {
+      showToast.error("Failed to delete record. Please try again.");
     }
   };
 
@@ -744,12 +856,25 @@ export default function DatabaseRecordsView({
     if (!confirm("Are you absolutely sure? This will wipe ALL records which selected in this database.")) return;
     try {
       const databaseId = currentDatabase?._id;
+      
+      // Store records to delete for undo
+      const recordsToDelete = records.filter((r) => deleteRecords.includes(r.id));
+      
       await axios.delete(
         `/api/databases/${databaseId}/records`,
         {
           data: { ids: deleteRecords },
         }
       );
+
+      // Add to undo history
+      addToHistory({
+        type: 'bulkDelete',
+        timestamp: Date.now(),
+        recordIds: deleteRecords,
+        oldRecords: recordsToDelete,
+      });
+
       const response = await axios.get(
         `/api/databases/${databaseId}/records`
       );
@@ -761,8 +886,9 @@ export default function DatabaseRecordsView({
       setPage(1);
       setHasMore(true);
       await loadMoreRecords(1, true);
-    } catch {
-      alert("Failed to delete records.");
+      showToast.success("Records deleted successfully!");
+    } catch (error) {
+      showToast.error("Failed to delete records.");
     }
   };
 
@@ -771,7 +897,7 @@ export default function DatabaseRecordsView({
     const allIds = records.map((r) => r.id);
 
     if (allIds.length === 0) {
-      alert("No records to delete!");
+      showToast.warning("No records to delete!");
       return;
     }
 
@@ -789,13 +915,13 @@ export default function DatabaseRecordsView({
         setPage(1);
         setHasMore(true);
 
-        alert("Database cleared!");
+        showToast.success("Database cleared!");
 
         // Reload to sync with server
         await loadMoreRecords(1, true);
       } catch (err) {
         console.error("Failed to clear records", err);
-        alert("An error occurred while clearing the database.");
+        showToast.error("An error occurred while clearing the database.");
       }
     }
   };
@@ -811,14 +937,28 @@ export default function DatabaseRecordsView({
 
   const handleUpdateRecord = async (databaseId: string, recordId: string, data: Record<string, unknown>) => {
     try {
+      // Find the record to store its old data for undo
+      const recordToUpdate = records.find((r) => r.id === recordId);
+      const oldData = recordToUpdate?.data || {};
+
       await axios.put(`/api/databases/${databaseId}/records/${recordId}`, { data });
+      
+      // Add to undo history
+      addToHistory({
+        type: 'update',
+        timestamp: Date.now(),
+        recordId: recordId,
+        oldData: oldData,
+        newData: data,
+      });
+
       const response = await axios.get(`/api/databases/${databaseId}/records`);
       // setRecords(response.data);
       setPage(1);
       setHasMore(true);
       await loadMoreRecords(1, true);
-    } catch {
-      alert("Failed to update record. Please try again.");
+    } catch (error) {
+      showToast.error("Failed to update record. Please try again.");
     }
   };
 
@@ -864,12 +1004,13 @@ export default function DatabaseRecordsView({
         setHasMore(true);
         await loadMoreRecords(1, true);
 
-        alert("Computed column created successfully!");
+        showToast.success("Computed column created successfully!");
       }
     } catch (error) {
       console.error("Error creating computed column:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create computed column";
+      showToast.error(errorMessage);
       throw new Error(errorMessage);
     } finally {
       setIsComputingColumns(false);
@@ -998,7 +1139,7 @@ export default function DatabaseRecordsView({
           console.log("Parsed rows:", jsonRows);
 
           if (jsonRows.length === 0) {
-            alert("The uploaded file is empty.");
+            showToast.warning("The uploaded file is empty.");
             return;
           }
 
@@ -1064,7 +1205,7 @@ export default function DatabaseRecordsView({
 
         } catch (innerError) {
           console.error("Processing Error:", innerError);
-          alert("Error processing the Excel data. Please check the file format.");
+          showToast.error("Error processing the Excel data. Please check the file format.");
         }
       };
 
@@ -1072,7 +1213,7 @@ export default function DatabaseRecordsView({
 
     } catch (error) {
       console.error("Import Error:", error);
-      alert("Failed to load the import library.");
+      showToast.error("Failed to load the import library.");
     } finally {
       setIsImporting(false);
     }
@@ -1093,8 +1234,9 @@ export default function DatabaseRecordsView({
       setPage(1);
       setHasMore(true);
       await loadMoreRecords(1, true);
-    } catch {
-      alert("Bulk import failed.");
+      showToast.success("Records imported successfully!");
+    } catch (error) {
+      showToast.error("Bulk import failed.");
     } finally {
       setIsImporting(false);
     }
@@ -1102,6 +1244,18 @@ export default function DatabaseRecordsView({
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: currentTheme.background }} onClick={() => setOpenSortMenuId(null)}>
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       <div
         className="border-b px-6 py-4 flex items-center justify-between"
         style={{
@@ -1121,6 +1275,22 @@ export default function DatabaseRecordsView({
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
             Back
+          </Button>
+
+          {/* Undo Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleUndo}
+            disabled={undoHistory.length === 0}
+            title={`Undo (${undoHistory.length} actions available) - Ctrl+Z`}
+            style={{
+              backgroundColor: undoHistory.length > 0 ? currentTheme.primary : `${currentTheme.primary}40`,
+              color: undoHistory.length > 0 ? "#ffffff" : currentTheme.textSecondary,
+            }}
+          >
+            <RotateCcw className="w-4 h-4 mr-1" />
+            Undo {undoHistory.length > 0 && `(${undoHistory.length})`}
           </Button>
 
           <div className="h-6 w-px" style={{ backgroundColor: currentTheme.border }} />
@@ -1180,7 +1350,7 @@ export default function DatabaseRecordsView({
             }}
           >
             <Plus className="w-4 h-4 mr-2" />
-            New Data
+            New Record
           </Button>
         </div>
       </div>
