@@ -6,12 +6,12 @@ import {
   User,
   ChevronLeft,
   Sparkles,
-  MessageSquare,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { motion, AnimatePresence } from "motion/react";
-import { DatabaseFolder, FieldAttributes } from "./types";
+import { DatabaseFolder } from "./types";
+import axios from "axios";
 
 type Message = {
   id: string;
@@ -61,80 +61,91 @@ export default function DatabaseChatbot({
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const query = inputValue;
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const formName = database?.DatabaseName;
+
+      if (!formName) {
+        throw new Error("Database information is missing.");
+      }
+
+      const res = await axios.get("/api/chatbot/database", {
+        params: {
+          form_name: formName,
+          query: query,
+        },
+      });
+
+      const data = res.data;
+      console.log("[DatabaseChatbot] Received response:", data);
+      
+      // Format the results into a readable response
+      let responseContent: string;
+      if (data.results && Array.isArray(data.results)) {
+        if (data.results.length === 0) {
+          responseContent = "No results found for your query.";
+        } else {
+          responseContent = formatResults(data.results);
+        }
+      } else if (data.response) {
+        responseContent = data.response;
+      } else {
+        responseContent = JSON.stringify(data, null, 2);
+      }
+
       const aiResponse: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: generateAIResponse(inputValue, database?.DatabaseName || "Unknown", database?.formSchema || [], database?.recordCount || 0),
+        content: responseContent,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiResponse]);
+    } catch (error: unknown) {
+      const errMsg =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? error.response.data.error
+          : error instanceof Error
+          ? error.message
+          : "An unexpected error occurred.";
+
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: `Sorry, I encountered an error: ${errMsg}`,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  const generateAIResponse = (
-    query: string,
-    dbName: string,
-    schema: FieldAttributes[],
-    count: number
-  ): string => {
-    const lowerQuery = query.toLowerCase();
-
-    if (lowerQuery.includes("field") || lowerQuery.includes("column")) {
-      const fieldNames = schema
-        .filter((f) => f.type !== "text" && f.type !== "separator")
-        .map((f) => f.label)
-        .join(", ");
-      return `The "${dbName}" database has the following fields: ${fieldNames}. Is there a specific field you'd like to know more about?`;
-    }
-
-    if (lowerQuery.includes("how many") || lowerQuery.includes("count")) {
-      return `You currently have ${count} ${count === 1 ? "record" : "records"} in the "${dbName}" database.`;
-    }
-
-    if (lowerQuery.includes("schema") || lowerQuery.includes("structure")) {
-      const schemaDesc = schema
-        .filter((f) => f.type !== "text" && f.type !== "separator")
-        .map((f) => `- ${f.label} (${f.type})`)
+  const formatResults = (results: Record<string, unknown>[]): string => {
+    if (results.length === 1) {
+      const record = results[0];
+      return Object.entries(record)
+        .filter(([key]) => key !== "_id")
+        .map(([key, value]) => {
+          if (typeof value === "object" && value !== null) {
+            return `**${key}:** ${JSON.stringify(value)}`;
+          }
+          return `**${key}:** ${value}`;
+        })
         .join("\n");
-      return `The database schema includes:\n${schemaDesc}\n\nWould you like details about any specific field?`;
     }
 
-    if (lowerQuery.includes("export") || lowerQuery.includes("download")) {
-      return `To export your data, go back to the database view and click the export button. You can export your data in JSON or CSV format.`;
-    }
-
-    if (lowerQuery.includes("filter") || lowerQuery.includes("search")) {
-      return `You can filter records using the search bar or date filter in the database view. Simply type a value to search across all fields, or select a specific date to filter by creation date.`;
-    }
-
-    if (lowerQuery.includes("add") || lowerQuery.includes("create") || lowerQuery.includes("new")) {
-      return `To add a new record, click the "New Data" button in the database view. This will open a form based on your database schema where you can enter new data.`;
-    }
-
-    if (lowerQuery.includes("edit") || lowerQuery.includes("update") || lowerQuery.includes("modify")) {
-      return `To edit a record, simply click on any row in the database table. This will open the form pre-filled with that record's data, allowing you to make changes and save.`;
-    }
-
-    if (lowerQuery.includes("help") || lowerQuery.includes("what can you do")) {
-      return `I can help you with:
-- Understanding your database schema and fields
-- Providing statistics about your records
-- Explaining how to add, edit, or delete records
-- Tips on filtering and searching data
-- Guidance on exporting data
-- General questions about your "${dbName}" database
-
-Feel free to ask me anything!`;
-    }
-
-    // Default response
-    return `I understand you're asking about "${query}". For the "${dbName}" database with ${count} records, I can provide insights about your data structure, help with operations, or answer specific questions. Could you please rephrase or ask me something specific about your database?`;
+    return results
+      .map((record, index) => {
+        const fields = Object.entries(record)
+          .filter(([key]) => key !== "_id")
+          .map(([key, value]) => `  ${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`)
+          .join("\n");
+        return `**Record ${index + 1}:**\n${fields}`;
+      })
+      .join("\n\n");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

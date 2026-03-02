@@ -16,11 +16,10 @@ export async function connectDB() {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    // ✅ Use a config object to ensure better connection stability
     const opts = {
       bufferCommands: false,
-      // In 2026, maxPoolSize helps manage Next.js Serverless connections
-      maxPoolSize: 10, 
+      maxPoolSize: 10,
+
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {

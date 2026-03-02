@@ -122,7 +122,7 @@ export default function MultiDatabaseAnalytics() {
         return;
       }
       // Correct: Path first, then Query Parameters
-      router.push(`/dashboard/analytics/compare?ids=${selectedDbIds.join('&')}`);
+      router.push(`/dashboard/analytics/compare?ids=${selectedDbIds.join(',')}`);
     } catch (err) {
       console.error('Failed to load databases:', err);
       setPhase('select');
