@@ -143,8 +143,9 @@ export default function NearByStorePage() {
     <div className="max-w-400 mx-auto px-8 py-12 space-y-12 font-sans overflow-x-hidden">
 
       {/* Header */}
-      <div className="space-y-1">
-        <motion.h1
+      <div className="space-y-1 flex justify-between">
+       <div>
+         <motion.h1
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="text-7xl font-black tracking-tighter uppercase italic leading-none"
@@ -152,14 +153,9 @@ export default function NearByStorePage() {
         >
           Store <span style={{ color: currentTheme.primary }}>Finder</span>
         </motion.h1>
-        <div className="flex items-center gap-3 ml-1">
-          <div className="h-0.5 w-8" style={{ backgroundColor: currentTheme.primary }} />
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-60"
-            style={{ color: currentTheme.textSecondary }}>
-            Powered by Foursquare Architecture
-          </p>
-        </div>
+       </div>
         <Button
+        className="mt-6"
           onClick={handleLocationClick}
           disabled={loading}
           style={{ backgroundColor: currentTheme.primary }}

@@ -770,14 +770,14 @@ export default function ComparisonDashboard({
           backgroundColor: `${currentTheme.background}e8`,
         }}
       >
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-400 mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.back()}
               className="rounded-lg"
-              style={{ color: currentTheme.text }}
+              style={{backgroundColor:currentTheme.primary, color: currentTheme.text }}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -819,7 +819,7 @@ export default function ComparisonDashboard({
         </div>
       </header>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-10">
+      <div className="max-w-400 mx-auto px-6 py-8 space-y-10">
         {/* ─── Overview stats ─── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -959,7 +959,7 @@ export default function ComparisonDashboard({
             <motion.button
               onClick={() => setShowAggModal(true)}
               whileHover={{ scale: 1.02 }}
-              className="p-5 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all min-h-[130px] hover:border-solid"
+              className="p-5 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all min-h-32.5 hover:border-solid"
               style={{ borderColor: currentTheme.border, color: currentTheme.textSecondary }}
             >
               <Plus className="w-7 h-7 opacity-40" />

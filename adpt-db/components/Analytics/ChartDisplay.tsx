@@ -242,7 +242,7 @@ export default function ChartDisplay({
               onChange={(e) =>
                 onUpdate(chart.id, { title: e.target.value })
               }
-              className="text-lg font-bold flex-1"
+              className="text-lg font-bold flex-1 mr-2"
               style={{
                 backgroundColor: currentTheme.background,
                 color: currentTheme.text,
@@ -259,8 +259,9 @@ export default function ChartDisplay({
                   e.stopPropagation();
                   setIsFullscreen(true);
                 }}
+                style={{backgroundColor: 'white', color:'ffffff'}}
               >
-                <Maximize2 className="w-4 h-4" />
+                <Maximize2 className="w-4 h-4"/>
               </Button>
 
               {!chart.isAuto && (

@@ -235,7 +235,7 @@ export default function AnalyticsDashboard({
         <div className="max-w-full px-6 py-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => router.back()} style={{ color: currentTheme.text }}>
+              <Button variant="ghost" size="sm" onClick={() => router.back()} style={{backgroundColor: currentTheme.primary, color: currentTheme.text }}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: currentTheme.text }}>
@@ -301,7 +301,7 @@ export default function AnalyticsDashboard({
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setSidebarOpen(false)}
-                  className="hover:bg-red-500/10 hover:text-red-500"
+                  className="text-white/50 hover:bg-red-500/10 hover:text-red-500"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -325,7 +325,7 @@ export default function AnalyticsDashboard({
 
         {/* MAIN CONTENT AREA */}
         <main className="flex-1 h-full overflow-y-auto custom-scrollbar relative">
-          <div className="p-6 lg:p-10 max-w-[1600px] mx-auto">
+          <div className="p-6 lg:p-10 max-w-400 mx-auto">
             {charts.length === 0 ? (
               <div className="h-[50vh] flex flex-col items-center justify-center border-2 border-dashed rounded-[2rem]" 
                 style={{ borderColor: currentTheme.border, backgroundColor: `${currentTheme.surface}50` }}>

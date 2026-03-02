@@ -1,21 +1,46 @@
-import { redirect } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
+'use client';
 
-export default async function RedirectPage() {
-  const user = await currentUser();
+import { useUser } from "@clerk/nextjs";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
-  if (!user) {
-    redirect("/sign-in");
-  }
+export default function AuthSync() {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const router = useRouter();
+  const syncAttempted = useRef(false);
 
-  const role =
-    user.privateMetadata.role ??
-    user.publicMetadata.role ??
-    "user";
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !user?.id || syncAttempted.current) return;
 
-  if (role === "admin") {
-    redirect("/admin/dashboard");
-  }
+    syncAttempted.current = true;
 
-  redirect("/user/dashboard");
+    const syncAndRedirect = async () => {
+      try {
+        const data = await axios.post("/api/auth/verify-user");
+        const role = data.data.user.role || "user";
+        console.log(data.data.user.role)
+
+        if (role === "admin") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/user/dashboard");
+        }
+
+      } catch (err: any) {
+        if (err.response?.status === 403) {
+          console.error("Access Denied: User is banned.");
+        }
+        console.error("Sync Error:", err.message);
+      }
+    };
+
+    syncAndRedirect();
+  }, [isLoaded, isSignedIn, user?.id, router]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <p className="text-gray-500 animate-pulse">Syncing profile...</p>
+    </div>
+  );
 }
