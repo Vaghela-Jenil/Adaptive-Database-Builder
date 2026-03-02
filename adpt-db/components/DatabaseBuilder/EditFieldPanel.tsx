@@ -251,13 +251,13 @@ export default function EditFieldPanel({ open, field, onClose, onSave }: Props) 
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: currentTheme.border }}>
+              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: currentTheme.border , color:currentTheme.text}}>
                 <Label className="text-sm">Required</Label>
-                <Switch checked={!!editedField.required} onCheckedChange={(v) => updateField('required', v)} />
+                <Switch checked={!!editedField.required} onCheckedChange={(v) => updateField('required', v)} style={{borderColor: currentTheme.border}}/>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: currentTheme.border }}>
+              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: currentTheme.border, color:currentTheme.text }}>
                 <Label className="text-sm">Read Only</Label>
-                <Switch checked={!!editedField.disabled} onCheckedChange={(v) => updateField('disabled', v)} />
+                <Switch checked={!!editedField.disabled} onCheckedChange={(v) => updateField('disabled', v)} style={{borderColor: currentTheme.border}} />
               </div>
             </div>
           </div>
@@ -265,7 +265,7 @@ export default function EditFieldPanel({ open, field, onClose, onSave }: Props) 
 
         {/* Footer */}
         <div className="p-6 flex justify-end gap-3 border-t" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-          <Button variant="ghost" onClick={onClose} style={{ color: currentTheme.text }}>Discard</Button>
+          <Button variant="ghost" className='hover:bg-black/70' onClick={onClose} style={{ color: currentTheme.text }}>Discard</Button>
           <Button onClick={handleSave} className="px-8 flex gap-2" style={{ backgroundColor: currentTheme.primary, color: '#ffffff' }}>
             <Save className="w-4 h-4" />
             Apply Changes

@@ -19,7 +19,7 @@ type Props = {
 };
 
 export default function FieldPreview({ field }: Props) {
-  const { currentTheme } = useTheme();
+  const { currentTheme, mode } = useTheme();
   const [rating, setRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
@@ -82,13 +82,12 @@ export default function FieldPreview({ field }: Props) {
       )}
 
       {/* Date Picker Preview */}
-    {/* Date Picker Preview */}
       {field.type === 'date-picker' && (
         <div className="relative">
           <Input
             type="date"
             // Ensure we use Date-specific attributes
-            min={field.minDate} 
+            min={field.minDate}
             max={field.maxDate}
             disabled={field.disabled}
             style={{
@@ -96,7 +95,7 @@ export default function FieldPreview({ field }: Props) {
               borderColor: currentTheme.border,
               color: currentTheme.text,
               // Add this to make the calendar icon/picker theme-aware
-              colorScheme: currentTheme.mode === 'dark' ? 'dark' : 'light'
+              colorScheme: mode === 'dark' ? 'dark' : 'light'
             }}
             className="block w-full"
           />
@@ -140,12 +139,28 @@ export default function FieldPreview({ field }: Props) {
           <Label htmlFor={field.id} style={{ color: currentTheme.text }} className="cursor-pointer font-medium">
             {field.label}
           </Label>
-          <Switch id={field.id} disabled={field.disabled} />
+          <Switch id={field.id} disabled={field.disabled} style={{ borderColor: currentTheme.border }} />
         </div>
       )}
 
+      {/* TIME FIELD */}
+{field.type === 'input-time' && (
+    <Input
+      type="time"
+      disabled={field.disabled}
+      style={{
+        backgroundColor: currentTheme.surface,
+        borderColor: currentTheme.border,
+        color: currentTheme.text,
+        accentColor: "red",
+        colorScheme: mode === 'dark' ? 'dark' : 'light'
+      }}
+      className="block w-full h-9 text-sm rounded-md"
+    />
+)}
+
       {/* 7. STANDARD INPUTS (Catch-all for email, phone, url, etc.) */}
-      {field.type.startsWith('input-') && field.type !== 'input-otp' && (
+      {field.type.startsWith('input-') && field.type !== 'input-otp' && field.type !== 'input-time' &&(
         <Input
           type={field.type.replace('input-', '') === 'phone' ? 'tel' : field.type.replace('input-', '')}
           placeholder={field.placeholder}
@@ -157,7 +172,6 @@ export default function FieldPreview({ field }: Props) {
           }}
         />
       )}
-
       {/* 8. SELECT & COMBOBOX */}
       {(field.type === 'select' || field.type === 'combobox') && (
         <div className="relative">
@@ -176,16 +190,16 @@ export default function FieldPreview({ field }: Props) {
             </div>
           ) : (
             <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" style={{ color: currentTheme.text }} />
-               <Input
-                 list={`list-${field.id}`}
-                 className="pl-9"
-                 placeholder={field.placeholder}
-                 style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
-               />
-               <datalist id={`list-${field.id}`}>
-                 {options.map((opt, i) => <option key={i} value={opt} />)}
-               </datalist>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" style={{ color: currentTheme.text }} />
+              <Input
+                list={`list-${field.id}`}
+                className="pl-9"
+                placeholder={field.placeholder}
+                style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.text }}
+              />
+              <datalist id={`list-${field.id}`}>
+                {options.map((opt, i) => <option key={i} value={opt} />)}
+              </datalist>
             </div>
           )}
         </div>
@@ -235,7 +249,7 @@ export default function FieldPreview({ field }: Props) {
               ))
             )
           ) : (
-             <p className="text-xs italic opacity-40" style={{ color: currentTheme.text }}>No options added</p>
+            <p className="text-xs italic opacity-40" style={{ color: currentTheme.text }}>No options added</p>
           )}
         </div>
       )}
@@ -261,7 +275,7 @@ export default function FieldPreview({ field }: Props) {
 
       {/* 12. TAG INPUT */}
       {field.type === 'tag-input' && (
-        <div className="flex flex-wrap gap-2 p-2 border rounded-md" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+        <div className="flex flex-wrap gap-2 p-2 border rounded-md" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border, color: currentTheme.secondary }}>
           {tags.map((tag, i) => (
             <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-white bg-primary">
               {tag} <X size={12} className="cursor-pointer" onClick={() => setTags(tags.filter((_, idx) => idx !== i))} />
@@ -282,7 +296,7 @@ export default function FieldPreview({ field }: Props) {
 
       {/* 13. FILE UPLOAD */}
       {field.type === 'file-upload' && (
-        <div 
+        <div
           className="border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-2"
           style={{ borderColor: currentTheme.border, backgroundColor: `${currentTheme.surface}50` }}
         >

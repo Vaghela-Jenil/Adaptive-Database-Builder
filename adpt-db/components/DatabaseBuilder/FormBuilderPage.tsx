@@ -18,6 +18,7 @@ import FormBuilderCanvas from './FormBuilderCanvas';
 import EditFieldPanel from './EditFieldPanel';
 import FieldPreview from './FieldPreview';
 import ExportJSONModal from './ExportJSONModal';
+import ImportJSONModal from './ImportJsonModel';
 import CreateDatabaseModal from './CreateDatabaseModal';
 import { DatabaseFolder, FieldAttributes } from "./types";
 import { fieldTemplates } from './fieldTemplates';
@@ -42,6 +43,17 @@ export default function FormBuilderPage({
   const [previewMode, setPreviewMode] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+
+
+  const handleImportJSON = (importedSchema: FieldAttributes[]) => {
+    if (Array.isArray(importedSchema)) {
+      setCanvasFields(importedSchema);
+      setShowImportModal(false);
+    } else {
+      alert("Invalid schema format. Please provide a valid array of fields.");
+    }
+  };
 
   const handleCreateDatabase = async (name: string) => {
     try {
@@ -99,7 +111,6 @@ export default function FormBuilderPage({
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // ✅ 1. REORDER INSIDE CANVAS
     if (activeId !== overId && canvasFields.some(f => f.id === activeId)) {
       setCanvasFields((fields) => {
         const oldIndex = fields.findIndex((f) => f.id === activeId);
@@ -109,8 +120,6 @@ export default function FormBuilderPage({
       });
       return;
     }
-
-    // ✅ 2. CLONE FROM SIDEBAR → CANVAS
     if (overId === 'canvas') {
       const template = fieldTemplates.find((f) => f.id === activeId);
       if (!template) return;
@@ -173,7 +182,7 @@ export default function FormBuilderPage({
 
         {/* HEADER */}
         <div
-          className="h-16 flex items-center justify-between px-6 fshrink-0"
+          className="h-16 flex items-center justify-between px-6 shrink-0"
           style={{ borderBottom: `1px solid ${currentTheme.border}` }}
         >
           <div className="flex items-center gap-4">
@@ -183,6 +192,7 @@ export default function FormBuilderPage({
               className="flex items-center gap-2"
               style={{
                 color: currentTheme.text,
+                backgroundColor: currentTheme.primary
               }}
             >
               <ArrowLeft className="w-4 h-4" />
@@ -210,6 +220,19 @@ export default function FormBuilderPage({
             >
               <Eye className="w-4 h-4 mr-2" />
               {previewMode ? 'Edit Mode' : 'Preview'}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setShowImportModal(true)}
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+                color: currentTheme.text,
+              }}
+            >
+              <DatabaseIcon className="w-4 h-4 mr-2" />
+              Import Schema
             </Button>
 
             <Button
@@ -310,8 +333,6 @@ export default function FormBuilderPage({
                         </div>
                       ))}
                     </div>
-
-
                   )}
 
                   {canvasFields.length > 0 && (
@@ -401,6 +422,14 @@ export default function FormBuilderPage({
             </Card>
           ) : null}
         </DragOverlay>
+
+        {showImportModal && (
+          <ImportJSONModal
+            open={showImportModal}
+            onClose={() => setShowImportModal(false)}
+            onImport={handleImportJSON}
+          />
+        )}
       </DndContext>
     </div>
   );

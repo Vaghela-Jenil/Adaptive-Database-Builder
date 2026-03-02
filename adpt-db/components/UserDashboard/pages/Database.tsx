@@ -399,7 +399,7 @@ export default function Database({
               border: `1px solid ${currentTheme.border}`,
             }}
           >
-            <h2 className="text-lg font-semibold mb-4">
+            <h2 className="text-lg font-semibold mb-4" style={{color: currentTheme.text,}}>
               Enter Database Password
             </h2>
 
@@ -445,7 +445,7 @@ export default function Database({
                   setShowPassword(false);
                 }}
                 className="px-4 py-2 rounded-lg"
-                style={{ border: `1px solid ${currentTheme.border}` }}
+                style={{ border: `1px solid ${currentTheme.border}`,color: currentTheme.text }}
               >
                 Cancel
               </button>

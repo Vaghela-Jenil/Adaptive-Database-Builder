@@ -23,7 +23,7 @@ type Props = {
 };
 
 export default function ControlledFieldPreview({ field, value, onChange, isEditing = true, formErrors }: Props) {
-  const { currentTheme } = useTheme();
+  const { currentTheme, mode } = useTheme();
   const [localTags, setLocalTags] = useState<string[]>(Array.isArray(value) ? value : []);
   const [tagInput, setTagInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -184,7 +184,7 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
       {/* 8. Combobox (Search) */}
       {field.type === 'combobox' && (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" style={{color: currentTheme.text}}/>
           <Input
             list={`list-${field.id}`}
             value={value || ''}
@@ -215,7 +215,7 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
               borderColor: errorMessage ? "#ef4444" : currentTheme.border,
               color: currentTheme.text,
               // Vital for dark mode calendar popups
-              colorScheme: currentTheme.mode === 'dark' ? 'dark' : 'light'
+              colorScheme: mode === 'dark' ? 'dark' : 'light'
             }}
           />
         </div>
@@ -247,8 +247,24 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
         </div>
       )}
 
+      {/* TIME FIELD */}
+{field.type === 'input-time' && (
+    <Input
+      type="time"
+      disabled={field.disabled}
+      style={{
+        backgroundColor: currentTheme.surface,
+        borderColor: currentTheme.border,
+        color: currentTheme.text,
+        accentColor: "red",
+        colorScheme: mode === 'dark' ? 'dark' : 'light'
+      }}
+      className="block w-full h-9 text-sm rounded-md"
+    />
+)}
+
       {/* 10. Standard Inputs (text, email, tel, date, etc.) */}
-      {field.type.startsWith('input-') && !['input-password', 'input-otp'].includes(field.type) && (
+      {field.type.startsWith('input-') && !['input-password', 'input-otp', 'input-time'].includes(field.type) && (
         <Input
           type={field.type.split('-')[1]}
           value={value || ''}
