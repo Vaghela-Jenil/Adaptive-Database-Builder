@@ -1,9 +1,8 @@
+"use client";
 import { motion } from "motion/react";
 import { useState } from "react";
 import {
   Send,
-  Bot,
-  User,
   Sparkles,
   Database,
   FileText,
@@ -29,7 +28,7 @@ export default function Chatbot() {
       role: "assistant",
       content:
         "Hi! I'm your AI assistant. I can help you manage your databases, analyze data, generate reports, and answer questions about your records. How can I assist you today?",
-      timestamp: new Date(Date.now() - 300000),
+      timestamp: new Date(Date.now()),
     },
   ]);
 
@@ -76,6 +75,8 @@ export default function Chatbot() {
 
     try {
       const res = await axios.post("/api/chatbot", { payload: messageToSend });
+      console.log(res.data);
+      
       const aiResponse: Message = {
         role: "assistant",
         content: res.data.response || "No response from Python",

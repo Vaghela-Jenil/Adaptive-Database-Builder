@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
     }
 
    const payloadForPython = { message: body.payload };
-console.log("Forwarding to Python:", payloadForPython);
 
 const flaskRes = await fetch("http://localhost:5001/api/chat", {
   method: "POST",

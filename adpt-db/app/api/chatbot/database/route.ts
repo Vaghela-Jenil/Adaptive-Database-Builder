@@ -30,9 +30,6 @@ export async function GET(req: NextRequest) {
     const encodedQuery = encodeURIComponent(query);
 
     const url = `${FASTAPI_BASE_URL}/api/chatbot/${encodedClerkId}/${encodedFormName}/${encodedQuery}`;
-
-    console.log("[database-chatbot] Forwarding to FastAPI:", url);
-
     const fastApiRes = await fetch(url, {
       method: "GET",
       headers: { "Content-Type": "application/json" },

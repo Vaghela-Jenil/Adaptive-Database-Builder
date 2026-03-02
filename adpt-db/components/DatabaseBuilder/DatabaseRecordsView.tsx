@@ -12,13 +12,12 @@ import {
   Trash2,
   FileSpreadsheet, // Added for Import UI
   Upload,           // Added for Import UI
-  RefreshCcw,
   Minimize2,
   Maximize2,
   BarChart3Icon,
-  Badge,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -137,7 +136,7 @@ const compareValues = (a: unknown, b: unknown, order: 'asc' | 'desc'): number =>
   // Try numeric comparison
   const numA = parseNumericValue(a);
   const numB = parseNumericValue(b);
-  
+
   if (numA !== null && numB !== null) {
     const result = numA - numB;
     return order === 'asc' ? result : -result;
@@ -146,7 +145,7 @@ const compareValues = (a: unknown, b: unknown, order: 'asc' | 'desc'): number =>
   // String comparison
   const strA = String(a).toLowerCase();
   const strB = String(b).toLowerCase();
-  
+
   if (strA < strB) return order === 'asc' ? -1 : 1;
   if (strA > strB) return order === 'asc' ? 1 : -1;
   return 0;
@@ -649,10 +648,10 @@ export default function DatabaseRecordsView({
     if (!currentDatabase) return;
 
     // Build schema excluding computed columns
-    const schemaForValidation = editableFormFields.length > 0 
-      ? buildZodSchema(editableFormFields) 
+    const schemaForValidation = editableFormFields.length > 0
+      ? buildZodSchema(editableFormFields)
       : buildZodSchema(formSchema);
-    
+
     const result = schemaForValidation.safeParse(formData);
 
     if (!result.success) {
@@ -793,11 +792,11 @@ export default function DatabaseRecordsView({
     if (!sortConfig) return records;
 
     const sorted = [...records];
-    
+
     sorted.sort((recordA, recordB) => {
       const valA = recordA.data[sortConfig.fieldId];
       const valB = recordB.data[sortConfig.fieldId];
-      
+
       return compareValues(valA, valB, sortConfig.order);
     });
 
@@ -808,7 +807,7 @@ export default function DatabaseRecordsView({
     try {
       const response = await axios.post(`/api/databases/${databaseId}/records`, { data });
       const newRecordId = response.data?._id || response.data?.id;
-      
+
       // Add to undo history
       addToHistory({
         type: 'add',
@@ -829,9 +828,9 @@ export default function DatabaseRecordsView({
     try {
       // Find the record to store its data for undo
       const recordToDelete = records.find((r) => r.id === recordId);
-      
+
       await axios.delete(`/api/databases/${databaseId}/records/${recordId}`);
-      
+
       // Add to undo history
       if (recordToDelete) {
         addToHistory({
@@ -856,10 +855,10 @@ export default function DatabaseRecordsView({
     if (!confirm("Are you absolutely sure? This will wipe ALL records which selected in this database.")) return;
     try {
       const databaseId = currentDatabase?._id;
-      
+
       // Store records to delete for undo
       const recordsToDelete = records.filter((r) => deleteRecords.includes(r.id));
-      
+
       await axios.delete(
         `/api/databases/${databaseId}/records`,
         {
@@ -942,7 +941,7 @@ export default function DatabaseRecordsView({
       const oldData = recordToUpdate?.data || {};
 
       await axios.put(`/api/databases/${databaseId}/records/${recordId}`, { data });
-      
+
       // Add to undo history
       addToHistory({
         type: 'update',
@@ -1471,15 +1470,27 @@ export default function DatabaseRecordsView({
           </Button>
         }
 
-        <button
-          onClick={onOpenChatbot}
-          className="absolute right-8 w-10 h-10 rounded-lg shadow-xl flex items-center justify-center hover:scale-110 transition-transform z-30"
-          style={{
-            backgroundColor: currentTheme.primary,
-          }}
-        >
-          <BotMessageSquare className="w-6 h-6 text-white" />
-        </button>
+        <div className="absolute right-6 flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowRecommender((prev) => !prev)}
+            style={{
+              backgroundColor: currentTheme.primary,
+              color: currentTheme.text
+            }}
+          >
+            {showRecommender ? "Hide Panel" : "Show Panel"}
+          </Button>
+          <Button
+            size="sm"
+            onClick={fetchRecommendations}
+            disabled={isLoadingRecommendations}
+            style={{ backgroundColor: currentTheme.primary, color: currentTheme.text }}
+          >
+            {isLoadingRecommendations ? "Refreshing..." : "Refresh Recommendations"}
+          </Button>
+        </div>
       </div>
 
       {showAnalytics && (
@@ -1773,10 +1784,10 @@ export default function DatabaseRecordsView({
             </Card>
 
             <Card
-              className={`p-3 ${isPieExpanded ? "fixed inset-6 z-50 overflow-auto shadow-2xl" : ""}p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer`}
+              className={`p-3 ${isPieExpanded ? "fixed inset-6 z-50 overflow-auto shadow-2xl" : ""}p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-(--color-background) hover:border-(--color-primary) cursor-pointer`}
               style={{ backgroundColor: currentTheme.background, border: `1px solid #f59e0b` }}
             >
-              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer mb-2 flex items-center justify-between gap-2">
+              <div className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-(--color-background) hover:border-(--color-primary) cursor-pointer mb-2 flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold" style={{ color: currentTheme.text }}>
                   Pie Chart: Recommendation Mix
                 </p>
@@ -1814,8 +1825,8 @@ export default function DatabaseRecordsView({
             </Card>
           </div>
 
-          <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointerp-4" style={{ backgroundColor: currentTheme.background, border: `1px solid #10b981` }}>
-            <p className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+          <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-(--color-background) hover:border-(--color-primary)cursor-pointerp-4" style={{ backgroundColor: currentTheme.background, border: `1px solid #10b981` }}>
+            <p className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-(--color-background) hover:border-(--color-primary) cursor-pointer text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
               Recommendations
             </p>
             <div className="space-y-2">
@@ -1847,25 +1858,7 @@ export default function DatabaseRecordsView({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowRecommender((prev) => !prev)}
-              style={{
-                backgroundColor: currentTheme.primary,
-                color: currentTheme.text
-              }}
-            >
-              {showRecommender ? "Hide Panel" : "Show Panel"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={fetchRecommendations}
-              disabled={isLoadingRecommendations}
-              style={{ backgroundColor: currentTheme.primary, color: currentTheme.text }}
-            >
-              {isLoadingRecommendations ? "Refreshing..." : "Refresh Recommendations"}
-            </Button>
+
             {/* Add Computed Column Button - Above Table */}
             <div
               onClick={() => setShowComputedColumnPanel(true)}
@@ -1883,7 +1876,16 @@ export default function DatabaseRecordsView({
                 <Plus className="w-4 h-4 mr-1" />
                 Add Column
               </Button>
-            </div>
+            </div> 
+          <Button
+            onClick={onOpenChatbot}
+            className="rounded-lg shadow-xl flex items-center justify-center cursor-pointer hover:scale-103 transition-transform z-30"
+            style={{
+              backgroundColor: currentTheme.primary,
+            }}
+          >
+            <Sparkles className=" text-white" /><span>Query with AI</span>
+          </Button>
           </div>
         </div>
 
@@ -2229,7 +2231,7 @@ export default function DatabaseRecordsView({
 
                               {/* Sort Icon - Show on hover or if sorted */}
                               {(hoveredHeaderId === field.id || sortConfig?.fieldId === field.id) && (
-                                <div className="relative flex-shrink-0">
+                                <div className="relative shrink-0">
                                   <button
                                     ref={(el) => {
                                       if (el) sortButtonRefs.current[field.id] = el;
@@ -2267,7 +2269,7 @@ export default function DatabaseRecordsView({
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.9 }}
-                                        className="fixed z-[99999] rounded-lg border shadow-2xl p-2 flex flex-col gap-1 whitespace-nowrap"
+                                        className="fixed z-99999 rounded-lg border shadow-2xl p-2 flex flex-col gap-1 whitespace-nowrap"
                                         style={{
                                           backgroundColor: currentTheme.surface,
                                           borderColor: currentTheme.border,
