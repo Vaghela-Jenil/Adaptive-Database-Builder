@@ -16,20 +16,23 @@ import { useEffect, useState } from "react";
 import { Card } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { DatabaseFolder } from "../../DatabaseBuilder/types";
+import { DatabaseFolder, FieldAttributes } from "../../DatabaseBuilder/types";
 import axios from "axios";
 import { DatabaseCardSkeleton } from "@/components/Loaders";
+import { FORM_TEMPLATES } from "@/components/DatabaseBuilder/DefaultDatabaseTemplate";
 
 type DatabasePageProps = {
   onChangePage: (changePage: string) => void;
   onEditDatabase: (database: DatabaseFolder) => void;
   onViewDatabase: (database: DatabaseFolder) => void;
+  onSelectTemplate?: ( tempalates :FieldAttributes[] | null) => void;
 };
 
 export default function Database({
   onChangePage,
   onEditDatabase,
   onViewDatabase,
+  onSelectTemplate
 }: DatabasePageProps) {
   const { currentTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,6 +50,15 @@ export default function Database({
   const filteredDatabases: DatabaseFolder[] = databases.filter((db) =>
     db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+
+  const handleTemplateClick = (templateKey: string) => {
+    const schema = FORM_TEMPLATES[templateKey];
+    if (onSelectTemplate) {
+      onSelectTemplate(schema);
+    }
+    onChangePage("form-builder");  
+  };
 
   const handleEditDatabase = async (id: string) => {
     try {
@@ -170,7 +182,10 @@ export default function Database({
         </div>
 
         <Button
-          onClick={() => onChangePage("form-builder")}
+          onClick={() => {
+            if (onSelectTemplate) onSelectTemplate([]);
+            onChangePage("form-builder");
+          }}
           className="flex items-center gap-2"
           style={{
             backgroundColor: currentTheme.primary,
@@ -180,6 +195,32 @@ export default function Database({
           <Plus className="w-5 h-5" />
           Create New Database
         </Button>
+      </div>
+
+      {/* 3. NEW QUICK TEMPLATES SECTION */}
+      <div className="mb-8">
+        <h2 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: currentTheme.textSecondary }}>
+          Quick Templates
+        </h2>
+        <div className="grid grid-cols-5 gap-3">
+          {Object.keys(FORM_TEMPLATES).map((key) => (
+            <Button
+              key={key}
+              variant="outline"
+              size="sm"
+              onClick={() => handleTemplateClick(key)}
+              className="capitalize rounded-full border-dashed"
+              style={{ 
+                color: currentTheme.text,
+                borderColor: currentTheme.border,
+                backgroundColor: currentTheme.surface 
+              }}
+            >
+              <Plus className="w-3 h-3 mr-2" />
+              {key.replace(/([A-Z])/g, ' $1').trim()}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Search Bar */}

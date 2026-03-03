@@ -69,32 +69,6 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               style={{ color: currentTheme.text }}
             />
           </button>
-
-          <div className="relative max-w-md w-full">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-              style={{ color: currentTheme.textSecondary }}
-            />
-            <input
-              type="text"
-              placeholder="Search pages..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl outline-none transition-all"
-              style={{
-                backgroundColor: currentTheme.background,
-                border: `1px solid ${currentTheme.border}`,
-                color: currentTheme.text,
-              }}
-            />
-          </div>
-
-          <Button
-            size="sm"
-            className="text-white border-0"
-            onClick={() => ('database')}
-            style={{ backgroundColor: currentTheme.primary }}          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Database
-          </Button>
         </div>
 
         {/* Right - Actions */}

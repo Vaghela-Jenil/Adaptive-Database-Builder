@@ -10,7 +10,7 @@ import Database from "../UserDashboard/pages/Database";
 import FormBuilderPage from "../DatabaseBuilder/FormBuilderPage";
 import DatabaseRecordsView from "../DatabaseBuilder/DatabaseRecordsView";
 import DatabaseChatbot from "../DatabaseBuilder/DatabaseChatbot";
-import { DatabaseFolder } from "@/components/DatabaseBuilder/types"
+import { DatabaseFolder, FieldAttributes } from "@/components/DatabaseBuilder/types"
 import NearByStorePage from "../UserDashboard/pages/NearbyStore";
 import VisitTracker from "@/components/VisitTracker";
 
@@ -22,6 +22,7 @@ export default function DashboardLayout() {
   const { currentTheme } = useTheme();
   const [editingDatabase, setEditingDatabase] = useState<DatabaseFolder | null>(null);
   const [viewingDatabase, setViewingDatabase] = useState<DatabaseFolder | null>(null);
+  const [selectTemplate, setSelectTemplate] = useState<FieldAttributes | any[]>([]);
 
   const handleRefresh = () => {
     setIsLoading(true);
@@ -52,10 +53,11 @@ export default function DashboardLayout() {
               setViewingDatabase(database);
               setActivePage("database-records");
             }}
+            onSelectTemplate={(template) => setSelectTemplate(template)}
           />
         );
       case "form-builder":
-        return <FormBuilderPage onBack={(p) => setActivePage(p)} editingDatabase={editingDatabase} />;
+        return <FormBuilderPage onBack={(p) => setActivePage(p)} editingDatabase={editingDatabase} SelectTemplate={selectTemplate} />;
       case "database-records":
         return viewingDatabase ? (
           <DatabaseRecordsView

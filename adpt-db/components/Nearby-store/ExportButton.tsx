@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Place } from "./types";
 import { buildExportRows } from "../../lib/normalize";
+import { useTheme } from "@/context/ThemeContext";
 
 function toCsvValue(value: string | number) {
   const raw = String(value ?? "");
@@ -41,11 +42,13 @@ export default function ExportButtons({
   fileBase: string;
 }) {
   const rows = useMemo(() => buildExportRows(places), [places]);
+  const { currentTheme } = useTheme();
 
   return (
-    <div className="export-row">
+    <div className="flex export-row gap-3">
       <button
-        className="btn ghost"
+        className="btn ghost p-2 rounded-md"
+          style={{ color: currentTheme.text, backgroundColor: currentTheme.primary}}
         onClick={() => {
           const csv = buildCsv(rows);
           downloadBlob(`${fileBase}.csv`, new Blob([csv], { type: "text/csv" }));
@@ -54,7 +57,8 @@ export default function ExportButtons({
         Download CSV
       </button>
       <button
-        className="btn ghost"
+        className="btn ghost p-2 rounded-md"
+        style={{color: currentTheme.text, backgroundColor: currentTheme.primary}}
         onClick={() => {
           const json = JSON.stringify(rows, null, 2);
           downloadBlob(

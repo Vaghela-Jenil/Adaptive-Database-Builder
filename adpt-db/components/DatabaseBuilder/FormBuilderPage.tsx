@@ -30,11 +30,13 @@ import axios from 'axios';
 type FormBuilderPageProps = {
   onBack: (name: string) => void;
   editingDatabase: DatabaseFolder | null;
+  SelectTemplate?: FieldAttributes[] | null;
 };
 
 export default function FormBuilderPage({
   onBack,
   editingDatabase,
+  SelectTemplate
 }: FormBuilderPageProps) {
   const { currentTheme } = useTheme();
   const [canvasFields, setCanvasFields] = useState<FieldAttributes[]>([]);
@@ -44,7 +46,6 @@ export default function FormBuilderPage({
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-
 
   const handleImportJSON = (importedSchema: FieldAttributes[]) => {
     if (Array.isArray(importedSchema)) {
@@ -96,11 +97,15 @@ export default function FormBuilderPage({
     })
   );
 
-  useEffect(() => {
-    if (editingDatabase) {
-      setCanvasFields(editingDatabase.formSchema);
-    }
-  }, [editingDatabase]);
+useEffect(() => {
+  if (editingDatabase?.formSchema) {
+    setCanvasFields(editingDatabase.formSchema);
+  } else if (SelectTemplate && Array.isArray(SelectTemplate)) {
+    setCanvasFields(SelectTemplate);
+  }else {
+    setCanvasFields([]); 
+  }
+}, [editingDatabase, SelectTemplate]);
 
 
   /* -------------------- DRAG END -------------------- */

@@ -7,6 +7,9 @@ import {
   Database,
   FolderLock,
   ChevronRight,
+  MapPinned,
+  Folder,
+  MessageSquareMore,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { UserButton } from "@clerk/nextjs";
@@ -28,7 +31,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     {
       id: "database",
       label: "Databases",
-      icon: Database,
+      icon: Folder,
     },
     {
       id: "analytics",
@@ -43,9 +46,22 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     {
       id: 'nearby-stores',
       label: 'Nearby Stores',
-      icon: FolderLock,
+      icon: MapPinned,
     }
   ];
+
+  const secureItems = [
+     {
+      id: "Secure Folder",
+      label: "Secure Folder",
+      icon: FolderLock,
+    },
+    {
+      id: "Chats",
+      label: "Chats",
+      icon: MessageSquareMore,
+    },
+  ]
 
 
   return (
@@ -130,17 +146,33 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
               >
                 Quick Access
               </p>
-              <div className="space-y-1">
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
-                  style={{
-                    color: currentTheme.textSecondary,
-                  }}
-                >
-                  <FolderLock className="w-4 h-4" />
-                  <span className="text-sm">Secure Folders</span>
-                </button>
-              </div>
+            <div className="space-y-1">
+              {secureItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activePage === item.id;
+                return (
+                  <div key={item.id}>
+                    <motion.button
+                      key={item.id}
+                      onClick={() => setActivePage(item.id)}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
+                      style={{
+                        backgroundColor: isActive
+                          ? currentTheme.primary
+                          : "transparent",
+                        color: isActive ? "#ffffff" : currentTheme.text,
+                      }}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                      {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                    </motion.button>
+                  </div>
+                );
+              })}
+            </div>
             </div>
           </nav>
 
