@@ -17,7 +17,11 @@ import {
   BarChart3Icon,
   ChevronDown,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Menu,
+  ShoppingCart,
+  PackageX,
+  FileText,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -37,6 +41,9 @@ import { record } from "zod";
 import { TableRowSkeleton } from "../Loaders";
 import ComputedColumnPanel, { ComputedColumnField } from "./ComputedColumnPanel";
 import { computeColumnValue, validateComputedColumn } from "@/lib/computedColumns";
+import SellStocks, { InvoiceData } from "./SellStocks";
+import OutOfStockItems, { OutOfStockItem } from "./OutOfStockItems";
+import GeneratedInvoices from "./GeneratedInvoices";
 
 import {
   ResponsiveContainer,
@@ -210,6 +217,47 @@ export default function DatabaseRecordsView({
   const [isImporting, setIsImporting] = useState(false);
   const [importPreviewCount, setImportPreviewCount] = useState<number>(0);
   const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
+  // Stock management sidebar & subpages
+  const [showStockSidebar, setShowStockSidebar] = useState(false);
+  type StockSubPage = 'sell' | 'out-of-stock' | 'invoices' | null;
+  const [stockSubPage, setStockSubPage] = useState<StockSubPage>(null);
+  const [outOfStockItems, setOutOfStockItems] = useState<OutOfStockItem[]>([]);
+  const [generatedInvoices, setGeneratedInvoices] = useState<InvoiceData[]>([]);
+  const [stockDataLoaded, setStockDataLoaded] = useState(false);
+
+  // Load persisted stock management data on mount
+  useEffect(() => {
+    if (!currentDatabase?._id) return;
+    const loadStockData = async () => {
+      try {
+        const res = await axios.get(`/api/databases/${currentDatabase._id}/stock-management`);
+        setOutOfStockItems(res.data.outOfStockItems || []);
+        setGeneratedInvoices(res.data.generatedInvoices || []);
+        setStockDataLoaded(true);
+      } catch (err) {
+        console.error('Failed to load stock management data:', err);
+        setStockDataLoaded(true);
+      }
+    };
+    loadStockData();
+  }, [currentDatabase?._id]);
+
+  // Persist stock management data whenever it changes
+  useEffect(() => {
+    if (!currentDatabase?._id || !stockDataLoaded) return;
+    const saveStockData = async () => {
+      try {
+        await axios.put(`/api/databases/${currentDatabase._id}/stock-management`, {
+          outOfStockItems,
+          generatedInvoices,
+        });
+      } catch (err) {
+        console.error('Failed to save stock management data:', err);
+      }
+    };
+    saveStockData();
+  }, [outOfStockItems, generatedInvoices, currentDatabase?._id, stockDataLoaded]);
+
   const [showRecommender, setShowRecommender] = useState(false);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [recommendationError, setRecommendationError] = useState("");
@@ -1353,6 +1401,19 @@ export default function DatabaseRecordsView({
             <Plus className="w-4 h-4 mr-2" />
             New Record
           </Button>
+
+          {/* Stock Management Menu Button */}
+          <Button
+            variant="outline"
+            onClick={() => setShowStockSidebar(true)}
+            style={{
+              backgroundColor: currentTheme.primary,
+              color: currentTheme.text,
+            }}
+          >
+            <Menu className="w-4 h-4 mr-2" />
+            Stock Menu
+          </Button>
         </div>
       </div>
 
@@ -1488,7 +1549,7 @@ export default function DatabaseRecordsView({
             disabled={isLoadingRecommendations}
             style={{ backgroundColor: currentTheme.primary, color: currentTheme.text }}
           >
-            {isLoadingRecommendations ? "Refreshing..." : "Refresh Recommendations"}
+            {isLoadingRecommendations ? "Refreshing..." : "Recommendations"}
           </Button>
         </div>
       </div>
@@ -2794,6 +2855,158 @@ export default function DatabaseRecordsView({
           isCreating={isComputingColumns}
         />
       </div>
+
+      {/* ===== STOCK MANAGEMENT SIDEBAR ===== */}
+      <AnimatePresence>
+        {showStockSidebar && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-40"
+              onClick={() => setShowStockSidebar(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed right-0 top-0 bottom-0 w-80 z-50 shadow-2xl flex flex-col"
+              style={{
+                backgroundColor: currentTheme.surface,
+                borderLeft: `1px solid ${currentTheme.border}`,
+              }}
+            >
+              <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: currentTheme.border }}>
+                <h2 className="text-lg font-bold" style={{ color: currentTheme.text }}>Stock Management</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowStockSidebar(false)}>
+                  <X className="w-5 h-5" style={{ color: currentTheme.text }} />
+                </Button>
+              </div>
+              <div className="flex-1 p-4 space-y-3">
+                <button
+                  onClick={() => { setStockSubPage('sell'); setShowStockSidebar(false); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border }}
+                >
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: '#10b98120' }}>
+                    <ShoppingCart className="w-5 h-5" style={{ color: '#10b981' }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold" style={{ color: currentTheme.text }}>Sell Stocks</p>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>Sell products and generate invoices</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setStockSubPage('out-of-stock'); setShowStockSidebar(false); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border }}
+                >
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: '#ef444420' }}>
+                    <PackageX className="w-5 h-5" style={{ color: '#ef4444' }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold" style={{ color: currentTheme.text }}>Out of Stock Items</p>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>{outOfStockItems.length} items currently out of stock</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setStockSubPage('invoices'); setShowStockSidebar(false); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border }}
+                >
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${currentTheme.primary}20` }}>
+                    <FileText className="w-5 h-5" style={{ color: currentTheme.primary }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold" style={{ color: currentTheme.text }}>Generated Invoices</p>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>{generatedInvoices.length} invoices generated</p>
+                  </div>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ===== STOCK SUB PAGES (full-screen overlays) ===== */}
+      <AnimatePresence>
+        {stockSubPage === 'sell' && (
+          <motion.div
+            key="sell-stocks"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50 }}
+            className="fixed inset-0 z-50"
+            style={{ backgroundColor: currentTheme.background }}
+          >
+            <SellStocks
+              records={records}
+              formSchema={formSchema}
+              databaseId={currentDatabase._id}
+              onBack={() => setStockSubPage(null)}
+              onAddOutOfStock={(item) => {
+                setOutOfStockItems((prev) => [
+                  ...prev,
+                  {
+                    id: `oos-${Date.now()}`,
+                    productName: item.productName,
+                    requestedQty: item.requestedQty,
+                    availableQty: item.availableQty,
+                    addedAt: new Date().toISOString(),
+                  },
+                ]);
+              }}
+              onGenerateInvoice={(invoice) => {
+                setGeneratedInvoices((prev) => [...prev, invoice]);
+              }}
+              onStockUpdated={() => {
+                setRecords([]);
+                setPage(1);
+                setHasMore(true);
+                loadMoreRecords(1, true);
+              }}
+            />
+          </motion.div>
+        )}
+
+        {stockSubPage === 'out-of-stock' && (
+          <motion.div
+            key="out-of-stock"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50 }}
+            className="fixed inset-0 z-50"
+            style={{ backgroundColor: currentTheme.background }}
+          >
+            <OutOfStockItems
+              items={outOfStockItems}
+              onBack={() => setStockSubPage(null)}
+              onRemoveItem={(id) => setOutOfStockItems((prev) => prev.filter((i) => i.id !== id))}
+            />
+          </motion.div>
+        )}
+
+        {stockSubPage === 'invoices' && (
+          <motion.div
+            key="invoices"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50 }}
+            className="fixed inset-0 z-50"
+            style={{ backgroundColor: currentTheme.background }}
+          >
+            <GeneratedInvoices
+              invoices={generatedInvoices}
+              onBack={() => setStockSubPage(null)}
+              onRemoveInvoice={(id) => setGeneratedInvoices((prev) => prev.filter((i) => i.id !== id))}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

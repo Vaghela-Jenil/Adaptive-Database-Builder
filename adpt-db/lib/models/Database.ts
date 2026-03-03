@@ -65,6 +65,46 @@ const ComputedColumnSchema = new Schema(
   { _id: false }
 );
 
+const OutOfStockItemSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    productName: { type: String, required: true },
+    requestedQty: { type: Number, required: true },
+    availableQty: { type: Number, required: true },
+    addedAt: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const InvoiceItemSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    recordId: { type: String, required: true },
+    productName: { type: String, required: true },
+    qty: { type: Number, required: true },
+    unitPrice: { type: Number, required: true },
+    price: { type: Number, required: true },
+    taxPercent: { type: Number, required: true },
+    taxAmount: { type: Number, required: true },
+    totalPrice: { type: Number, required: true },
+    status: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const InvoiceSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    date: { type: String, required: true },
+    items: { type: [InvoiceItemSchema], default: [] },
+    subtotal: { type: Number, required: true },
+    totalTax: { type: Number, required: true },
+    grandTotal: { type: Number, required: true },
+    status: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const DatabaseSchema = new Schema(
   {
     clerkId: { type: String, required: true, index: true },
@@ -87,6 +127,16 @@ const DatabaseSchema = new Schema(
 
     computedColumns: {
       type: [ComputedColumnSchema],
+      default: [],
+    },
+
+    outOfStockItems: {
+      type: [OutOfStockItemSchema],
+      default: [],
+    },
+
+    generatedInvoices: {
+      type: [InvoiceSchema],
       default: [],
     },
   },
