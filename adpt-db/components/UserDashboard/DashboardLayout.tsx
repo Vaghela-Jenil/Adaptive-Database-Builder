@@ -12,6 +12,7 @@ import DatabaseRecordsView from "../DatabaseBuilder/DatabaseRecordsView";
 import DatabaseChatbot from "../DatabaseBuilder/DatabaseChatbot";
 import { DatabaseFolder } from "@/components/DatabaseBuilder/types"
 import NearByStorePage from "../UserDashboard/pages/NearbyStore";
+import VisitTracker from "@/components/VisitTracker";
 
 export default function DashboardLayout() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -83,6 +84,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: currentTheme.background }}>
+      <VisitTracker />
       <DashboardSidebar
         activePage={activePage}
         setActivePage={setActivePage}
