@@ -52,12 +52,12 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
 
   const secureItems = [
      {
-      id: "Secure Folder",
-      label: "Secure Folder",
+      id: "shared-folder",
+      label: "Shared Folder",
       icon: FolderLock,
     },
     {
-      id: "Chats",
+      id: "chats-app",
       label: "Chats",
       icon: MessageSquareMore,
     },

@@ -27,8 +27,8 @@ export default function Home() {
           return <DarkTrust />;
         case "Tools":
           return <DarkIntegrations />;
-          case "Reviews":
-          return <DarkTestimonials />;
+          // case "Reviews":
+          // return <DarkTestimonials />;
           case "Q&A":
           return <DarkFAQ />;
         default:

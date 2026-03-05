@@ -19,7 +19,6 @@ export default function AuthSync() {
       try {
         const data = await axios.post("/api/auth/verify-user");
         const role = data.data.user.role || "user";
-        console.log(data.data.user.role)
 
         if (role === "admin") {
           router.push("/admin/dashboard");
@@ -31,7 +30,7 @@ export default function AuthSync() {
         if (err.response?.status === 403) {
           console.error("Access Denied: User is banned.");
         }
-        console.error("Sync Error:", err.message);
+        throw new Error("Sync Error:", err.message);
       }
     };
 

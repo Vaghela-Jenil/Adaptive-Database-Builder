@@ -9,7 +9,8 @@ import {
   MoreVertical,
   FolderOpen,
   Search,
-  EyeOff
+  EyeOff,
+  FolderLock
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useEffect, useState } from "react";
@@ -25,7 +26,7 @@ type DatabasePageProps = {
   onChangePage: (changePage: string) => void;
   onEditDatabase: (database: DatabaseFolder) => void;
   onViewDatabase: (database: DatabaseFolder) => void;
-  onSelectTemplate?: ( tempalates :FieldAttributes[] | null) => void;
+  onSelectTemplate?: (tempalates: FieldAttributes[] | null) => void;
 };
 
 export default function Database({
@@ -47,6 +48,14 @@ export default function Database({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const secureDatabases: DatabaseFolder[] = databases.filter((db) =>
+    db.hasPassword === true
+  )
+
+  const normalDatabases: DatabaseFolder[] = databases.filter((db) =>
+    db.hasPassword !== true
+  )
+
   const filteredDatabases: DatabaseFolder[] = databases.filter((db) =>
     db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -57,7 +66,7 @@ export default function Database({
     if (onSelectTemplate) {
       onSelectTemplate(schema);
     }
-    onChangePage("form-builder");  
+    onChangePage("form-builder");
   };
 
   const handleEditDatabase = async (id: string) => {
@@ -153,7 +162,7 @@ export default function Database({
       console.log("Fetched databases:", data.databases);
     } catch (err) {
       throw new Error("Failed to fetch databases");
-    }finally{
+    } finally {
       setIsLoading(false);
     }
   }
@@ -210,10 +219,10 @@ export default function Database({
               size="sm"
               onClick={() => handleTemplateClick(key)}
               className="capitalize rounded-full border-dashed"
-              style={{ 
+              style={{
                 color: currentTheme.text,
                 borderColor: currentTheme.border,
-                backgroundColor: currentTheme.surface 
+                backgroundColor: currentTheme.surface
               }}
             >
               <Plus className="w-3 h-3 mr-2" />
@@ -245,12 +254,12 @@ export default function Database({
 
       {/* Database Grid */}
       {isLoading ?
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {[...Array(8)].map((_, i) => (
-          <DatabaseCardSkeleton key={i} />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <DatabaseCardSkeleton key={i} />
+          ))}
         </div>
-        
+
         : filteredDatabases.length === 0 ? (
           <Card
             className="p-12 text-center"
@@ -284,7 +293,7 @@ export default function Database({
               </Button>
             )}
           </Card>
-        ) : (
+        ) : searchQuery && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredDatabases.map((database) => (
               <motion.div
@@ -431,6 +440,312 @@ export default function Database({
           </div>
         )}
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        {!searchQuery && normalDatabases.map((database) => (
+          <motion.div
+            key={database._id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -4 }}
+            className="h-full"
+          >
+            <Card
+              className="p-6 relative cursor-pointer h-full flex flex-col justify-between transition-all duration-300"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+              onClick={() => handleVerifyDatabase(database._id, 'view')}
+            >
+              {/* Header with icon and menu */}
+              <div className="flex items-start justify-between mb-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: currentTheme.primary }}
+                >
+                  <DatabaseIcon className="w-5 h-5 text-white" />
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenu(activeMenu === database._id ? null : database._id);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    style={{
+                      backgroundColor: currentTheme.background,
+                      border: `1px solid ${currentTheme.border}`,
+                    }}
+                  >
+                    <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
+                  </button>
+
+                  {activeMenu === database._id && (
+                    <div
+                      className="absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-10 py-2"
+                      style={{
+                        backgroundColor: currentTheme.surface,
+                        border: `1px solid ${currentTheme.border}`,
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDatabase(database._id, 'view');
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-opacity-50"
+                        style={{ color: currentTheme.text }}
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Database
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDatabase(database._id, 'edit');
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2"
+                        style={{ color: currentTheme.text }}
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit Form
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSetPassword(database._id);
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2"
+                        style={{ color: currentTheme.text }}
+                      >
+                        <Lock className="w-4 h-4" />
+                        {database.hasPassword ? "Change Password" : "Set Password"}
+                      </button>
+                      <div
+                        className="my-1 h-px mx-2"
+                        style={{ backgroundColor: currentTheme.border }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDatabase(database._id, 'delete');
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2"
+                        style={{ color: "#ef4444" }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Database Name */}
+              <h3 className="font-bold truncate mb-1" style={{ color: currentTheme.text }}>
+                {database.DatabaseName}
+              </h3>
+
+              {/* Stats */}
+              <div className="flex items-center gap-4 mb-2">
+                <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                  {database.recordCount} records
+                </span>
+                {database.hasPassword && (
+                  <div className="flex items-center gap-1">
+                    <Lock className="w-3 h-3" style={{ color: currentTheme.primary }} />
+                    <span className="text-xs" style={{ color: currentTheme.primary }}>
+                      Protected
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mt-6 pt-4 border-t" style={{ borderColor: currentTheme.border }}>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Created</span>
+                  <span className="text-xs font-medium" style={{ color: currentTheme.textSecondary }}>
+                    {new Date(database.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Updated</span>
+                  <span className="text-xs font-medium" style={{ color: currentTheme.primary }}>
+                    {new Date(database.updatedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+          </motion.div>
+        ))}
+      </div>
+
+      {!searchQuery && (
+        <div className="w-full py-3">
+          <div className="flex items-center">
+            <FolderLock
+              className="w-6 h-6"
+              style={{ color: currentTheme.text }}
+            />
+            <span className="ml-4" style={{ color: currentTheme.text }}>
+              Secure Databases
+            </span>
+          </div>
+          <hr className="mt-3 border-t" style={{ borderColor: currentTheme.text, opacity: 0.2 }} />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        {!searchQuery && secureDatabases.map((database) => (
+          <motion.div
+            key={database._id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -4 }}
+            className="h-full"
+          >
+            <Card
+              className="p-6 relative cursor-pointer h-full flex flex-col justify-between transition-all duration-300"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+              onClick={() => handleVerifyDatabase(database._id, 'view')}
+            >
+              {/* Header with icon and menu */}
+              <div className="flex items-start justify-between mb-4">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: currentTheme.primary }}
+                >
+                  <DatabaseIcon className="w-5 h-5 text-white" />
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenu(activeMenu === database._id ? null : database._id);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    style={{
+                      backgroundColor: currentTheme.background,
+                      border: `1px solid ${currentTheme.border}`,
+                    }}
+                  >
+                    <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
+                  </button>
+
+                  {activeMenu === database._id && (
+                    <div
+                      className="absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-10 py-2"
+                      style={{
+                        backgroundColor: currentTheme.surface,
+                        border: `1px solid ${currentTheme.border}`,
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDatabase(database._id, 'view');
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-opacity-50"
+                        style={{ color: currentTheme.text }}
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Database
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDatabase(database._id, 'edit');
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2"
+                        style={{ color: currentTheme.text }}
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit Form
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSetPassword(database._id);
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2"
+                        style={{ color: currentTheme.text }}
+                      >
+                        <Lock className="w-4 h-4" />
+                        {database.hasPassword ? "Change Password" : "Set Password"}
+                      </button>
+                      <div
+                        className="my-1 h-px mx-2"
+                        style={{ backgroundColor: currentTheme.border }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDatabase(database._id, 'delete');
+                          setActiveMenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2"
+                        style={{ color: "#ef4444" }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Database Name */}
+              <h3 className="font-bold truncate mb-1" style={{ color: currentTheme.text }}>
+                {database.DatabaseName}
+              </h3>
+
+              {/* Stats */}
+              <div className="flex items-center gap-4 mb-2">
+                <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                  {database.recordCount} records
+                </span>
+                {database.hasPassword && (
+                  <div className="flex items-center gap-1">
+                    <Lock className="w-3 h-3" style={{ color: currentTheme.primary }} />
+                    <span className="text-xs" style={{ color: currentTheme.primary }}>
+                      Protected
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mt-6 pt-4 border-t" style={{ borderColor: currentTheme.border }}>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Created</span>
+                  <span className="text-xs font-medium" style={{ color: currentTheme.textSecondary }}>
+                    {new Date(database.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Updated</span>
+                  <span className="text-xs font-medium" style={{ color: currentTheme.primary }}>
+                    {new Date(database.updatedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
       {passwordModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div
@@ -440,7 +755,7 @@ export default function Database({
               border: `1px solid ${currentTheme.border}`,
             }}
           >
-            <h2 className="text-lg font-semibold mb-4" style={{color: currentTheme.text,}}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: currentTheme.text, }}>
               Enter Database Password
             </h2>
 
@@ -486,7 +801,7 @@ export default function Database({
                   setShowPassword(false);
                 }}
                 className="px-4 py-2 rounded-lg"
-                style={{ border: `1px solid ${currentTheme.border}`,color: currentTheme.text }}
+                style={{ border: `1px solid ${currentTheme.border}`, color: currentTheme.text }}
               >
                 Cancel
               </button>

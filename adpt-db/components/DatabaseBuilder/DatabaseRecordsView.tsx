@@ -31,7 +31,6 @@ import { motion, AnimatePresence } from "motion/react";
 import ControlledFieldPreview from "./ControlledFieldPreview";
 import { showToast } from "@/lib/toast";
 import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import { DatabaseRecord } from "./types";
 import axios from "axios";
 import { buildZodSchema } from "@/lib/validateRecord";

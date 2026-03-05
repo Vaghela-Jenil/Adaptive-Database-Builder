@@ -44,6 +44,7 @@ export default function DatabaseChatbot({
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [loading, setLoading] = useState<boolean>(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -93,7 +94,7 @@ export default function DatabaseChatbot({
     const query = inputValue;
     setInputValue("");
     setIsTyping(true);
-
+    setLoading(true);
     try {
       const formName = database?.DatabaseName;
       if (!formName) throw new Error("Database information is missing.");
@@ -130,6 +131,7 @@ export default function DatabaseChatbot({
       }]);
     } finally {
       setIsTyping(false);
+      setLoading(false)
     }
   };
 
@@ -217,7 +219,40 @@ export default function DatabaseChatbot({
               )}
             </motion.div>
           );
+          
         })}
+        {/* 1. Loading state is now OUTSIDE the map loop */}
+  {loading && (
+    <div className="flex justify-start items-start gap-4 mb-4 animate-in fade-in duration-300">
+      {/* Bot Icon for Loading */}
+      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: currentTheme.primary }}>
+        <Bot className="w-4 h-4 text-white" />
+      </div>
+      
+      <div
+        className="px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm"
+        style={{
+          backgroundColor: currentTheme.surface,
+          border: `1px solid ${currentTheme.border}`,
+        }}
+      >
+        <div className="flex space-x-2 justify-center items-center h-4">
+          <div
+            className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.3s]"
+            style={{ backgroundColor: currentTheme.primary }}
+          ></div>
+          <div
+            className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.15s]"
+            style={{ backgroundColor: currentTheme.primary }}
+          ></div>
+          <div
+            className="h-1.5 w-1.5 rounded-full animate-bounce"
+            style={{ backgroundColor: currentTheme.primary }}
+          ></div>
+        </div>
+      </div>
+    </div>
+  )}
         <div ref={messagesEndRef} />
       </div>
 

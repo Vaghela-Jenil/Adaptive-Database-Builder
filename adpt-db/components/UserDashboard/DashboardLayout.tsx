@@ -13,6 +13,8 @@ import DatabaseChatbot from "../DatabaseBuilder/DatabaseChatbot";
 import { DatabaseFolder, FieldAttributes } from "@/components/DatabaseBuilder/types"
 import NearByStorePage from "../UserDashboard/pages/NearbyStore";
 import VisitTracker from "@/components/VisitTracker";
+import SharedDatabases from "./pages/SharedDatabase";
+import ChatApp from "./pages/ChatApp";
 
 export default function DashboardLayout() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -22,7 +24,7 @@ export default function DashboardLayout() {
   const { currentTheme } = useTheme();
   const [editingDatabase, setEditingDatabase] = useState<DatabaseFolder | null>(null);
   const [viewingDatabase, setViewingDatabase] = useState<DatabaseFolder | null>(null);
-  const [selectTemplate, setSelectTemplate] = useState<FieldAttributes | any[]>([]);
+  const [selectTemplate, setSelectTemplate] = useState<FieldAttributes[] | null>();
 
   const handleRefresh = () => {
     setIsLoading(true);
@@ -38,6 +40,8 @@ export default function DashboardLayout() {
       case "analytics": return <Analytics />;
       case "chatbot": return <Chatbot />;
       case "nearby-stores": return <NearByStorePage />;
+      case "shared-folder": return <SharedDatabases />;
+      case "chats-app" : return <ChatApp/>
       case "database":
         return (
           <Database
@@ -57,7 +61,10 @@ export default function DashboardLayout() {
           />
         );
       case "form-builder":
-        return <FormBuilderPage onBack={(p) => setActivePage(p)} editingDatabase={editingDatabase} SelectTemplate={selectTemplate} />;
+        return <FormBuilderPage 
+        onBack={(p) => {setActivePage(p); setSelectTemplate(null)}} 
+        editingDatabase={editingDatabase} 
+        SelectTemplate={selectTemplate} />;
       case "database-records":
         return viewingDatabase ? (
           <DatabaseRecordsView

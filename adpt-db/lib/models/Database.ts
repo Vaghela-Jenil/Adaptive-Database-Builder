@@ -111,6 +111,8 @@ const DatabaseSchema = new Schema(
 
     DatabaseName: { type: String, required: true },
 
+    role : { type : String, enum: ["Admin", "Editor", "Viewer"], default: "Admin",  required: true },
+
     formSchema: {
       type: [FieldSchema],
       default: [],

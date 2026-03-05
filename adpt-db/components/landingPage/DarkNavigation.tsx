@@ -27,7 +27,7 @@ export default function DarkNavigation({activePanel, setActivePanel} : {activePa
     { label: 'Use Cases' },
     { label: 'Security' },
     { label: 'Tools'},
-    { label: 'Reviews'},
+    // { label: 'Reviews'},
     { label: 'Q&A'},
   ];
 

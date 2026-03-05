@@ -324,7 +324,7 @@ export default function DashboardHome() {
           </div>
 
           {/* Chart */}
-          <div className="w-full h-[320px]">
+          <div className="w-full h-80">
             {chartLoading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2

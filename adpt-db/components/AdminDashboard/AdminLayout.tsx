@@ -27,7 +27,6 @@ export default function AdminLayout() {
     { id: "users", label: "User Management", icon: Users },
     { id: "email", label: "Email Center", icon: Mail },
     { id: "queries", label: "Query Management", icon: MessageSquare },
-    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   const renderPage = () => {
