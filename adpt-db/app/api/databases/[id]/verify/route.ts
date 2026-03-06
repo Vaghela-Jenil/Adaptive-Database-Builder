@@ -20,7 +20,6 @@ export async function POST(
 
     const db = await DatabaseModel.findOne({
       _id: id,
-      clerkId: userId,
     });
 
     if (!db) {

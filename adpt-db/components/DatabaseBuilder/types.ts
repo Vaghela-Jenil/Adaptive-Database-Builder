@@ -96,3 +96,9 @@ export type UserType = {
     phonenumber:String 
 } | null;
  
+
+export type SharedDatabaseFolder = DatabaseFolder & {
+  userRole: "Admin" | "Editor" | "Viewer";
+  ownerName: string;
+  grantedAt: string;
+};

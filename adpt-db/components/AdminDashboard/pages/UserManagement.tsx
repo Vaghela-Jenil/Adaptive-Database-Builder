@@ -5,9 +5,24 @@ import axios from "axios";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Trash2, Ban, ChevronLeft, ChevronRight, X, UserPlus,
-  Eye, EyeOff, ShieldAlert, Mail, Calendar, Phone
+  Eye, EyeOff, ShieldAlert, Mail, Calendar, Phone,
+  Loader2,
+  BarChart3
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { useTheme } from "@/context/ThemeContext";
+
+type FilterType = "day" | "week" | "month";
+type ChartPoint = { label: string; visits: number };
 
 export default function UserManagement() {
   const { currentTheme } = useTheme();
@@ -22,6 +37,12 @@ export default function UserManagement() {
   const [confirmPanel, setConfirmPanel] = useState<{ show: boolean, type: 'delete' | 'ban', user: any | null }>({
     show: false, type: 'delete', user: null
   });
+
+    // Visit analytics
+    const [visitFilter, setVisitFilter] = useState<FilterType>("week");
+    const [chartData, setChartData] = useState<ChartPoint[]>([]);
+    const [totalVisits, setTotalVisits] = useState(0);
+    const [chartLoading, setChartLoading] = useState(true);
 
   const [formData, setFormData] = useState({
   email: "",
@@ -43,6 +64,35 @@ export default function UserManagement() {
   };
 
   useEffect(() => { fetchUsers(); }, [page]);
+
+    const filters: { label: string; value: FilterType }[] = [
+    { label: "Day", value: "day" },
+    { label: "Week", value: "week" },
+    { label: "Month", value: "month" },
+  ];
+
+    // Fetch visit analytics (with a small delay on mount to allow VisitTracker POST to complete first)
+  useEffect(() => {
+    async function fetchVisits() {
+      setChartLoading(true);
+      try {
+        const res = await axios.get(
+          `/api/analytics/visits?filter=${visitFilter}`
+        );
+        setChartData(res.data.chartData || []);
+        setTotalVisits(res.data.totalVisits || 0);
+      } catch {
+        setChartData([]);
+        setTotalVisits(0);
+      } finally {
+        setChartLoading(false);
+      }
+    }
+
+    // Small delay so VisitTracker's POST finishes before we GET
+    const timer = setTimeout(fetchVisits, 800);
+    return () => clearTimeout(timer);
+  }, [visitFilter]);
 
   const handleAction = async () => {
     const { type, user } = confirmPanel;
@@ -95,7 +145,7 @@ const handleCreateUser = async (e: React.FormEvent) => {
 
 
   return (
-    <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
+    <div className="p-6 space-y-6 flex flex-col  overflow-hidden">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-black" style={{ color: currentTheme.text }}>Identity Manager</h2>
         <button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-105 transition-all">
@@ -111,6 +161,7 @@ const handleCreateUser = async (e: React.FormEvent) => {
                 <th className="p-5 text-xs font-bold uppercase" style={{ color: currentTheme.textSecondary }}>User</th>
                 <th className="p-5 text-xs font-bold uppercase" style={{ color: currentTheme.textSecondary }}>Contact</th>
                 <th className="p-5 text-xs font-bold uppercase" style={{ color: currentTheme.textSecondary }}>Presence</th>
+                 <th className="p-5 text-xs font-bold uppercase text-right" style={{ color: currentTheme.textSecondary }}>Ban</th>
                 <th className="p-5 text-xs font-bold uppercase text-right" style={{ color: currentTheme.textSecondary }}>Actions</th>
               </tr>
             </thead>
@@ -144,6 +195,10 @@ const handleCreateUser = async (e: React.FormEvent) => {
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => setConfirmPanel({ show: true, type: 'ban', user })} className={`p-2 rounded-lg transition-all ${isBanned ? 'bg-red-500 text-white' : 'hover:bg-orange-500/10 text-orange-500'}`}><Ban size={18} /></button>
+                      </div>
+                    </td>
+                     <td className="p-5 text-right">
+                      <div className="flex justify-end gap-2">
                         <button onClick={() => setConfirmPanel({ show: true, type: 'delete', user })} className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg"><Trash2 size={18} /></button>
                       </div>
                     </td>
@@ -260,6 +315,133 @@ const handleCreateUser = async (e: React.FormEvent) => {
           </div>
         )}
       </AnimatePresence>
+
+              {/* Visit Analytics Bar Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="rounded-2xl p-6"
+          style={{
+            backgroundColor: currentTheme.surface,
+            border: `1px solid ${currentTheme.border}`,
+          }}
+        >
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <BarChart3
+                className="w-6 h-6"
+                style={{ color: currentTheme.primary }}
+              />
+              <div>
+                <h2
+                  className="text-xl font-bold"
+                  style={{ color: currentTheme.text }}
+                >
+                  Site Visits
+                </h2>
+                <p
+                  className="text-sm"
+                  style={{ color: currentTheme.textSecondary }}
+                >
+                  {totalVisits} total visit{totalVisits !== 1 ? "s" : ""} this{" "}
+                  {visitFilter}
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Buttons */}
+            <div
+              className="flex rounded-xl overflow-hidden"
+              style={{ border: `1px solid ${currentTheme.border}` }}
+            >
+              {filters.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setVisitFilter(f.value)}
+                  className="px-4 py-2 text-sm font-medium transition-all"
+                  style={{
+                    backgroundColor:
+                      visitFilter === f.value
+                        ? currentTheme.primary
+                        : currentTheme.background,
+                    color:
+                      visitFilter === f.value
+                        ? "#fff"
+                        : currentTheme.textSecondary,
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="w-full h-80">
+            {chartLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2
+                  className="w-8 h-8 animate-spin"
+                  style={{ color: currentTheme.primary }}
+                />
+              </div>
+            ) : chartData.length === 0 ? (
+              <div
+                className="flex items-center justify-center h-full text-sm"
+                style={{ color: currentTheme.textSecondary }}
+              >
+                No visit data available for this period
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={currentTheme.border}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: currentTheme.textSecondary, fontSize: 12 }}
+                    axisLine={{ stroke: currentTheme.border }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fill: currentTheme.textSecondary, fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: currentTheme.surface,
+                      border: `1px solid ${currentTheme.border}`,
+                      borderRadius: "12px",
+                      color: currentTheme.text,
+                      fontSize: 13,
+                    }}
+                    cursor={{ fill: `${currentTheme.primary}15` }}
+                    formatter={(value: number) => [value, "Visits"]}
+                  />
+                  <Bar dataKey="visits" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                    {chartData.map((_, i) => (
+                      <Cell
+                        key={`cell-${i}`}
+                        fill={currentTheme.primary}
+                        fillOpacity={0.85}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </motion.div>
+
     </div>
   );
 }

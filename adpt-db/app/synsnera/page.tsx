@@ -22,7 +22,7 @@ export default function LandingPage() {
         <DarkUseCases />
         <DarkIntegrations />
         <DarkTrust />
-        <DarkTestimonials />
+        {/* <DarkTestimonials /> */}
         <DarkFAQ />
         <DarkCTA />
       </div>

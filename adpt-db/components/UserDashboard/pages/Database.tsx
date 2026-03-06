@@ -10,14 +10,18 @@ import {
   FolderOpen,
   Search,
   EyeOff,
-  FolderLock
+  FolderLock,
+  User,
+  Calendar,
+  ShieldCheck,
+  Folder
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { DatabaseFolder, FieldAttributes } from "../../DatabaseBuilder/types";
+import { DatabaseFolder, FieldAttributes, SharedDatabaseFolder } from "../../DatabaseBuilder/types";
 import axios from "axios";
 import { DatabaseCardSkeleton } from "@/components/Loaders";
 import { FORM_TEMPLATES } from "@/components/DatabaseBuilder/DefaultDatabaseTemplate";
@@ -28,6 +32,9 @@ type DatabasePageProps = {
   onViewDatabase: (database: DatabaseFolder) => void;
   onSelectTemplate?: (tempalates: FieldAttributes[] | null) => void;
 };
+
+const DatabaseTypes = ['all', 'public', 'secure', 'shared'] as const;
+type DBType = typeof DatabaseTypes[number];
 
 export default function Database({
   onChangePage,
@@ -43,23 +50,36 @@ export default function Database({
     databaseId: string;
     action: string;
   } | null>(null);
+
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [passwordError, setPasswordError] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [sharedDatabases, setSharedDatabases] = useState<DatabaseFolder[]>([]);
+  const [isSharedDatbases, setIsSharedDatbases] = useState(false);
+  const [sharedMeta, setSharedMeta] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<DBType>('all');
 
-  const secureDatabases: DatabaseFolder[] = databases.filter((db) =>
-    db.hasPassword === true
-  )
+  const filteredDatabases = useMemo(() => {
+    let baseList: DatabaseFolder[] = [];
+      setIsSharedDatbases(false);
+    if (activeTab === 'all') {
+      setIsSharedDatbases(true);
+      baseList = [...databases, ...sharedDatabases];
+    } else if (activeTab === 'shared') {
+      setIsSharedDatbases(true);
+      // baseList = [...sharedDatabases];
+    } else if (activeTab === 'public') {
+      baseList = databases.filter((db) => !db.hasPassword);
+    } else if (activeTab === 'secure') {
+      baseList = databases.filter((db) => db.hasPassword);
+    }
 
-  const normalDatabases: DatabaseFolder[] = databases.filter((db) =>
-    db.hasPassword !== true
-  )
-
-  const filteredDatabases: DatabaseFolder[] = databases.filter((db) =>
-    db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
+    // 2. Then, apply the search filter to the selected category
+    return baseList.filter((db) =>
+      db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [activeTab, searchQuery, databases, sharedDatabases]);
 
   const handleTemplateClick = (templateKey: string) => {
     const schema = FORM_TEMPLATES[templateKey];
@@ -76,7 +96,7 @@ export default function Database({
       });
 
       if (verify.data.verified) {
-        onEditDatabase(databases.find((db) => db._id === id)!);
+        onEditDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
         setPasswordInput("");
         setPasswordModal(null);
       } else {
@@ -114,13 +134,12 @@ export default function Database({
 
   const handleViewDatabase = async (id: string) => {
     try {
-      console.log(passwordInput);
       const verify = await axios.post(`/api/databases/${id}/verify`, {
         password: passwordInput,
       });
 
       if (verify.data.verified) {
-        onViewDatabase(databases.find((db) => db._id === id)!);
+        onViewDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
         setPasswordInput("");
         setPasswordModal(null);
       } else {
@@ -138,9 +157,9 @@ export default function Database({
       });
       if (!res.data.hasPassword) {
         if (func === "view") {
-          onViewDatabase(databases.find((db) => db._id === id)!);
+          onViewDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
         } else if (func === "edit") {
-          onEditDatabase(databases.find((db) => db._id === id)!);
+          onEditDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
         } else if (func === "delete") {
           await axios.delete(`/api/databases/${id}`);
           fetchDatabases();
@@ -167,8 +186,25 @@ export default function Database({
     }
   }
 
+  const fetchShared = async () => {
+    try {
+      const response = await fetch('/api/network/shared-dbs');
+      const data = await response.json();
+
+      if (data.databases) {
+        // Extracting only the DatabaseFolder part
+        setSharedDatabases(data.databases.map((d: any) => d.details));
+        setSharedMeta(data.databases.map((d: any) => d.network));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+
   useEffect(() => {
     fetchDatabases();
+    fetchShared();
   }, []);
 
 
@@ -252,6 +288,36 @@ export default function Database({
         />
       </div>
 
+      <div
+        className="flex items-center p-1 rounded-xl w-fit mb-3"
+        style={{ backgroundColor: currentTheme.surface, border: `1px solid ${currentTheme.border}` }}
+      >
+        {DatabaseTypes.map((type) => {
+          const isActive = activeTab === type;
+          return (
+            <button
+              key={type}
+              onClick={() => setActiveTab(type)}
+              className="relative px-6 py-2 text-sm font-medium capitalize transition-colors duration-300 outline-none"
+              style={{ color: isActive ? currentTheme.text : currentTheme.textSecondary }}
+            >
+              {/* Animated background pill for active state */}
+              {isActive && (
+                <motion.div
+                  layoutId="active-pill"
+                  className="absolute inset-0 rounded-lg shadow-md"
+                  style={{ backgroundColor: currentTheme.primary }}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+
+              {/* Label - Z-index 10 to stay above the animated pill */}
+              <span className="relative z-10">{type}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Database Grid */}
       {isLoading ?
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -260,7 +326,7 @@ export default function Database({
           ))}
         </div>
 
-        : filteredDatabases.length === 0 ? (
+        : filteredDatabases.length === 0 && sharedDatabases.length === 0 ? (
           <Card
             className="p-12 text-center"
             style={{
@@ -293,7 +359,20 @@ export default function Database({
               </Button>
             )}
           </Card>
-        ) : searchQuery && (
+        ) : activeTab !== 'shared' && (
+          <div>
+          <div className="w-full py-3 mt-8">
+            <div className="flex items-center">
+              <Folder
+                className="w-6 h-6"
+                style={{ color: currentTheme.text }}
+              />
+              <span className="ml-4 font-semibold text-lg" style={{ color: currentTheme.text }}>
+                {activeTab} Databases
+              </span>
+            </div>
+            <hr className="mt-3 border-t" style={{ borderColor: currentTheme.text, opacity: 0.1 }} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredDatabases.map((database) => (
               <motion.div
@@ -438,313 +517,177 @@ export default function Database({
               </motion.div>
             ))}
           </div>
+          </div>
         )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {!searchQuery && normalDatabases.map((database) => (
-          <motion.div
-            key={database._id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -4 }}
-            className="h-full"
-          >
-            <Card
-              className="p-6 relative cursor-pointer h-full flex flex-col justify-between transition-all duration-300"
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
-              }}
-              onClick={() => handleVerifyDatabase(database._id, 'view')}
-            >
-              {/* Header with icon and menu */}
-              <div className="flex items-start justify-between mb-4">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: currentTheme.primary }}
-                >
-                  <DatabaseIcon className="w-5 h-5 text-white" />
-                </div>
 
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenu(activeMenu === database._id ? null : database._id);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                    style={{
-                      backgroundColor: currentTheme.background,
-                      border: `1px solid ${currentTheme.border}`,
-                    }}
-                  >
-                    <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
-                  </button>
-
-                  {activeMenu === database._id && (
-                    <div
-                      className="absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-10 py-2"
-                      style={{
-                        backgroundColor: currentTheme.surface,
-                        border: `1px solid ${currentTheme.border}`,
-                      }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVerifyDatabase(database._id, 'view');
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-opacity-50"
-                        style={{ color: currentTheme.text }}
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Database
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVerifyDatabase(database._id, 'edit');
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2"
-                        style={{ color: currentTheme.text }}
-                      >
-                        <Edit className="w-4 h-4" />
-                        Edit Form
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSetPassword(database._id);
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2"
-                        style={{ color: currentTheme.text }}
-                      >
-                        <Lock className="w-4 h-4" />
-                        {database.hasPassword ? "Change Password" : "Set Password"}
-                      </button>
-                      <div
-                        className="my-1 h-px mx-2"
-                        style={{ backgroundColor: currentTheme.border }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVerifyDatabase(database._id, 'delete');
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2"
-                        style={{ color: "#ef4444" }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Database Name */}
-              <h3 className="font-bold truncate mb-1" style={{ color: currentTheme.text }}>
-                {database.DatabaseName}
-              </h3>
-
-              {/* Stats */}
-              <div className="flex items-center gap-4 mb-2">
-                <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                  {database.recordCount} records
-                </span>
-                {database.hasPassword && (
-                  <div className="flex items-center gap-1">
-                    <Lock className="w-3 h-3" style={{ color: currentTheme.primary }} />
-                    <span className="text-xs" style={{ color: currentTheme.primary }}>
-                      Protected
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center mt-6 pt-4 border-t" style={{ borderColor: currentTheme.border }}>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Created</span>
-                  <span className="text-xs font-medium" style={{ color: currentTheme.textSecondary }}>
-                    {new Date(database.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Updated</span>
-                  <span className="text-xs font-medium" style={{ color: currentTheme.primary }}>
-                    {new Date(database.updatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-          </motion.div>
-        ))}
-      </div>
-
-      {!searchQuery && (
-        <div className="w-full py-3">
-          <div className="flex items-center">
-            <FolderLock
-              className="w-6 h-6"
-              style={{ color: currentTheme.text }}
-            />
-            <span className="ml-4" style={{ color: currentTheme.text }}>
-              Secure Databases
-            </span>
+      {/* SHARED DATABASES SECTION */}
+      {!searchQuery && isSharedDatbases && sharedDatabases.length !== 0 && (
+        <>
+          <div className="w-full py-3 mt-8">
+            <div className="flex items-center">
+              <FolderLock
+                className="w-6 h-6"
+                style={{ color: currentTheme.text }}
+              />
+              <span className="ml-4 font-semibold text-lg" style={{ color: currentTheme.text }}>
+                Shared Databases
+              </span>
+            </div>
+            <hr className="mt-3 border-t" style={{ borderColor: currentTheme.text, opacity: 0.1 }} />
           </div>
-          <hr className="mt-3 border-t" style={{ borderColor: currentTheme.text, opacity: 0.2 }} />
-        </div>
-      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {!searchQuery && secureDatabases.map((database) => (
-          <motion.div
-            key={database._id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -4 }}
-            className="h-full"
-          >
-            <Card
-              className="p-6 relative cursor-pointer h-full flex flex-col justify-between transition-all duration-300"
-              style={{
-                backgroundColor: currentTheme.surface,
-                border: `1px solid ${currentTheme.border}`,
-              }}
-              onClick={() => handleVerifyDatabase(database._id, 'view')}
-            >
-              {/* Header with icon and menu */}
-              <div className="flex items-start justify-between mb-4">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: currentTheme.primary }}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {sharedDatabases.map((database: DatabaseFolder, index: number) => {
+              const meta = sharedMeta[index];
+
+              return (
+                <motion.div
+                  key={database._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -4 }}
+                  className="h-full"
                 >
-                  <DatabaseIcon className="w-5 h-5 text-white" />
-                </div>
-
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenu(activeMenu === database._id ? null : database._id);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  <Card
+                    className="p-6 relative cursor-pointer h-full flex flex-col justify-between transition-all duration-300"
                     style={{
-                      backgroundColor: currentTheme.background,
+                      backgroundColor: currentTheme.surface,
                       border: `1px solid ${currentTheme.border}`,
                     }}
+                    onClick={() => handleVerifyDatabase(database._id, 'view')}
                   >
-                    <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
-                  </button>
-
-                  {activeMenu === database._id && (
-                    <div
-                      className="absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-10 py-2"
-                      style={{
-                        backgroundColor: currentTheme.surface,
-                        border: `1px solid ${currentTheme.border}`,
-                      }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVerifyDatabase(database._id, 'view');
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-opacity-50"
-                        style={{ color: currentTheme.text }}
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Database
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVerifyDatabase(database._id, 'edit');
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2"
-                        style={{ color: currentTheme.text }}
-                      >
-                        <Edit className="w-4 h-4" />
-                        Edit Form
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSetPassword(database._id);
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2"
-                        style={{ color: currentTheme.text }}
-                      >
-                        <Lock className="w-4 h-4" />
-                        {database.hasPassword ? "Change Password" : "Set Password"}
-                      </button>
+                    {/* Header with Icon and Action Menu */}
+                    <div className="flex items-start justify-between mb-4">
                       <div
-                        className="my-1 h-px mx-2"
-                        style={{ backgroundColor: currentTheme.border }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVerifyDatabase(database._id, 'delete');
-                          setActiveMenu(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2"
-                        style={{ color: "#ef4444" }}
+                        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: currentTheme.primary }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
+                        <DatabaseIcon className="w-5 h-5 text-white" />
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenu(activeMenu === database._id ? null : database._id);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                          style={{
+                            backgroundColor: currentTheme.background,
+                            border: `1px solid ${currentTheme.border}`,
+                          }}
+                        >
+                          <MoreVertical className="w-4 h-4" style={{ color: currentTheme.text }} />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {activeMenu === database._id && (
+                          <div
+                            className="absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-10 py-2"
+                            style={{
+                              backgroundColor: currentTheme.surface,
+                              border: `1px solid ${currentTheme.border}`,
+                            }}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleVerifyDatabase(database._id, 'view');
+                                setActiveMenu(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-opacity-50"
+                              style={{ color: currentTheme.text }}
+                            >
+                              <Eye className="w-4 h-4" />
+                              View Database
+                            </button>
+
+                            {/* Show Edit only if role is Admin or Editor */}
+                            {meta?.userRole !== "Viewer" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVerifyDatabase(database._id, 'edit');
+                                  setActiveMenu(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-2"
+                                style={{ color: currentTheme.text }}
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit Form
+                              </button>
+                            )}
+
+                            <div
+                              className="my-1 h-px mx-2"
+                              style={{ backgroundColor: currentTheme.border }}
+                            />
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Logic for removing shared access would go here
+                                setActiveMenu(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2"
+                              style={{ color: "#ef4444" }}
+                            >
+                              <EyeOff className="w-4 h-4" />
+                              Hide Shared
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Database Name */}
-              <h3 className="font-bold truncate mb-1" style={{ color: currentTheme.text }}>
-                {database.DatabaseName}
-              </h3>
+                    {/* Database Identity */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="font-bold truncate text-sm" style={{ color: currentTheme.text }}>
+                          {database.DatabaseName}
+                        </h3>
+                        <span
+                          className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase"
+                          style={{
+                            backgroundColor: `${currentTheme.primary}20`,
+                            color: currentTheme.primary
+                          }}
+                        >
+                          {meta?.userRole}
+                        </span>
+                      </div>
+                      <p className="text-[10px] opacity-60 flex items-center gap-1" style={{ color: currentTheme.textSecondary }}>
+                        <User className="w-3 h-3" /> Shared by @{meta?.ownerName}
+                      </p>
+                    </div>
 
-              {/* Stats */}
-              <div className="flex items-center gap-4 mb-2">
-                <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                  {database.recordCount} records
-                </span>
-                {database.hasPassword && (
-                  <div className="flex items-center gap-1">
-                    <Lock className="w-3 h-3" style={{ color: currentTheme.primary }} />
-                    <span className="text-xs" style={{ color: currentTheme.primary }}>
-                      Protected
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center mt-6 pt-4 border-t" style={{ borderColor: currentTheme.border }}>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Created</span>
-                  <span className="text-xs font-medium" style={{ color: currentTheme.textSecondary }}>
-                    {new Date(database.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[10px] uppercase opacity-50" style={{ color: currentTheme.text }}>Updated</span>
-                  <span className="text-xs font-medium" style={{ color: currentTheme.primary }}>
-                    {new Date(database.updatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+                    {/* Footer Stats & Dates */}
+                    <div className="flex justify-between items-center mt-6 pt-4 border-t" style={{ borderColor: currentTheme.border }}>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase opacity-50 font-bold" style={{ color: currentTheme.text }}>
+                          Granted
+                        </span>
+                        <span className="text-[11px] font-medium" style={{ color: currentTheme.textSecondary }}>
+                          {meta?.grantedAt ? new Date(meta.grantedAt).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col text-right">
+                        <span className="text-[10px] uppercase opacity-50 font-bold" style={{ color: currentTheme.text }}>
+                          Records
+                        </span>
+                        <span className="text-[11px] font-medium" style={{ color: currentTheme.primary }}>
+                          {database.recordCount}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {passwordModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">

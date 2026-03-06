@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { motion } from "motion/react";
 import {
   Users,
@@ -7,21 +7,37 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Menu,
-  X,
+  PanelLeftClose,
+  PanelLeft,
+  RefreshCcw,
 } from "lucide-react";
-import { useClerk, UserAvatar } from '@clerk/clerk-react'
+import { useClerk, UserAvatar, UserButton } from '@clerk/clerk-react'
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 import UserManagement from "./pages/UserManagement";
 import EmailCenter from "./pages/EmailCenter";
 import QueryManagement from "./pages/QueryManagement";
+import { UserContext } from "@/context/userContext";
+import Image from "next/image";
+import logo from '../../public/logo.png'
+import VisitTracker from "../VisitTracker";
 
 export default function AdminLayout() {
   const [activePage, setActivePage] = useState("users");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { currentTheme } = useTheme();
-  const { signOut, session } = useClerk()
+  const { signOut, session } = useClerk();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useContext<any>(UserContext);
+
+  const handleRefresh = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+      setIsLoading(false);
+    }, 500);
+  };
 
   const menuItems = [
     { id: "users", label: "User Management", icon: Users },
@@ -47,6 +63,7 @@ export default function AdminLayout() {
       className="flex h-screen overflow-hidden"
       style={{ backgroundColor: currentTheme.background }}
     >
+         <VisitTracker />
       {/* Sidebar */}
       <motion.aside
         initial={false}
@@ -64,18 +81,27 @@ export default function AdminLayout() {
             style={{ borderBottom: `1px solid ${currentTheme.border}` }}
           >
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: currentTheme.primary }}
-              >
-                <span className="text-white font-bold text-lg">A</span>
+              <div className="relative">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
+                  style={{ backgroundColor: `${currentTheme.primary}10` }} // Subtle brand-colored background
+                >
+                  <Image
+                    src={logo}
+                    alt="Sysnera Logo"
+                    width={40}
+                    height={40}
+                    className="object-contain p-1" // Ensures logo doesn't touch the edges
+                    priority // Loads logo immediately for better LCP
+                  />
+                </div>
               </div>
               <div>
                 <h1 className="font-bold" style={{ color: currentTheme.text }}>
-                  Admin Panel
+                  Sysnera
                 </h1>
                 <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                  Control Center
+                  Data Intelligence
                 </p>
               </div>
             </div>
@@ -116,7 +142,7 @@ export default function AdminLayout() {
             style={{ borderTop: `1px solid ${currentTheme.border}` }}
           >
             <button
-            onClick={async () => await signOut()}
+              onClick={async () => await signOut()}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"
               style={{
                 backgroundColor: currentTheme.surface,
@@ -148,11 +174,26 @@ export default function AdminLayout() {
               }}
             >
               {isSidebarOpen ? (
-                <X className="w-5 h-5" style={{ color: currentTheme.text }} />
+                <PanelLeftClose className="w-5 h-5" style={{ color: currentTheme.text }} />
               ) : (
-                <Menu className="w-5 h-5" style={{ color: currentTheme.text }} />
+                <PanelLeft className="w-5 h-5" style={{ color: currentTheme.text }} />
               )}
             </button>
+
+            <button
+              className="p-2 rounded-lg transition-all active:scale-90"
+              onClick={handleRefresh}
+              style={{
+                backgroundColor: currentTheme.background,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+            >
+              <RefreshCcw
+                className="w-5 h-5 transition-transform active:rotate-180 duration-500"
+                style={{ color: currentTheme.text }}
+              />
+            </button>
+
             <h2 className="text-2xl font-bold" style={{ color: currentTheme.text }}>
               {menuItems.find((item) => item.id === activePage)?.label}
             </h2>
@@ -163,27 +204,36 @@ export default function AdminLayout() {
             <NavbarThemeSwitcher />
             <div className="text-right">
               <p className="font-medium" style={{ color: currentTheme.text }}>
-                Vaghela Jenil
+                {user && user?.userName}
               </p>
-              <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                jenilvaghela9008@gmail.com
+              <p className="text-sm" style={{ color: currentTheme.textSecondary }} title={user && user.email}>
+                {user && user.email.substring(0, 10)}...
               </p>
             </div>
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
-              // style={{ backgroundColor: currentTheme.primary }}
             >
-              <UserAvatar/>
+              <UserButton />
             </div>
           </div>
         </header>
 
         {/* Page Content */}
         <main
-          className="flex-1 overflow-y-auto p-8"
+          key={refreshKey}
+          className="flex-1 overflow-y-auto relative"
           style={{ backgroundColor: currentTheme.background }}
         >
-          {renderPage()}
+          {isLoading ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+                style={{ borderColor: `${currentTheme.primary} transparent transparent ${currentTheme.primary}` }}
+              />
+            </div>
+          ) : (
+            renderPage()
+          )}
         </main>
       </div>
     </div>

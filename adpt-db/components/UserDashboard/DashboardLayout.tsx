@@ -14,14 +14,14 @@ import { DatabaseFolder, FieldAttributes } from "@/components/DatabaseBuilder/ty
 import NearByStorePage from "../UserDashboard/pages/NearbyStore";
 import VisitTracker from "@/components/VisitTracker";
 import SharedDatabases from "./pages/SharedDatabase";
-import ChatApp from "./pages/ChatApp";
+import UserSupport from "./pages/chat-app";
 
 export default function DashboardLayout() {
+    const { currentTheme } = useTheme();
   const [activePage, setActivePage] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const { currentTheme } = useTheme();
   const [editingDatabase, setEditingDatabase] = useState<DatabaseFolder | null>(null);
   const [viewingDatabase, setViewingDatabase] = useState<DatabaseFolder | null>(null);
   const [selectTemplate, setSelectTemplate] = useState<FieldAttributes[] | null>();
@@ -40,8 +40,8 @@ export default function DashboardLayout() {
       case "analytics": return <Analytics />;
       case "chatbot": return <Chatbot />;
       case "nearby-stores": return <NearByStorePage />;
-      case "shared-folder": return <SharedDatabases />;
-      case "chats-app" : return <ChatApp/>
+      case "share-folder": return <SharedDatabases />;
+      case "query" : return <UserSupport/>
       case "database":
         return (
           <Database

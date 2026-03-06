@@ -5,7 +5,7 @@ import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, UserPlus, Check, X, Database, Trash2,
-    Bell, Users, ArrowRight, ShieldCheck, Mail
+    Bell, Users, ArrowRight, ShieldCheck, Mail,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { toast, ToastContainer } from "react-toastify";
@@ -210,7 +210,6 @@ export default function ThemedNetwork() {
                                 key={f._id} onClick={() => setSelectedFriend(f)}
                                 className={`p-3 cursor-pointer flex items-center justify-between border-b transition-all ${isActive ? 'shadow-inner' : ''}`}
                                 style={{
-                                    borderColor: currentTheme.border,
                                     backgroundColor: isActive ? currentTheme.surface : 'transparent',
                                     borderLeft: isActive ? `4px solid ${currentTheme.primary}` : '4px solid transparent'
                                 }}
