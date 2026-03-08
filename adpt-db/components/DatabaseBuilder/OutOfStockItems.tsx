@@ -10,11 +10,19 @@ import {
   Store,
   Globe,
   X,
+  Truck,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  Link2,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card } from "../ui/card";
 import { motion, AnimatePresence } from "motion/react";
+
+export type OrderStatus = "not_ordered" | "ordered" | "shipped" | "out_for_delivery" | "delivered";
 
 export type OutOfStockItem = {
   id: string;
@@ -22,12 +30,18 @@ export type OutOfStockItem = {
   requestedQty: number;
   availableQty: number;
   addedAt: string;
+  orderStatus?: OrderStatus;
+  orderedFrom?: string;
+  orderedAt?: string;
+  trackingUrl?: string;
+  trackingId?: string;
 };
 
 type OutOfStockItemsProps = {
   items: OutOfStockItem[];
   onBack: () => void;
   onRemoveItem: (id: string) => void;
+  onUpdateItem: (id: string, updates: Partial<OutOfStockItem>) => void;
 };
 
 const ORDER_VENDORS = [
@@ -73,43 +87,113 @@ const ORDER_VENDORS = [
   },
 ];
 
+const ORDER_STATUS_STEPS: { key: OrderStatus; label: string; icon: typeof Clock }[] = [
+  { key: "not_ordered", label: "Not Ordered", icon: Clock },
+  { key: "ordered", label: "Ordered", icon: ShoppingBag },
+  { key: "shipped", label: "Shipped", icon: Truck },
+  { key: "out_for_delivery", label: "Out for Delivery", icon: MapPin },
+  { key: "delivered", label: "Delivered", icon: CheckCircle2 },
+];
+
+const STATUS_COLORS: Record<OrderStatus, string> = {
+  not_ordered: "#94a3b8",
+  ordered: "#3b82f6",
+  shipped: "#f59e0b",
+  out_for_delivery: "#8b5cf6",
+  delivered: "#10b981",
+};
+
+// Vendor tracking page URLs
+const VENDOR_TRACKING_URLS: Record<string, string> = {
+  Amazon: "https://www.amazon.in/gp/your-account/order-history",
+  Flipkart: "https://www.flipkart.com/account/orders",
+  Myntra: "https://www.myntra.com/my/orders",
+  IndiaMart: "https://my.indiamart.com/buyerledger/",
+  JioMart: "https://www.jiomart.com/orders",
+};
+
 export default function OutOfStockItems({
   items,
   onBack,
   onRemoveItem,
+  onUpdateItem,
 }: OutOfStockItemsProps) {
   const { currentTheme } = useTheme();
   const [openOrderMenuId, setOpenOrderMenuId] = useState<string | null>(null);
   const [customVendorUrl, setCustomVendorUrl] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [activeProductName, setActiveProductName] = useState("");
+  const [openStatusMenuId, setOpenStatusMenuId] = useState<string | null>(null);
+  const [editingTrackingId, setEditingTrackingId] = useState<string | null>(null);
+  const [trackingInput, setTrackingInput] = useState("");
+  const [trackingUrlInput, setTrackingUrlInput] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpenOrderMenuId(null);
         setShowCustomInput(false);
       }
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setOpenStatusMenuId(null);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const handleOrderFromVendor = (productName: string, buildUrl: (q: string) => string) => {
+  const handleOrderFromVendor = (itemId: string, productName: string, vendorName: string, buildUrl: (q: string) => string) => {
     window.open(buildUrl(productName), "_blank");
+    onUpdateItem(itemId, {
+      orderStatus: "ordered",
+      orderedFrom: vendorName,
+      orderedAt: new Date().toISOString(),
+    });
     setOpenOrderMenuId(null);
   };
 
-  const handleCustomVendorGo = () => {
+  const handleCustomVendorGo = (itemId: string) => {
     if (!customVendorUrl.trim()) return;
     let url = customVendorUrl.trim();
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
     window.open(url, "_blank");
+    onUpdateItem(itemId, {
+      orderStatus: "ordered",
+      orderedFrom: "Custom Vendor",
+      orderedAt: new Date().toISOString(),
+      trackingUrl: url,
+    });
     setCustomVendorUrl("");
     setShowCustomInput(false);
     setOpenOrderMenuId(null);
+  };
+
+  const handleSaveTracking = (itemId: string) => {
+    onUpdateItem(itemId, {
+      trackingId: trackingInput,
+      trackingUrl: trackingUrlInput,
+    });
+    setEditingTrackingId(null);
+    setTrackingInput("");
+    setTrackingUrlInput("");
+  };
+
+  const handleTrackOrder = (item: OutOfStockItem) => {
+    if (item.trackingUrl) {
+      let url = item.trackingUrl;
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+      window.open(url, "_blank");
+    } else if (item.orderedFrom && VENDOR_TRACKING_URLS[item.orderedFrom]) {
+      window.open(VENDOR_TRACKING_URLS[item.orderedFrom], "_blank");
+    }
+  };
+
+  const getStatusIndex = (status?: OrderStatus) => {
+    if (!status) return 0;
+    return ORDER_STATUS_STEPS.findIndex((s) => s.key === status);
   };
 
   return (
@@ -181,13 +265,18 @@ export default function OutOfStockItems({
           </div>
         ) : (
           <div className="max-w-3xl mx-auto space-y-3">
-            {items.map((item) => (
+            {items.map((item) => {
+              const currentStatusIdx = getStatusIndex(item.orderStatus);
+              const statusColor = STATUS_COLORS[item.orderStatus || "not_ordered"];
+              const isOrdered = item.orderStatus && item.orderStatus !== "not_ordered";
+
+              return (
               <Card
                 key={item.id}
                 className="p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                 style={{
                   backgroundColor: currentTheme.surface,
-                  border: `1px solid #ef444440`,
+                  border: `1px solid ${isOrdered ? statusColor + "40" : "#ef444440"}`,
                 }}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -195,9 +284,12 @@ export default function OutOfStockItems({
                   <div className="flex items-start gap-4 flex-1">
                     <div
                       className="p-2 rounded-lg shrink-0"
-                      style={{ backgroundColor: "#ef444415" }}
+                      style={{ backgroundColor: isOrdered ? statusColor + "15" : "#ef444415" }}
                     >
-                      <AlertTriangle className="w-5 h-5 text-red-500" />
+                      {isOrdered
+                        ? (() => { const Icon = ORDER_STATUS_STEPS[currentStatusIdx].icon; return <Icon className="w-5 h-5" style={{ color: statusColor }} />; })()
+                        : <AlertTriangle className="w-5 h-5 text-red-500" />
+                      }
                     </div>
                     <div className="flex-1 min-w-0">
                       <p
@@ -248,7 +340,7 @@ export default function OutOfStockItems({
                       }}
                     >
                       <ShoppingBag className="w-4 h-4 mr-1.5" />
-                      Order
+                      {isOrdered ? "Reorder" : "Order"}
                     </Button>
 
                     {/* Delete Button */}
@@ -301,7 +393,7 @@ export default function OutOfStockItems({
                             {ORDER_VENDORS.map((vendor) => (
                               <button
                                 key={vendor.name}
-                                onClick={() => handleOrderFromVendor(item.productName, vendor.buildUrl)}
+                                onClick={() => handleOrderFromVendor(item.id, item.productName, vendor.name, vendor.buildUrl)}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                                 style={{ backgroundColor: vendor.bg }}
                               >
@@ -348,7 +440,7 @@ export default function OutOfStockItems({
                                     placeholder="e.g. vendor-site.com"
                                     value={customVendorUrl}
                                     onChange={(e) => setCustomVendorUrl(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleCustomVendorGo()}
+                                    onKeyDown={(e) => e.key === "Enter" && handleCustomVendorGo(item.id)}
                                     className="text-sm h-9"
                                     style={{
                                       backgroundColor: currentTheme.background,
@@ -359,7 +451,7 @@ export default function OutOfStockItems({
                                   />
                                   <Button
                                     size="sm"
-                                    onClick={handleCustomVendorGo}
+                                    onClick={() => handleCustomVendorGo(item.id)}
                                     disabled={!customVendorUrl.trim()}
                                     className="h-9 px-3"
                                     style={{
@@ -378,8 +470,256 @@ export default function OutOfStockItems({
                     </AnimatePresence>
                   </div>
                 </div>
+
+                {/* ── Order Status Tracking Section ── */}
+                {isOrdered && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="mt-4 pt-4"
+                    style={{ borderTop: `1px solid ${currentTheme.border}` }}
+                  >
+                    {/* Status Progress Bar */}
+                    <div className="flex items-center gap-1 mb-3">
+                      {ORDER_STATUS_STEPS.map((step, idx) => {
+                        const isActive = idx <= currentStatusIdx;
+                        const isCurrent = idx === currentStatusIdx;
+                        const StepIcon = step.icon;
+                        return (
+                          <div key={step.key} className="flex items-center flex-1">
+                            <div className="flex flex-col items-center flex-1">
+                              <div
+                                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300"
+                                style={{
+                                  backgroundColor: isActive ? statusColor : `${currentTheme.textSecondary}20`,
+                                  boxShadow: isCurrent ? `0 0 0 3px ${statusColor}30` : "none",
+                                }}
+                              >
+                                <StepIcon className="w-3.5 h-3.5" style={{ color: isActive ? "#fff" : currentTheme.textSecondary }} />
+                              </div>
+                              <span
+                                className="text-[10px] mt-1 text-center leading-tight"
+                                style={{
+                                  color: isActive ? statusColor : currentTheme.textSecondary,
+                                  fontWeight: isCurrent ? 700 : 400,
+                                }}
+                              >
+                                {step.label}
+                              </span>
+                            </div>
+                            {idx < ORDER_STATUS_STEPS.length - 1 && (
+                              <div
+                                className="h-0.5 flex-1 rounded-full mx-0.5 -mt-4"
+                                style={{
+                                  backgroundColor: idx < currentStatusIdx ? statusColor : `${currentTheme.textSecondary}20`,
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Order Info & Actions Bar */}
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      {/* Ordered from badge */}
+                      {item.orderedFrom && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
+                          style={{ backgroundColor: statusColor + "15", color: statusColor }}
+                        >
+                          <Store className="w-3 h-3" />
+                          {item.orderedFrom}
+                        </span>
+                      )}
+
+                      {/* Ordered at */}
+                      {item.orderedAt && (
+                        <span
+                          className="text-xs px-2 py-1 rounded-md"
+                          style={{ backgroundColor: `${currentTheme.textSecondary}10`, color: currentTheme.textSecondary }}
+                        >
+                          Ordered: {new Date(item.orderedAt).toLocaleDateString()}
+                        </span>
+                      )}
+
+                      {/* Tracking ID badge */}
+                      {item.trackingId && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
+                          style={{ backgroundColor: `${currentTheme.primary}15`, color: currentTheme.primary }}
+                        >
+                          <Link2 className="w-3 h-3" />
+                          {item.trackingId}
+                        </span>
+                      )}
+
+                      <div className="flex-1" />
+
+                      {/* Track Order button */}
+                      {(item.trackingUrl || (item.orderedFrom && VENDOR_TRACKING_URLS[item.orderedFrom])) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTrackOrder(item)}
+                          className="h-7 text-xs"
+                          style={{ borderColor: statusColor, color: statusColor }}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          Track Order
+                        </Button>
+                      )}
+
+                      {/* Add/Edit Tracking Info */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (editingTrackingId === item.id) {
+                            setEditingTrackingId(null);
+                          } else {
+                            setEditingTrackingId(item.id);
+                            setTrackingInput(item.trackingId || "");
+                            setTrackingUrlInput(item.trackingUrl || "");
+                          }
+                        }}
+                        className="h-7 text-xs"
+                        style={{ borderColor: currentTheme.border, color: currentTheme.textSecondary }}
+                      >
+                        <Link2 className="w-3 h-3 mr-1" />
+                        {item.trackingId ? "Edit Tracking" : "Add Tracking"}
+                      </Button>
+
+                      {/* Update Status Dropdown */}
+                      <div className="relative" ref={openStatusMenuId === item.id ? statusMenuRef : undefined}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setOpenStatusMenuId(openStatusMenuId === item.id ? null : item.id)}
+                          className="h-7 text-xs"
+                          style={{ borderColor: statusColor, color: statusColor }}
+                        >
+                          Update Status
+                          <ChevronDown className="w-3 h-3 ml-1" />
+                        </Button>
+
+                        <AnimatePresence>
+                          {openStatusMenuId === item.id && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                              transition={{ duration: 0.12 }}
+                              className="absolute right-0 top-8 z-50 w-52 rounded-lg border shadow-xl overflow-hidden"
+                              style={{
+                                backgroundColor: currentTheme.surface,
+                                borderColor: currentTheme.border,
+                              }}
+                            >
+                              <div className="p-1.5 space-y-0.5">
+                                {ORDER_STATUS_STEPS.filter((s) => s.key !== "not_ordered").map((step) => {
+                                  const StepIcon = step.icon;
+                                  const isCurrentStatus = item.orderStatus === step.key;
+                                  const stepColor = STATUS_COLORS[step.key];
+                                  return (
+                                    <button
+                                      key={step.key}
+                                      onClick={() => {
+                                        onUpdateItem(item.id, { orderStatus: step.key });
+                                        setOpenStatusMenuId(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md transition-all text-sm"
+                                      style={{
+                                        backgroundColor: isCurrentStatus ? stepColor + "15" : "transparent",
+                                        color: isCurrentStatus ? stepColor : currentTheme.text,
+                                        fontWeight: isCurrentStatus ? 600 : 400,
+                                      }}
+                                    >
+                                      <StepIcon className="w-4 h-4" style={{ color: stepColor }} />
+                                      {step.label}
+                                      {isCurrentStatus && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" style={{ color: stepColor }} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {/* Tracking Input Form (expandable) */}
+                    <AnimatePresence>
+                      {editingTrackingId === item.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 space-y-2 overflow-hidden"
+                        >
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-[11px] font-medium mb-1 block" style={{ color: currentTheme.textSecondary }}>
+                                Tracking / Order ID
+                              </label>
+                              <Input
+                                type="text"
+                                placeholder="e.g. AWB12345678"
+                                value={trackingInput}
+                                onChange={(e) => setTrackingInput(e.target.value)}
+                                className="text-sm h-8"
+                                style={{
+                                  backgroundColor: currentTheme.background,
+                                  border: `1px solid ${currentTheme.border}`,
+                                  color: currentTheme.text,
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[11px] font-medium mb-1 block" style={{ color: currentTheme.textSecondary }}>
+                                Tracking URL
+                              </label>
+                              <Input
+                                type="text"
+                                placeholder="e.g. https://track.vendor.com/..."
+                                value={trackingUrlInput}
+                                onChange={(e) => setTrackingUrlInput(e.target.value)}
+                                className="text-sm h-8"
+                                style={{
+                                  backgroundColor: currentTheme.background,
+                                  border: `1px solid ${currentTheme.border}`,
+                                  color: currentTheme.text,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingTrackingId(null)}
+                              className="h-7 text-xs"
+                              style={{ color: currentTheme.textSecondary }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveTracking(item.id)}
+                              className="h-7 text-xs"
+                              style={{ backgroundColor: currentTheme.primary, color: "#fff" }}
+                            >
+                              Save Tracking Info
+                            </Button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

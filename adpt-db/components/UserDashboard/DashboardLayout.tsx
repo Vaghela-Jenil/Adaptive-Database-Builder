@@ -24,6 +24,7 @@ export default function DashboardLayout() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingDatabase, setEditingDatabase] = useState<DatabaseFolder | null>(null);
   const [viewingDatabase, setViewingDatabase] = useState<DatabaseFolder | null>(null);
+  const [viewingDatabaseRole, setViewingDatabaseRole] = useState<"Admin" | "Editor" | "Viewer" | undefined>(undefined);
   const [selectTemplate, setSelectTemplate] = useState<FieldAttributes[] | null>();
 
   const handleRefresh = () => {
@@ -53,8 +54,9 @@ export default function DashboardLayout() {
               setEditingDatabase(database);
               setActivePage("form-builder");
             }}
-            onViewDatabase={(database) => {
+            onViewDatabase={(database, userRole) => {
               setViewingDatabase(database);
+              setViewingDatabaseRole(userRole);
               setActivePage("database-records");
             }}
             onSelectTemplate={(template) => setSelectTemplate(template)}
@@ -69,8 +71,9 @@ export default function DashboardLayout() {
         return viewingDatabase ? (
           <DatabaseRecordsView
             currentDatabase={viewingDatabase}
+            userRole={viewingDatabaseRole}
             onOpenChatbot={() => setActivePage("database-chatbot")}
-            onBack={() => { setViewingDatabase(null); setActivePage("database"); }}
+            onBack={() => { setViewingDatabase(null); setViewingDatabaseRole(undefined); setActivePage("database"); }}
           />
         ) : null;
       case "database-chatbot":

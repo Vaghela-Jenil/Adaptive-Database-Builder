@@ -14,6 +14,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const limit = parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
     const dateQuery = searchParams.get("date") || "";
+    const dateFrom = searchParams.get("dateFrom") || "";
+    const dateTo = searchParams.get("dateTo") || "";
     const skip = (page - 1) * limit;
 
     const db = await DatabaseModel.findById(id);
@@ -57,6 +59,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           }
         }
 
+        return false;
+      });
+    }
+
+    // --- Date Range Filter (dateFrom / dateTo) ---
+    if (dateFrom || dateTo) {
+      const fromDate = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
+      const toDate = dateTo ? new Date(dateTo + "T23:59:59") : null;
+
+      filtered = filtered.filter((r: any) => {
+        if (r.createdAt) {
+          const d = new Date(r.createdAt);
+          if (!isNaN(d.getTime())) {
+            if (fromDate && d < fromDate) return false;
+            if (toDate && d > toDate) return false;
+            return true;
+          }
+        }
         return false;
       });
     }

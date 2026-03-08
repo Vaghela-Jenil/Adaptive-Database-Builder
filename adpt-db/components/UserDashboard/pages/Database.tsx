@@ -29,7 +29,7 @@ import { FORM_TEMPLATES } from "@/components/DatabaseBuilder/DefaultDatabaseTemp
 type DatabasePageProps = {
   onChangePage: (changePage: string) => void;
   onEditDatabase: (database: DatabaseFolder) => void;
-  onViewDatabase: (database: DatabaseFolder) => void;
+  onViewDatabase: (database: DatabaseFolder, userRole?: "Admin" | "Editor" | "Viewer") => void;
   onSelectTemplate?: (tempalates: FieldAttributes[] | null) => void;
 };
 
@@ -132,6 +132,14 @@ export default function Database({
     }
   };
 
+  const getSharedRole = (id: string): "Admin" | "Editor" | "Viewer" | undefined => {
+    const sharedIndex = sharedDatabases.findIndex((db) => db._id === id);
+    if (sharedIndex >= 0 && sharedMeta[sharedIndex]) {
+      return sharedMeta[sharedIndex].userRole;
+    }
+    return undefined;
+  };
+
   const handleViewDatabase = async (id: string) => {
     try {
       const verify = await axios.post(`/api/databases/${id}/verify`, {
@@ -139,7 +147,8 @@ export default function Database({
       });
 
       if (verify.data.verified) {
-        onViewDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
+        const db = [...databases, ...sharedDatabases].find((db) => db._id === id)!;
+        onViewDatabase(db, getSharedRole(id));
         setPasswordInput("");
         setPasswordModal(null);
       } else {
@@ -157,7 +166,8 @@ export default function Database({
       });
       if (!res.data.hasPassword) {
         if (func === "view") {
-          onViewDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
+          const db = [...databases, ...sharedDatabases].find((db) => db._id === id)!;
+          onViewDatabase(db, getSharedRole(id));
         } else if (func === "edit") {
           onEditDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
         } else if (func === "delete") {

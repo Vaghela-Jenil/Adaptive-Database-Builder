@@ -72,6 +72,15 @@ const OutOfStockItemSchema = new Schema(
     requestedQty: { type: Number, required: true },
     availableQty: { type: Number, required: true },
     addedAt: { type: String, required: true },
+    orderStatus: {
+      type: String,
+      enum: ["not_ordered", "ordered", "shipped", "out_for_delivery", "delivered"],
+      default: "not_ordered",
+    },
+    orderedFrom: { type: String, default: "" },
+    orderedAt: { type: String, default: "" },
+    trackingUrl: { type: String, default: "" },
+    trackingId: { type: String, default: "" },
   },
   { _id: false }
 );

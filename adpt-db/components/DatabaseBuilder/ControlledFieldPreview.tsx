@@ -251,10 +251,12 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
 {field.type === 'input-time' && (
     <Input
       type="time"
+      value={value || ''}
+      onChange={(e) => onChange?.(e.target.value)}
       disabled={field.disabled}
       style={{
         backgroundColor: currentTheme.surface,
-        borderColor: currentTheme.border,
+        borderColor: errorMessage ? "#ef4444" : currentTheme.border,
         color: currentTheme.text,
         accentColor: "red",
         colorScheme: mode === 'dark' ? 'dark' : 'light'

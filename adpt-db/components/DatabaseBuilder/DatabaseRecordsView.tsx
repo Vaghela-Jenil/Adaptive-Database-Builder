@@ -72,6 +72,7 @@ type UndoAction = {
 
 type DatabaseRecordsViewProps = {
   currentDatabase: DatabaseFolder;
+  userRole?: "Admin" | "Editor" | "Viewer";
   onOpenChatbot: () => void;
   onBack: () => void;
 };
@@ -174,15 +175,23 @@ const getActionBadgeStyles = (
 
 export default function DatabaseRecordsView({
   currentDatabase,
+  userRole,
   onOpenChatbot,
   onBack,
 }: DatabaseRecordsViewProps) {
   const { currentTheme } = useTheme();
+  const isViewer = userRole === "Viewer";
+  const canEdit = !isViewer;
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<DatabaseRecord | null>(null);
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [dateFilterType, setDateFilterType] = useState<"" | "last-day" | "last-week" | "last-month" | "custom">("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showDateFilterDropdown, setShowDateFilterDropdown] = useState(false);
+  const dateFilterRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [records, setRecords] = useState<DatabaseRecord[]>([]);
   const formSchema = useMemo(() => currentDatabase ? currentDatabase.formSchema : [], [currentDatabase]);
@@ -287,13 +296,66 @@ export default function DatabaseRecordsView({
   // Undo/Redo History
   const [undoHistory, setUndoHistory] = useState<UndoAction[]>([]);
 
+  // Close date filter dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dateFilterRef.current && !dateFilterRef.current.contains(e.target as Node)) {
+        setShowDateFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const applyDatePreset = (preset: "" | "last-day" | "last-week" | "last-month" | "custom") => {
+    setDateFilterType(preset);
+    const today = new Date();
+    if (preset === "last-day") {
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      setDateFrom(yesterday.toISOString().split("T")[0]);
+      setDateTo(today.toISOString().split("T")[0]);
+      setDateFilter("");
+      setShowDateFilterDropdown(false);
+    } else if (preset === "last-week") {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 7);
+      setDateFrom(weekAgo.toISOString().split("T")[0]);
+      setDateTo(today.toISOString().split("T")[0]);
+      setDateFilter("");
+      setShowDateFilterDropdown(false);
+    } else if (preset === "last-month") {
+      const monthAgo = new Date(today);
+      monthAgo.setMonth(today.getMonth() - 1);
+      setDateFrom(monthAgo.toISOString().split("T")[0]);
+      setDateTo(today.toISOString().split("T")[0]);
+      setDateFilter("");
+      setShowDateFilterDropdown(false);
+    } else if (preset === "custom") {
+      // Keep dropdown open for custom date selection
+    } else {
+      setDateFrom("");
+      setDateTo("");
+      setDateFilter("");
+      setShowDateFilterDropdown(false);
+    }
+  };
+
+  const clearDateFilter = () => {
+    setDateFilterType("");
+    setDateFrom("");
+    setDateTo("");
+    setDateFilter("");
+    setShowDateFilterDropdown(false);
+  };
+
   // Effect A: When Filters change, reset to page 1
   useEffect(() => {
     setRecords([]);
     setHasMore(true);
     setPage(1);
     loadMoreRecords(1, true); // Force a page 1 fetch immediately
-  }, [searchQuery, dateFilter]);
+  }, [searchQuery, dateFilter, dateFrom, dateTo]);
 
   // Effect B: When the scroll trigger hits (Page changes)
   // ONLY trigger this if page is greater than 1
@@ -323,6 +385,8 @@ export default function DatabaseRecordsView({
           limit: 10,
           search: searchQuery || "",
           date: dateFilter || "",
+          dateFrom: dateFrom || "",
+          dateTo: dateTo || "",
           _t: Date.now() // Busts browser cache
         }
       });
@@ -672,14 +736,23 @@ export default function DatabaseRecordsView({
     });
   }, [dataFields]);
 
+  const guardEdit = (): boolean => {
+    if (isViewer) {
+      showToast.error("Permission not allowed. You have Viewer access only.");
+      return false;
+    }
+    return true;
+  };
 
   const handleOpenForm = () => {
+    if (!guardEdit()) return;
     setEditingRecord(null);
     setFormData({});
     setShowForm(true);
   };
 
   const handleEditRecord = (record: DatabaseRecord) => {
+    if (!guardEdit()) return;
     setEditingRecord(record);
     // Exclude computed columns from editable form data
     const editableData: Record<string, unknown> = {};
@@ -872,6 +945,7 @@ export default function DatabaseRecordsView({
   };
 
   const handleDeleteRecord = async (databaseId: string, recordId: string) => {
+    if (!guardEdit()) return;
     try {
       // Find the record to store its data for undo
       const recordToDelete = records.find((r) => r.id === recordId);
@@ -899,6 +973,7 @@ export default function DatabaseRecordsView({
   };
 
   const handleSelectDelete = async () => {
+    if (!guardEdit()) return;
     if (!confirm("Are you absolutely sure? This will wipe ALL records which selected in this database.")) return;
     try {
       const databaseId = currentDatabase?._id;
@@ -939,6 +1014,7 @@ export default function DatabaseRecordsView({
   };
 
   const handleClearAllRecords = async () => {
+    if (!guardEdit()) return;
     // 1. Calculate IDs immediately
     const allIds = records.map((r) => r.id);
 
@@ -1267,6 +1343,7 @@ export default function DatabaseRecordsView({
     }
   };
   const handleConfirmImport = async () => {
+    if (!guardEdit()) return;
     if (!currentDatabase || importData.length === 0) return;
     setIsImporting(true);
     try {
@@ -1326,6 +1403,7 @@ export default function DatabaseRecordsView({
           </Button>
 
           {/* Undo Button */}
+          {canEdit && (
           <Button
             variant="ghost"
             size="sm"
@@ -1340,6 +1418,7 @@ export default function DatabaseRecordsView({
             <RotateCcw className="w-4 h-4 mr-1" />
             Undo {undoHistory.length > 0 && `(${undoHistory.length})`}
           </Button>
+          )}
 
           <div className="h-6 w-px" style={{ backgroundColor: currentTheme.border }} />
           <h1 className="text-xl font-bold" style={{ color: currentTheme.text }}>
@@ -1348,6 +1427,17 @@ export default function DatabaseRecordsView({
           <span className="text-sm" style={{ color: currentTheme.textSecondary }}>
             {currentDatabase.recordCount} {currentDatabase.recordCount === 1 ? "record" : "records"}
           </span>
+          {userRole && (
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded uppercase"
+              style={{
+                backgroundColor: isViewer ? "#f59e0b20" : `${currentTheme.primary}20`,
+                color: isViewer ? "#f59e0b" : currentTheme.primary,
+              }}
+            >
+              {userRole}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -1378,6 +1468,7 @@ export default function DatabaseRecordsView({
           </Button>
 
           {/* Import Button */}
+          {canEdit && (
           <Button
             variant="outline"
             onClick={() => setShowImportModal(true)}
@@ -1389,7 +1480,9 @@ export default function DatabaseRecordsView({
             <FileSpreadsheet className="w-4 h-4 mr-2" />
             Import
           </Button>
+          )}
 
+          {canEdit && (
           <Button
             onClick={handleOpenForm}
             style={{
@@ -1400,8 +1493,10 @@ export default function DatabaseRecordsView({
             <Plus className="w-4 h-4 mr-2" />
             New Record
           </Button>
+          )}
 
           {/* Stock Management Menu Button */}
+          {canEdit && (
           <Button
             variant="outline"
             onClick={() => setShowStockSidebar(true)}
@@ -1413,6 +1508,7 @@ export default function DatabaseRecordsView({
             <Menu className="w-4 h-4 mr-2" />
             Stock Menu
           </Button>
+          )}
         </div>
       </div>
 
@@ -1443,31 +1539,150 @@ export default function DatabaseRecordsView({
           />
         </div>
 
-        <div className="relative">
-          <Calendar
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-            style={{ color: currentTheme.textSecondary }}
-          />
-          <Input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="pl-10"
+        {/* Date Filter Dropdown */}
+        <div className="relative" ref={dateFilterRef}>
+          <button
+            className="flex items-center gap-2 px-3 py-2 rounded-md border text-sm transition-colors"
             style={{
-              backgroundColor: currentTheme.background,
+              backgroundColor: dateFilterType ? currentTheme.primary : currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
-              color: currentTheme.text,
+              color: dateFilterType ? "#ffffff" : currentTheme.text,
             }}
-          />
+            onClick={() => setShowDateFilterDropdown((prev) => !prev)}
+            onMouseEnter={() => setShowDateFilterDropdown(true)}
+          >
+            <Calendar className="w-4 h-4" />
+            {dateFilterType === "last-day" ? "Last Day" :
+             dateFilterType === "last-week" ? "Last Week" :
+             dateFilterType === "last-month" ? "Last Month" :
+             dateFilterType === "custom" ? "Custom Range" :
+             "Filter by Date"}
+            <ChevronDown className="w-3 h-3" />
+          </button>
+
+          {showDateFilterDropdown && (
+            <div
+              className="absolute top-full left-0 mt-1 w-64 rounded-lg shadow-xl z-50 py-2"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+              onMouseLeave={() => {
+                if (dateFilterType !== "custom") setShowDateFilterDropdown(false);
+              }}
+            >
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:opacity-80 transition-opacity"
+                style={{
+                  color: currentTheme.text,
+                  backgroundColor: dateFilterType === "last-day" ? `${currentTheme.primary}15` : "transparent",
+                }}
+                onClick={() => applyDatePreset("last-day")}
+              >
+                Last Day
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:opacity-80 transition-opacity"
+                style={{
+                  color: currentTheme.text,
+                  backgroundColor: dateFilterType === "last-week" ? `${currentTheme.primary}15` : "transparent",
+                }}
+                onClick={() => applyDatePreset("last-week")}
+              >
+                Last Week
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:opacity-80 transition-opacity"
+                style={{
+                  color: currentTheme.text,
+                  backgroundColor: dateFilterType === "last-month" ? `${currentTheme.primary}15` : "transparent",
+                }}
+                onClick={() => applyDatePreset("last-month")}
+              >
+                Last Month
+              </button>
+
+              <div className="my-1 h-px mx-2" style={{ backgroundColor: currentTheme.border }} />
+
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:opacity-80 transition-opacity"
+                style={{
+                  color: currentTheme.text,
+                  backgroundColor: dateFilterType === "custom" ? `${currentTheme.primary}15` : "transparent",
+                }}
+                onClick={() => applyDatePreset("custom")}
+              >
+                Custom Date Range
+              </button>
+
+              {dateFilterType === "custom" && (
+                <div className="px-4 py-2 space-y-2">
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: currentTheme.textSecondary }}>
+                      From
+                    </label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      style={{
+                        backgroundColor: currentTheme.background,
+                        border: `1px solid ${currentTheme.border}`,
+                        color: currentTheme.text,
+                      }}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: currentTheme.textSecondary }}>
+                      To
+                    </label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      style={{
+                        backgroundColor: currentTheme.background,
+                        border: `1px solid ${currentTheme.border}`,
+                        color: currentTheme.text,
+                      }}
+                      className="text-sm"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full mt-1"
+                    onClick={() => setShowDateFilterDropdown(false)}
+                    style={{ backgroundColor: currentTheme.primary, color: "#ffffff" }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              )}
+
+              {dateFilterType && (
+                <>
+                  <div className="my-1 h-px mx-2" style={{ backgroundColor: currentTheme.border }} />
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm hover:opacity-80 transition-opacity"
+                    style={{ color: "#ef4444" }}
+                    onClick={clearDateFilter}
+                  >
+                    Clear Date Filter
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {(searchQuery || dateFilter) && (
+        {(searchQuery || dateFilter || dateFrom || dateTo) && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setSearchQuery("");
-              setDateFilter("");
+              clearDateFilter();
             }}
             style={{ color: currentTheme.text, background: currentTheme.primary }}
           >
@@ -1475,7 +1690,7 @@ export default function DatabaseRecordsView({
           </Button>
         )}
 
-        {records.length !== 0 ? bulkDelete ?
+        {canEdit && (records.length !== 0 ? bulkDelete ?
           <Button className="rounded-md"
             onClick={() => {
               handleSelectDelete();
@@ -1499,7 +1714,7 @@ export default function DatabaseRecordsView({
           >
             Select multiple
           </Button> : ""
-        }
+        )}
 
         {
           bulkDelete &&
@@ -2550,6 +2765,7 @@ export default function DatabaseRecordsView({
                               borderColor: currentTheme.border,
                             }}
                           >
+                            {canEdit && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2563,6 +2779,7 @@ export default function DatabaseRecordsView({
                             >
                               Delete
                             </Button>
+                            )}
                           </td>
                         </tr>
 
@@ -2985,6 +3202,11 @@ export default function DatabaseRecordsView({
               items={outOfStockItems}
               onBack={() => setStockSubPage(null)}
               onRemoveItem={(id) => setOutOfStockItems((prev) => prev.filter((i) => i.id !== id))}
+              onUpdateItem={(id, updates) =>
+                setOutOfStockItems((prev) =>
+                  prev.map((i) => (i.id === id ? { ...i, ...updates } : i))
+                )
+              }
             />
           </motion.div>
         )}
