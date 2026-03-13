@@ -1,6 +1,5 @@
 import { FieldAttributes } from "./types";
 
-
 export const FORM_TEMPLATES: Record<string, FieldAttributes[]> = {
   education: [
     { id: "header-edu", type: "text", label: "University Admission Form", span: 3, showLabel: false },
@@ -9,12 +8,12 @@ export const FORM_TEMPLATES: Record<string, FieldAttributes[]> = {
     { id: "std-dob", type: "date-picker", label: "Date of Birth", span: 1, required: true },
     { id: "std-email", type: "input-email", label: "Personal Email", span: 1, placeholder: "email@example.com", required: true },
     { id: "std-phone", type: "input-phone", label: "Phone Number", span: 1, placeholder: "+1..." },
-    { id: "std-program", type: "combobox", label: "Select Major", span: 1.5, options: ["Engineering", "Medicine", "Law", "Arts"] },
+    { id: "std-program", type: "combobox", label: "Select Major", span: 1, options: ["Engineering", "Medicine", "Law", "Arts"] },
     { id: "std-scholar", type: "switch", label: "Applying for Scholarship", span: 1.5, defaultValue: false },
     { id: "std-gpa", type: "input-number", label: "Previous GPA", span: 1, min: 0, max: 4, step: 0.1 },
     { id: "std-essay", type: "textarea", label: "Statement of Purpose", span: 2, rows: 4, maxLength: 1000 },
     { id: "std-skills", type: "tag-input", label: "Extracurricular Skills", span: 3, placeholder: "Add skills..." },
-    { id: "std-verify", type: "input-otp", label: "Identity Verification", span: 1.5, otpLength: 6 },
+    { id: "std-verify", type: "input-otp", label: "Identity Verification", span: 1.5, otpLength: 4 },
     { id: "std-agree", type: "checkbox", label: "I agree to university policies", span: 1.5, required: true }
   ],
 
@@ -63,15 +62,15 @@ export const FORM_TEMPLATES: Record<string, FieldAttributes[]> = {
   socialEvent: [
     { id: "soc-name", type: "input-text", label: "Organizer Name", span: 1.5 },
     { id: "soc-type", type: "select", label: "Event Type", span: 1.5, options: ["Meeting", "Party", "Workshop"] },
-    { id: "soc-date", "type": "date-picker", label: "Event Date", span: 1 },
-    { id: "soc-time", "type": "input-time", label: "Start Time", span: 1 },
-    { id: "soc-limit", "type": "input-number", label: "Capacity Limit", span: 1 },
-    { id: "soc-diet", "type": "multi-select", label: "Catering Options", span: 2, options: ["Vegan", "Nut-Free", "Halal"] },
-    { id: "soc-notify", "type": "switch", label: "Send SMS Reminders", span: 1 },
-    { id: "soc-phone", "type": "input-phone", label: "RSVP Phone", span: 1 },
-    { id: "soc-loc", "type": "input-url", label: "Maps Location", span: 2 },
-    { id: "soc-agenda", "type": "textarea", label: "Event Agenda", span: 3 },
-    { id: "soc-survey", "type": "rating", label: "Past Event Interest", span: 3 }
+    { id: "soc-date", type: "date-picker", label: "Event Date", span: 1 },
+    { id: "soc-time", type: "input-time", label: "Start Time", span: 1 },
+    { id: "soc-limit", type: "input-number", label: "Capacity Limit", span: 1 },
+    { id: "soc-diet", type: "multi-select", label: "Catering Options", span: 2, options: ["Vegan", "Nut-Free", "Halal"] },
+    { id: "soc-notify", type: "switch", label: "Send SMS Reminders", span: 1 },
+    { id: "soc-phone", type: "input-phone", label: "RSVP Phone", span: 1 },
+    { id: "soc-loc", type: "input-url", label: "Maps Location", span: 2 },
+    { id: "soc-agenda", type: "textarea", label: "Event Agenda", span: 3 },
+    { id: "soc-survey", type: "rating", label: "Past Event Interest", span: 3 }
   ],
 
   fitnessLog: [

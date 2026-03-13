@@ -10,7 +10,12 @@ const UserSchema = new Schema(
     userImage: { type: String, default: null },
     password: { type: String, default: null, select: false },
     phonenumber: { type: String, trim: true },
-    lastActiveAt: { type: Date, default: Date.now } 
+    lastActiveAt: { type: Date, default: Date.now },
+    // Chat-related fields
+    friends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    blockedUsers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    chatStatus: { type: String, enum: ['online', 'offline', 'away'], default: 'offline' },
+    lastSeen: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );

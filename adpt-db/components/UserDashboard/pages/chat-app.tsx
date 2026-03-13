@@ -1,210 +1,1863 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Send, CheckCircle, Clock, X, MessageSquare, ShieldCheck, AlertCircle } from "lucide-react";
-import { useTheme } from "@/context/ThemeContext";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import { Send, Plus, Smile, Paperclip, Search, User, X } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
+import axios from 'axios';
+import { encryptMessage, decryptMessage, generateSharedKey, isEncrypted } from '@/lib/encryption';
 
-// 1. Define the Query Type
-interface SupportQuery {
+interface Message {
   _id: string;
-  subject: string;
-  message: string;
-  status: "pending" | "resolved";
-  adminReply?: string; // Optional because it's empty until resolved
-  isReadByUser: boolean;
-  createdAt: string;
+  sender: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  content: string;
+  type: 'text' | 'file' | 'emoji';
+  timestamp: Date;
+  file?: {
+    name: string;
+    url: string;
+    size: number;
+  };
 }
 
-export default function UserSupport() {
-  const { currentTheme } = useTheme();
-  const [queries, setQueries] = useState<SupportQuery[]>([]);
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [viewingQuery, setViewingQuery] = useState<SupportQuery | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const fetchQueries = async () => {
-    try {
-      const res = await axios.get("/api/queries");
-      setQueries(res.data);
-    } catch (err) {
-      console.error("Error fetching queries", err);
-    }
+interface Conversation {
+  id: string;
+  friend: {
+    id: string;
+    name: string;
+    avatar?: string;
+    status: 'online' | 'offline';
   };
+  lastMessage?: string;
+  lastMessageTime?: Date;
+  unreadCount: number;
+}
 
+export default function ChatPage() {
+  const { currentTheme } = useTheme();
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messageInput, setMessageInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [showRequests, setShowRequests] = useState(false);
+  const [userStatuses, setUserStatuses] = useState<Map<string, 'online' | 'offline'>>(new Map());
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [chatTab, setChatTab] = useState<'direct' | 'groups'>('direct');
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [groupMessages, setGroupMessages] = useState<any[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Socket.IO connection with current user
   useEffect(() => {
-    fetchQueries();
+    const initSocket = async () => {
+      try {
+        // First, get the current user ID
+        const currentUserResponse = await axios.get('/api/chat/current-user');
+        const userData = currentUserResponse.data;
+        
+        setCurrentUserId(userData.userId);
+        setCurrentUser(userData);
+
+        // Initialize Socket.IO
+        const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000', {
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: 5,
+          transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+        });
+
+        // ============ CONNECTION EVENTS ============
+        newSocket.on('connect', () => {
+          console.log('✅ Connected to chat server with socket ID:', newSocket.id);
+          newSocket.emit('user_connect', userData.userId);
+          console.log(`📡 Emitted user_connect for ${userData.userId}`);
+        });
+
+        newSocket.on('connect_error', (error) => {
+          console.error('❌ Connection error:', error);
+        });
+
+        newSocket.on('reconnect', () => {
+          console.log('🔄 Reconnected to server');
+          newSocket.emit('user_connect', userData.userId);
+        });
+
+        // ============ MESSAGE EVENTS ============
+        // Receive messages in real-time
+        newSocket.on('receive_message', (message: Message) => {
+          console.log('💬 Received message:', message);
+          
+          // Decrypt message if it's encrypted using userData.userId
+          let decryptedContent = message.content;
+          try {
+            if (userData.userId && isEncrypted(message.content)) {
+              const sharedKey = generateSharedKey(message.sender.id, userData.userId);
+              decryptedContent = decryptMessage(message.content, sharedKey);
+            }
+          } catch (err) {
+            console.error('Error decrypting message:', err);
+            decryptedContent = message.content; // Fall back to encrypted
+          }
+          
+          const decryptedMessage: Message = {
+            ...message,
+            content: decryptedContent
+          };
+          
+          setMessages((prev) => [...prev, decryptedMessage]);
+          
+          // Update last message in conversation with sender name
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.friend.id === message.sender.id
+                ? {
+                    ...conv,
+                    lastMessage: `${message.sender.name}: ${decryptedContent}`,
+                    lastMessageTime: new Date(message.timestamp),
+                  }
+                : conv
+            )
+          );
+        });
+
+        // ============ CONVERSATION EVENTS ============
+        // When new conversation created (friend request accepted)
+        newSocket.on('new_conversation', (conversation: any) => {
+          console.log('🆕 New conversation:', conversation);
+          setConversations((prev) => {
+            // Check if conversation already exists
+            if (prev.find((c) => c.id === conversation.id)) {
+              return prev;
+            }
+            return [conversation, ...prev];
+          });
+        });
+
+        // Conversations list updated
+        newSocket.on('conversations_updated', () => {
+          console.log('🔄 Conversations updated, refreshing...');
+          // Refresh conversations
+          axios
+            .get('/api/chat/conversations')
+            .then((res) => setConversations(res.data))
+            .catch((err) => console.error('Error refreshing conversations:', err));
+        });
+
+        // ============ USER STATUS EVENTS ============
+        // User came online
+        newSocket.on('user_online', (data: any) => {
+          console.log(`🟢 ${data.userId} is online`);
+          setUserStatuses((prev) => new Map(prev).set(data.userId, 'online'));
+          
+          // Update conversation with new status
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.friend.id === data.userId
+                ? { ...conv, friend: { ...conv.friend, status: 'online' } }
+                : conv
+            )
+          );
+        });
+
+        // User went offline
+        newSocket.on('user_offline', (data: any) => {
+          console.log(`🔴 ${data.userId} is offline`);
+          setUserStatuses((prev) => new Map(prev).set(data.userId, 'offline'));
+          
+          // Update conversation with new status
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.friend.id === data.userId
+                ? { ...conv, friend: { ...conv.friend, status: 'offline' } }
+                : conv
+            )
+          );
+        });
+
+        // ============ MESSAGE DELIVERY CONFIRMATION ============
+        newSocket.on('message_sent', (data: any) => {
+          console.log('✅ Message confirmed sent:', data.id);
+        });
+
+        // ============ ERROR HANDLING ============
+        newSocket.on('error', (error: any) => {
+          console.error('Socket error:', error);
+        });
+
+        // ============ MESSAGE DELETION EVENTS - SET UP DURING SOCKET INIT ============
+        newSocket.on('message_deleted', (data: any) => {
+          const { messageId, type } = data;
+          console.log(`🗑️ Message deleted via socket: ${messageId} (${type})`);
+
+          if (type === 'direct') {
+            setMessages((prev) => {
+              const filtered = prev.filter((m) => {
+                const mId = m._id?.toString();
+                const targetId = messageId?.toString();
+                return mId !== targetId;
+              });
+              console.log(`✅ Direct message removed - remaining: ${filtered.length}`);
+              return filtered;
+            });
+          } else if (type === 'group') {
+            setGroupMessages((prev) => {
+              const filtered = prev.filter((m) => {
+                const mId = (m.id || m._id)?.toString();
+                const targetId = messageId?.toString();
+                return mId !== targetId;
+              });
+              console.log(`✅ Group message removed - remaining: ${filtered.length}`);
+              return filtered;
+            });
+          }
+        });
+
+        setSocket(newSocket);
+      } catch (error) {
+        console.error('Error initializing socket:', error);
+      }
+    };
+
+    initSocket();
+
+    return () => {
+      // Cleanup on unmount
+      if (socket) {
+        socket.disconnect();
+        console.log('Socket disconnected');
+      }
+    };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      const res = await axios.post("/api/queries", { subject, message });
-      if (res.data.success) {
-        setSubject("");
-        setMessage("");
-        fetchQueries();
+  // Fetch conversations on mount
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        // First, try to get conversations with messages
+        const conversationResponse = await axios.get('/api/chat/conversations').catch(() => ({ data: [] }));
+        let conversations = conversationResponse.data || [];
+        
+        console.log(`📨 Fetched ${conversations.length} conversations`);
+        
+        // Decrypt lastMessage if encrypted
+        const decryptedConversations = conversations.map((conv: Conversation) => {
+          if (conv.lastMessage && currentUserId) {
+            try {
+              if (isEncrypted(conv.lastMessage)) {
+                const sharedKey = generateSharedKey(conv.friend.id, currentUserId);
+                const decrypted = decryptMessage(conv.lastMessage, sharedKey);
+                console.log(`✅ Decrypted lastMessage for ${conv.friend.name}`);
+                return { ...conv, lastMessage: decrypted };
+              }
+            } catch (err) {
+              console.error(`❌ Error decrypting lastMessage for ${conv.friend.name}:`, err);
+              return conv;
+            }
+          }
+          return conv;
+        });
+        
+        // If no conversations, get all friends instead
+        if (decryptedConversations.length === 0) {
+          try {
+            const friendsResponse = await axios.get('/api/chat/friends');
+            console.log(`👥 No conversations, fetched ${friendsResponse.data?.length || 0} friends`);
+            setConversations(friendsResponse.data || []);
+          } catch (err) {
+            console.error('Error fetching friends:', err);
+            setConversations(decryptedConversations);
+          }
+        } else {
+          setConversations(decryptedConversations);
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+    };
+
+    const fetchPendingRequests = async () => {
+      try {
+        const response = await axios.get('/api/chat/friend-requests');
+        setPendingRequests(response.data);
+      } catch (error) {
+        console.error('Error fetching friend requests:', error);
+      }
+    };
+
+    const fetchGroups = async () => {
+      try {
+        const response = await axios.get('/api/chat/groups');
+        setGroups(response.data);
+      } catch (error) {
+        console.error('Error fetching groups:', error);
+      }
+    };
+
+    fetchConversations();
+    fetchPendingRequests();
+    fetchGroups();
+  }, []);
+
+  // Fetch messages when conversation changes
+  useEffect(() => {
+    if (selectedConversation) {
+      const fetchMessages = async () => {
+        try {
+          const response = await axios.get(
+            `/api/chat/messages?friendId=${selectedConversation.friend.id}`
+          );
+          setMessages(response.data);
+        } catch (error) {
+          console.error('Error fetching messages:', error);
+        }
+      };
+
+      fetchMessages();
+    }
+  }, [selectedConversation]);
+
+  // Fetch group messages when group changes
+  useEffect(() => {
+    if (selectedGroup && socket) {
+      const fetchGroupMessages = async () => {
+        try {
+          const groupId = selectedGroup._id || selectedGroup.id;
+          console.log(`📥 Fetching messages for group: ${groupId}`);
+          
+          const response = await axios.get(
+            `/api/chat/group-messages?groupId=${groupId}`
+          );
+          
+          // Decrypt all fetched messages and normalize timestamps + IDs
+          const encryptionKey = `group_${groupId}`;
+          const decryptedMessages = response.data.map((msg: any) => {
+            let content = msg.content;
+            try {
+              if (msg.content && isEncrypted(msg.content)) {
+                content = decryptMessage(msg.content, encryptionKey);
+              }
+            } catch (err) {
+              console.error('Error decrypting stored message:', err);
+            }
+            // Normalize timestamp: use createdAt from DB or timestamp
+            const timestamp = msg.createdAt || msg.timestamp || new Date();
+            // IMPORTANT: Normalize ID to always use 'id' property (convert _id to id for consistency)
+            return { ...msg, id: (msg._id || msg.id), content, timestamp: new Date(timestamp) };
+          });
+          
+          setGroupMessages(decryptedMessages);
+          setGroupMembers(selectedGroup.members || []);
+          
+          console.log(`✅ Loaded ${decryptedMessages.length} messages`);
+        } catch (error) {
+          console.error('Error fetching group messages:', error);
+        }
+      };
+
+      fetchGroupMessages();
+      
+      // Set up real-time listener for incoming messages in THIS group
+      const handleGroupMessage = (message: any) => {
+        console.log('💬 Received group message:', message);
+        
+        // Decrypt message if encrypted
+        let decryptedContent = message.content;
+        try {
+          const encryptionKey = `group_${message.groupId}`;
+          if (message.content && isEncrypted(message.content)) {
+            decryptedContent = decryptMessage(message.content, encryptionKey);
+            console.log('✅ Message decrypted successfully');
+          }
+        } catch (err) {
+          console.error('❌ Error decrypting group message:', err);
+          decryptedContent = message.content;
+        }
+        
+        // Normalize timestamp
+        const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
+        
+        // Check if this message is for the currently selected group
+        const messageGroupId = message.groupId?.toString() || message.groupId;
+        const selectedGroupId = selectedGroup?._id?.toString() || selectedGroup?.id?.toString() || selectedGroup?._id || selectedGroup?.id;
+        
+        console.log(`🔍 Comparing groupIds: message=${messageGroupId} vs selected=${selectedGroupId}`);
+        
+        if (messageGroupId === selectedGroupId) {
+          const normalizedMessage = { ...message, id: (message._id || message.id), content: decryptedContent, timestamp };
+          setGroupMessages((prev) => {
+            // Avoid duplicate messages using normalized ID
+            const messageId = normalizedMessage.id?.toString();
+            if (prev.some(m => m.id?.toString() === messageId)) {
+              console.log(`⚠️ Message already exists (ID: ${messageId}), skipping duplicate`);
+              return prev;
+            }
+            console.log(`✅ Adding new message to state (ID: ${messageId})`);
+            return [...prev, normalizedMessage];
+          });
+          console.log('📝 Group message added to state');
+        } else {
+          console.log(`⚠️ Message for different group, ignoring`);
+        }
+      };
+      
+      // Register listener for THIS group only
+      socket.on('receive_group_message', handleGroupMessage);
+      console.log(`📡 Listener registered for group messages`);
+      
+      // Ensure user joins group room AFTER fetching messages
+      const joinGroupRoom = () => {
+        if (socket) {
+          const groupId = selectedGroup._id || selectedGroup.id;
+          socket.emit('join_group', groupId);
+          console.log(`👥 Joined group room: group_${groupId}`);
+        }
+      };
+      
+      // Small delay to ensure socket is ready
+      const joinTimer = setTimeout(joinGroupRoom, 100);
+
+      return () => {
+        clearTimeout(joinTimer);
+        // Remove listener when switching away from this group
+        socket.off('receive_group_message', handleGroupMessage);
+        console.log(`📴 Listener removed for group messages`);
+        if (socket) {
+          const groupId = selectedGroup._id || selectedGroup.id;
+          socket.emit('leave_group', groupId);
+          console.log(`👋 Left group room: group_${groupId}`);
+        }
+      };
+    }
+  }, [selectedGroup, socket]);
+
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, groupMessages]);
+
+  const handleSearch = async (query: string) => {
+    if (query.trim()) {
+      try {
+        const response = await axios.get(`/api/chat/search-friends?q=${query}`);
+        setSearchResults(response.data);
+      } catch (error) {
+        console.error('Error searching friends:', error);
+      }
+    } else {
+      setSearchResults([]);
     }
   };
 
-  const handleOpenQuery = async (query: SupportQuery) => {
-    setViewingQuery(query);
-    // If the admin replied and user hasn't seen it yet, mark as read
-    if (query.status === "resolved" && !query.isReadByUser) {
+  const handleSendMessage = async () => {
+    if (chatTab === 'groups') {
+      return handleSendGroupMessage();
+    }
+
+    if (!messageInput.trim() || !selectedConversation || !socket || !currentUserId || !currentUser) return;
+
+    const messageContent = messageInput;
+    setMessageInput('');
+    setIsSendingMessage(true);
+
+    try {
+      // Add message immediately to local state for sender (plaintext for display)
+      const localMessage: Message = {
+        _id: Date.now().toString(),
+        sender: {
+          id: currentUserId,
+          name: currentUser.userName,
+          avatar: currentUser.userImage,
+        },
+        content: messageContent,
+        type: 'text',
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, localMessage]);
+
+      // Update lastMessage in conversations for sender
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === selectedConversation.friend.id
+            ? {
+                ...conv,
+                lastMessage: `${currentUser.userName}: ${messageContent}`,
+                lastMessageTime: new Date(),
+              }
+            : conv
+        )
+      );
+
+      // Save message to database (API will encrypt it) and get real _id
+      const apiResponse = await axios.post('/api/chat/messages', {
+        receiverId: selectedConversation.friend.id,
+        content: messageContent,
+        type: 'text',
+      });
+      
+      // Update local message with real MongoDB _id from API response
+      const realMessageId = apiResponse.data._id;
+      setMessages((prev) => {
+        return prev.map((msg) => 
+          msg._id === localMessage._id 
+            ? { ...msg, _id: realMessageId }
+            : msg
+        );
+      });
+      console.log(`✅ Message saved with real ID: ${realMessageId}`);
+
+      // Encrypt message for socket transmission using shared key
+      const sharedKey = generateSharedKey(currentUserId, selectedConversation.friend.id);
+      const encryptedContent = encryptMessage(messageContent, sharedKey);
+
+      // Emit encrypted message through socket for real-time delivery
+      socket.emit('send_message', {
+        senderId: currentUserId,
+        receiverId: selectedConversation.friend.id,
+        senderName: currentUser.userName,
+        content: encryptedContent,
+        type: 'text',
+        timestamp: new Date(),
+      });
+
+      console.log(`📤 Sent encrypted message to ${selectedConversation.friend.id}`);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message');
+      setMessageInput(messageContent); // Restore input on error
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (chatTab === 'groups') {
+      if (!selectedGroup || !socket || !currentUserId || !currentUser) return;
+
+      setSelectedFile(file);
+      setIsUploadingFile(true);
+
       try {
-        await fetch(`/api/queries/${query._id}/read`, { method: "PATCH" });
-        fetchQueries(); // Update list to clear notification badges
-      } catch (err) {
-        console.error("Could not mark as read", err);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('groupId', selectedGroup._id || selectedGroup.id);
+
+        const response = await axios.post('/api/chat/upload', formData);
+
+        const fileMessage: any = {
+          id: Date.now().toString(),
+          sender: { id: currentUserId, name: currentUser.userName },
+          content: `📎 ${file.name}`,
+          type: 'file',
+          timestamp: new Date(),
+          file: {
+            name: file.name,
+            url: response.data.url,
+            size: file.size,
+          },
+        };
+
+        setGroupMessages((prev) => [...prev, fileMessage]);
+        setSelectedFile(null);
+
+        // Save file message to database to get real _id
+        const groupId = selectedGroup._id || selectedGroup.id;
+        const fileDbResponse = await axios.post('/api/chat/group-messages', {
+          groupId,
+          content: `📎 ${file.name}`,
+          type: 'file',
+          fileUrl: response.data.url,
+          fileName: file.name,
+          fileSize: file.size,
+        });
+
+        // Update local message with real MongoDB _id from API response
+        const realFileMessageId = fileDbResponse.data._id;
+        setGroupMessages((prev) => {
+          return prev.map((msg) =>
+            msg.id === fileMessage.id
+              ? { ...msg, id: realFileMessageId, _id: realFileMessageId }
+              : msg
+          );
+        });
+        console.log(`✅ Group file message saved with real ID: ${realFileMessageId}`);
+
+        const encryptionKey = `group_${groupId}`;
+        const encryptedFileName = encryptMessage(file.name, encryptionKey);
+
+        socket.emit('send_group_message', {
+          id: realFileMessageId,
+          groupId,
+          senderId: currentUserId,
+          senderName: currentUser.userName,
+          content: `📎 ${encryptedFileName}`,
+          type: 'file',
+          fileUrl: response.data.url,
+          fileName: encryptedFileName,
+          fileSize: file.size,
+          timestamp: new Date(),
+        });
+
+        console.log(`📤 Sent encrypted file to group ${groupId}`);
+      } catch (error) {
+        console.error('Error uploading file to group:', error);
+        alert('Failed to upload file');
+        setSelectedFile(null);
+      } finally {
+        setIsUploadingFile(false);
+      }
+    } else {
+      if (!selectedConversation || !socket || !currentUserId || !currentUser) return;
+
+      setSelectedFile(file);
+      setIsUploadingFile(true);
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('receiverId', selectedConversation.friend.id);
+
+        const response = await axios.post('/api/chat/upload', formData);
+
+        // Add file message immediately to local state for sender (with temp ID)
+        const fileMessage: Message = {
+          _id: Date.now().toString(),
+          sender: {
+            id: currentUserId,
+            name: currentUser.userName,
+            avatar: currentUser.userImage,
+          },
+          content: `📎 ${file.name}`,
+          type: 'file',
+          timestamp: new Date(),
+          file: {
+            name: file.name,
+            url: response.data.url,
+            size: file.size,
+          },
+        };
+
+        setMessages((prev) => [...prev, fileMessage]);
+        setSelectedFile(null);
+
+        // Save file message to database to get real _id
+        const fileDbResponse = await axios.post('/api/chat/messages', {
+          receiverId: selectedConversation.friend.id,
+          content: `📎 ${file.name}`,
+          type: 'file',
+          fileUrl: response.data.url,
+          fileName: file.name,
+          fileSize: file.size,
+        });
+
+        // Update local message with real MongoDB _id from API response
+        const realFileMessageId = fileDbResponse.data._id;
+        setMessages((prev) => {
+          return prev.map((msg) =>
+            msg._id === fileMessage._id
+              ? { ...msg, _id: realFileMessageId }
+              : msg
+          );
+        });
+        console.log(`✅ File message saved with real ID: ${realFileMessageId}`);
+
+        // Encrypt file metadata for socket transmission
+        const sharedKey = generateSharedKey(currentUserId, selectedConversation.friend.id);
+        const encryptedFileName = encryptMessage(file.name, sharedKey);
+
+        // Emit encrypted file message through socket
+        socket.emit('send_message', {
+          senderId: currentUserId,
+          receiverId: selectedConversation.friend.id,
+          senderName: currentUser.userName,
+          content: `📎 ${encryptedFileName}`,
+          type: 'file',
+          fileUrl: response.data.url,
+          fileName: encryptedFileName,
+          fileSize: file.size,
+          timestamp: new Date(),
+        });
+
+        console.log(`📤 Sent encrypted file to ${selectedConversation.friend.id}`);
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        alert('Failed to upload file');
+        setSelectedFile(null);
+      } finally {
+        setIsUploadingFile(false);
+      }
+    }
+  };
+
+  const handleAddEmoji = (emoji: string) => {
+    setMessageInput((prev) => prev + emoji);
+  };
+
+  const handleSendFriendRequest = async (userId: string) => {
+    try {
+      console.log(`📤 Sending friend request to user: ${userId}`);
+      
+      await axios.post('/api/chat/friend-requests', {
+        receiverId: userId
+      });
+      
+      setSearchQuery('');
+      setSearchResults([]);
+      alert('✅ Friend request sent!');
+      console.log(`✅ Friend request sent successfully`);
+    } catch (error: any) {
+      console.error('❌ Error sending friend request:', error);
+      
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to send friend request';
+      alert(`❌ ${errorMessage}`);
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    if (!socket || !currentUserId) {
+      alert('Socket not connected');
+      return;
+    }
+
+    try {
+      const response = await axios.patch('/api/chat/friend-requests/accept', {
+        requestId,
+        action: 'accept'
+      });
+
+      const { sender, accepter } = response.data;
+
+      // Remove request from pending list
+      setPendingRequests(pendingRequests.filter(r => r._id !== requestId));
+
+      // Emit socket event to notify both users of new conversation
+      socket.emit('friend_request_accepted', {
+        senderId: sender.id,
+        senderName: sender.name,
+        senderImage: sender.image,
+        accepterId: accepter.id,
+        accepterName: accepter.name,
+        accepterImage: accepter.image,
+      });
+
+      console.log(`🤝 Friend request accepted, socket event emitted`);
+      alert('Friend request accepted! New conversation created.');
+    } catch (error) {
+      console.error('Error accepting request:', error);
+      alert('Failed to accept request');
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await axios.patch('/api/chat/friend-requests/accept', {
+        requestId,
+        action: 'reject'
+      });
+      setPendingRequests(pendingRequests.filter(r => r._id !== requestId));
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Failed to reject request');
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedMembers.length === 0) {
+      alert('Please enter group name and select members');
+      return;
+    }
+
+    try {
+      const response = await axios.post('/api/chat/groups', {
+        name: groupName,
+        memberIds: selectedMembers,
+      });
+
+      setGroups((prev) => [response.data, ...prev]);
+      setGroupName('');
+      setSelectedMembers([]);
+      setShowCreateGroup(false);
+      alert('✅ Group created!');
+    } catch (error) {
+      console.error('Error creating group:', error);
+      alert('Failed to create group');
+    }
+  };
+
+  const handleSendGroupMessage = async () => {
+    if (!messageInput.trim() || !selectedGroup || !socket || !currentUserId || !currentUser) {
+      console.warn('❌ Cannot send group message - missing required data');
+      return;
+    }
+
+    const messageContent = messageInput;
+    const groupId = selectedGroup._id || selectedGroup.id;
+    setMessageInput('');
+    setIsSendingMessage(true);
+
+    try {
+      console.log(`📤 Sending message to group: ${groupId}`);
+      
+      // Add message immediately to local state (plaintext for display)
+      const messageId = Date.now().toString();
+      const localMessage: any = {
+        id: messageId,
+        sender: { id: currentUserId, name: currentUser.userName },
+        content: messageContent,
+        type: 'text',
+        timestamp: new Date(),
+      };
+
+      setGroupMessages((prev) => [...prev, localMessage]);
+      console.log('✅ Message added to local state with ID:', messageId);
+
+      // Ensure user is in group room BEFORE saving
+      socket.emit('join_group', groupId);
+      console.log(`👥 Joined group room before sending: group_${groupId}`);
+
+      // Save encrypted message to database
+      await axios.post('/api/chat/group-messages', {
+        groupId,
+        content: messageContent,
+        type: 'text',
+      });
+      console.log('✅ Message saved to database');
+
+      // Encrypt for socket transmission
+      const encryptionKey = `group_${groupId}`;
+      const encryptedContent = encryptMessage(messageContent, encryptionKey);
+      
+      // Send encrypted message through socket
+      socket.emit('send_group_message', {
+        id: messageId,
+        groupId,
+        senderId: currentUserId,
+        senderName: currentUser.userName,
+        content: encryptedContent,
+        type: 'text',
+      });
+
+      console.log(`📤 Sent encrypted group message to room: group_${groupId}`);
+    } catch (error: any) {
+      console.error('Error sending group message:', error);
+      setMessageInput(messageContent);
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleAddMemberToGroup = async (memberId: string) => {
+    if (!selectedGroup) return;
+
+    try {
+      const response = await axios.patch(
+        `/api/chat/groups/${selectedGroup._id || selectedGroup.id}/members`,
+        { action: 'add', memberId }
+      );
+
+      setSelectedGroup(response.data);
+      setGroupMembers(response.data.members || []);
+      alert('✅ Member added!');
+    } catch (error: any) {
+      console.error('Error adding member:', error);
+      alert(error.response?.data?.error || 'Failed to add member');
+    }
+  };
+
+  const handleRemoveMemberFromGroup = async (memberId: string) => {
+    if (!selectedGroup) return;
+
+    try {
+      const response = await axios.patch(
+        `/api/chat/groups/${selectedGroup._id || selectedGroup.id}/members`,
+        { action: 'remove', memberId }
+      );
+
+      setSelectedGroup(response.data);
+      setGroupMembers(response.data.members || []);
+      alert('✅ Member removed!');
+    } catch (error) {
+      console.error('Error removing member:', error);
+      alert('Failed to remove member');
+    }
+  };
+
+  const handleExitGroup = async () => {
+    if (!selectedGroup) return;
+
+    if (confirm('Are you sure you want to exit this group?')) {
+      try {
+        const groupId = selectedGroup._id || selectedGroup.id;
+        console.log(`👋 Exiting group: ${groupId}`);
+        
+        await axios.delete(`/api/chat/groups/${groupId}`);
+        console.log(`✅ API delete successful`);
+        
+        // Leave socket room
+        if (socket) {
+          socket.emit('leave_group', groupId);
+          console.log(`👋 Left socket room: group_${groupId}`);
+        }
+        
+        // Clear UI state
+        setGroups((prev) => {
+          const filtered = prev.filter((g) => (g._id || g.id) !== groupId);
+          console.log(`📋 Updated groups list - remaining: ${filtered.length}`);
+          return filtered;
+        });
+        
+        setGroupMessages([]);
+        setSelectedGroup(null);
+        
+        console.log(`✅ Successfully exited group`);
+        alert('✅ You left the group');
+      } catch (error: any) {
+        console.error('Error exiting group:', error);
+        alert('Failed to exit group: ' + (error.response?.data?.error || error.message));
+      }
+    }
+  };
+
+  const handleDeleteGroupMessage = async (messageId: string) => {
+    if (!messageId) {
+      console.warn('❌ No message ID provided');
+      return;
+    }
+    try {
+      console.log(`🗑️ Deleting group message: ${messageId}`);
+      const response = await axios.delete(`/api/chat/group-messages/${messageId}`);
+      console.log(`✅ Delete API response:`, response.data);
+      
+      // Remove from local state immediately
+      setGroupMessages((prev) => {
+        const filtered = prev.filter((m) => {
+          const mId = (m.id || m._id)?.toString();
+          const targetId = messageId.toString();
+          return mId !== targetId;
+        });
+        console.log(`✅ Group message deleted locally - remaining: ${filtered.length}`);
+        return filtered;
+      });
+
+      // Broadcast deletion to all users in group via socket
+      if (socket && selectedGroup) {
+        const groupId = selectedGroup._id || selectedGroup.id;
+        socket.emit('delete_message', {
+          messageId,
+          conversationId: groupId,
+          type: 'group'
+        });
+        console.log(`📡 Broadcasted message deletion to group: ${groupId}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Error deleting group message:', error.response?.data || error.message);
+      alert('Failed to delete message: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!messageId) {
+      console.warn('❌ No message ID provided');
+      return;
+    }
+    try {
+      console.log(`🗑️ Deleting direct message: ${messageId}`);
+      
+      // Call delete API for direct messages
+      const response = await axios.delete(`/api/chat/messages/${messageId}`);
+      console.log(`✅ Delete API response:`, response.data);
+      
+      // Remove from local state immediately
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m._id !== messageId);
+        console.log(`✅ Direct message deleted - remaining: ${filtered.length}`);
+        return filtered;
+      });
+
+      // Broadcast deletion to conversation partner via socket
+      if (socket && selectedConversation) {
+        socket.emit('delete_message', {
+          messageId,
+          conversationId: selectedConversation.friend.id,
+          type: 'direct'
+        });
+        console.log(`📡 Broadcasted message deletion to: ${selectedConversation.friend.id}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Error deleting direct message:', error.response?.data || error.message);
+      alert('Failed to delete message: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleDeleteAllGroupMessages = async () => {
+    if (!selectedGroup) return;
+
+    if (confirm('Delete all your messages in this group?')) {
+      try {
+        await axios.delete(
+          `/api/chat/group-messages/temp?deleteAll=true&groupId=${selectedGroup._id || selectedGroup.id}`
+        );
+        setGroupMessages((prev) => prev.filter((m) => m.sender.id !== currentUserId && m.sender !== currentUserId));
+        alert('✅ All messages deleted!');
+      } catch (error) {
+        console.error('Error deleting messages:', error);
+        alert('Failed to delete messages');
       }
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ backgroundColor: currentTheme.background }}
+    >
+      {/* Sidebar - Conversations */}
+      <div
+        className="w-80 border-r flex flex-col overflow-hidden"
+        style={{
+          borderColor: currentTheme.border,
+          backgroundColor: currentTheme.surface,
+        }}
+      >
+        {/* Header */}
+        <div className="p-4 border-b shrink-0" style={{ borderColor: currentTheme.border }}>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold" style={{ color: currentTheme.text }}>
+              Messages
+            </h1>
+            {pendingRequests.length > 0 && (
+              <button
+                onClick={() => setShowRequests(!showRequests)}
+                className="relative px-3 py-1 rounded-lg text-sm font-semibold transition"
+                style={{
+                  backgroundColor: currentTheme.primary,
+                  color: 'white'
+                }}
+              >
+                Requests ({pendingRequests.length})
+              </button>
+            )}
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Submit Form */}
-        <div className="p-6 rounded-2xl border h-fit" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ color: currentTheme.text }}>
-            <MessageSquare className="w-5 h-5" style={{ color: currentTheme.primary }} />
-            New Support Ticket
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input 
-              value={subject} 
-              onChange={e => setSubject(e.target.value)} 
-              placeholder="What do you need help with?" 
-              className="w-full p-3 rounded-xl border bg-transparent outline-none focus:ring-1" 
-              style={{ borderColor: currentTheme.border, color: currentTheme.text, "--tw-ring-color": currentTheme.primary } as any} 
-              required 
-            />
-            <textarea 
-              value={message} 
-              onChange={e => setMessage(e.target.value)} 
-              placeholder="Please provide details so we can assist you better..." 
-              rows={5} 
-              className="w-full p-3 rounded-xl border bg-transparent resize-none outline-none focus:ring-1" 
-              style={{ borderColor: currentTheme.border, color: currentTheme.text, "--tw-ring-color": currentTheme.primary } as any} 
-              required 
-            />
-            <button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50" 
-              style={{ backgroundColor: currentTheme.primary }}
+          {/* Tabs */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setChatTab('direct')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                chatTab === 'direct'
+                  ? 'text-white'
+                  : ''
+              }`}
+              style={{
+                backgroundColor: chatTab === 'direct' ? currentTheme.primary : currentTheme.input,
+                color: chatTab === 'direct' ? 'white' : currentTheme.text,
+              }}
             >
-              {isSubmitting ? "Sending..." : <><Send className="w-4 h-4" /> Submit Ticket</>}
+              Direct
             </button>
-          </form>
+            <button
+              onClick={() => setChatTab('groups')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                chatTab === 'groups'
+                  ? 'text-white'
+                  : ''
+              }`}
+              style={{
+                backgroundColor: chatTab === 'groups' ? currentTheme.primary : currentTheme.input,
+                color: chatTab === 'groups' ? 'white' : currentTheme.text,
+              }}
+            >
+              Groups
+            </button>
+            {chatTab === 'groups' && (
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="ml-auto px-3 py-2 rounded-lg text-sm font-semibold transition"
+                style={{
+                  backgroundColor: currentTheme.primary,
+                  color: 'white'
+                }}
+              >
+                + New Group
+              </button>
+            )}
+          </div>
+
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search friends..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                handleSearch(e.target.value);
+              }}
+              onFocus={() => setShowSearch(true)}
+              className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2"
+              style={{
+                backgroundColor: currentTheme.input,
+                borderColor: currentTheme.border,
+                color: currentTheme.text,
+              }}
+            />
+            <Search
+              size={18}
+              className="absolute right-3 top-2.5"
+              style={{ color: currentTheme.textSecondary }}
+            />
+          </div>
+
+          {/* Search Results */}
+          {showSearch && searchResults.length > 0 && (
+            <div
+              className="absolute top-32 left-0 right-0 bg-white border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto"
+              style={{
+                backgroundColor: currentTheme.surface,
+                borderColor: currentTheme.border,
+              }}
+            >
+              {searchResults.map((user: any) => (
+                <div
+                  key={user.id}
+                  className="p-3 hover:bg-opacity-50 cursor-pointer border-b flex items-center justify-between"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    borderColor: currentTheme.border,
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <User size={20} style={{ color: currentTheme.primary }} />
+                    <span style={{ color: currentTheme.text }}>{user.name}</span>
+                  </div>
+                  <Plus
+                    size={20}
+                    className="cursor-pointer hover:opacity-70"
+                    style={{ color: currentTheme.primary }}
+                    onClick={() => handleSendFriendRequest(user.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pending Friend Requests */}
+          {showRequests && pendingRequests.length > 0 && (
+            <div
+              className="absolute top-32 left-0 right-0 bg-white border rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto"
+              style={{
+                backgroundColor: currentTheme.surface,
+                borderColor: currentTheme.border,
+              }}
+            >
+              <div className="p-3 font-semibold" style={{ color: currentTheme.text }}>
+                Friend Requests
+              </div>
+              {pendingRequests.map((request: any) => (
+                <div
+                  key={request._id}
+                  className="p-3 border-b"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    borderColor: currentTheme.border,
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {request.sender.userImage ? (
+                        <img
+                          src={request.sender.userImage}
+                          alt={request.sender.userName}
+                          className="w-8 h-8 rounded-full"
+                        />
+                      ) : (
+                        <User size={20} style={{ color: currentTheme.primary }} />
+                      )}
+                      <span style={{ color: currentTheme.text }}>{request.sender.userName}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAcceptRequest(request._id)}
+                        className="px-2 py-1 text-xs rounded bg-green-500 text-white hover:bg-green-600 transition"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(request._id)}
+                        className="px-2 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600 transition"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* History List */}
-        <div className="space-y-4">
-          <h2 className="font-bold text-sm uppercase tracking-widest opacity-40" style={{ color: currentTheme.text }}>Ticket History</h2>
-          <div className="space-y-3">
-            {queries.length > 0 ? (
-              queries.map(q => (
-                <div 
-                  key={q._id} 
-                  onClick={() => handleOpenQuery(q)} 
-                  className="p-4 rounded-xl border cursor-pointer hover:scale-[1.01] transition-all group" 
-                  style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+        {/* Conversations List */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {chatTab === 'direct' ? (
+            conversations.length === 0 ? (
+              <div className="p-8 text-center" style={{ color: currentTheme.textSecondary }}>
+                <p>No conversations yet</p>
+                <p className="text-sm mt-2">Search and add friends to start chatting</p>
+              </div>
+            ) : (
+              conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className="p-3 border-b cursor-pointer hover:bg-opacity-50 transition"
+                  style={{
+                    backgroundColor:
+                      selectedConversation?.id === conversation.id
+                        ? currentTheme.primary
+                        : currentTheme.surface,
+                    borderColor: currentTheme.border,
+                    color:
+                      selectedConversation?.id === conversation.id
+                        ? 'white'
+                        : currentTheme.text,
+                  }}
+                  onClick={() => {
+                    setSelectedConversation(conversation);
+                    setSelectedGroup(null);
+                  }}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-sm group-hover:underline" style={{ color: currentTheme.text }}>{q.subject}</h3>
-                    <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase ${q.status === 'pending' ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500'}`}>
-                      {q.status}
-                    </span>
-                  </div>
-                  <p className="text-xs opacity-60 truncate mb-2" style={{ color: currentTheme.textSecondary }}>{q.message}</p>
-                  <div className="flex items-center gap-2 opacity-40 text-[10px] font-bold">
-                    <Clock className="w-3 h-3" />
-                    {new Date(q.createdAt).toLocaleDateString()}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{
+                          backgroundColor:
+                            conversation.friend.status === 'online'
+                              ? '#10b981'
+                              : '#6b7280',
+                        }}
+                      >
+                        {conversation.friend.avatar ? (
+                          <img
+                            src={conversation.friend.avatar}
+                            alt={conversation.friend.name}
+                            className="w-full h-full rounded-full"
+                          />
+                        ) : (
+                          <User size={20} style={{ color: 'white' }} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold">{conversation.friend.name}</p>
+                        <p className="text-sm opacity-75 truncate">
+                          {conversation.lastMessage}
+                        </p>
+                      </div>
+                    </div>
+                    {conversation.unreadCount > 0 && (
+                      <div
+                        className="px-2 py-1 rounded-full text-xs font-bold"
+                        style={{ backgroundColor: currentTheme.primary, color: 'white' }}
+                      >
+                        {conversation.unreadCount}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
-            ) : (
-              <div className="py-12 text-center border-2 border-dashed rounded-2xl opacity-30" style={{ borderColor: currentTheme.border }}>
-                <p style={{ color: currentTheme.textSecondary }}>No tickets found.</p>
+            )
+          ) : (
+            groups.length === 0 ? (
+              <div className="p-8 text-center" style={{ color: currentTheme.textSecondary }}>
+                <p>No groups yet</p>
+                <p className="text-sm mt-2">Create a new group to start chatting</p>
               </div>
-            )}
-          </div>
+            ) : (
+              groups.map((group) => (
+                <div
+                  key={group._id || group.id}
+                  className="p-3 border-b cursor-pointer hover:bg-opacity-50 transition"
+                  style={{
+                    backgroundColor:
+                      selectedGroup?._id === group._id || selectedGroup?.id === group.id
+                        ? currentTheme.primary
+                        : currentTheme.surface,
+                    borderColor: currentTheme.border,
+                    color:
+                      selectedGroup?._id === group._id || selectedGroup?.id === group.id
+                        ? 'white'
+                        : currentTheme.text,
+                  }}
+                  onClick={() => {
+                    setSelectedGroup(group);
+                    setSelectedConversation(null);
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: currentTheme.primary }}
+                      >
+                        <User size={20} style={{ color: 'white' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold">{group.name}</p>
+                        <p className="text-sm opacity-75">
+                          {group.members?.length || 0} members
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )
+          )}
         </div>
       </div>
 
-      {/* 3. Reply Modal */}
-      <AnimatePresence>
-        {viewingQuery && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              onClick={() => setViewingQuery(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
-              animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-lg rounded-2xl p-6 relative z-10 shadow-2xl" 
-              style={{ backgroundColor: currentTheme.surface, border: `1px solid ${currentTheme.border}` }}
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {selectedConversation || selectedGroup ? (
+          <>
+            {/* Chat Header */}
+            <div
+              className="p-4 border-b flex items-center justify-between shrink-0"
+              style={{
+                backgroundColor: currentTheme.surface,
+                borderColor: currentTheme.border,
+              }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-2">
-                   <ShieldCheck className="w-5 h-5 text-blue-500" />
-                   <h2 className="font-bold text-lg" style={{ color: currentTheme.text }}>Ticket Details</h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: selectedGroup ? currentTheme.primary : '#3b82f6' }}>
+                  {selectedConversation && selectedConversation.friend.avatar ? (
+                    <img
+                      src={selectedConversation.friend.avatar}
+                      alt={selectedConversation.friend.name}
+                      className="w-full h-full rounded-full"
+                    />
+                  ) : (
+                    <User size={20} style={{ color: 'white' }} />
+                  )}
                 </div>
-                <X className="cursor-pointer opacity-50 hover:opacity-100 transition-opacity" onClick={() => setViewingQuery(null)} style={{ color: currentTheme.text }} />
-              </div>
-              
-              <div className="space-y-6">
                 <div>
-                  <span className="text-[10px] uppercase font-black opacity-40" style={{ color: currentTheme.text }}>Your Message</span>
-                  <div className="p-4 rounded-xl mt-1 text-sm bg-black/5 border border-black/5" style={{ color: currentTheme.text }}>
-                    <p className="font-bold mb-1">{viewingQuery.subject}</p>
-                    {viewingQuery.message}
-                  </div>
+                  <p className="font-semibold" style={{ color: currentTheme.text }}>
+                    {selectedConversation ? selectedConversation.friend.name : selectedGroup?.name}
+                  </p>
+                  <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                    {selectedConversation ? (
+                      userStatuses.get(selectedConversation.friend.id) === 'online'
+                        ? '🟢 Online'
+                        : '🔴 Offline'
+                    ) : (
+                      `👥 ${selectedGroup?.members?.length || 0} members`
+                    )}
+                  </p>
                 </div>
+              </div>
+              <div className="flex gap-2">
+                {selectedGroup && (
+                  <>
+                    <button
+                      onClick={() => setShowAddMember(true)}
+                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                      style={{ color: currentTheme.primary }}
+                      title="Add member"
+                    >
+                      ➕
+                    </button>
+                    <button
+                      onClick={handleExitGroup}
+                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                      style={{ color: '#ef4444' }}
+                      title="Exit group"
+                    >
+                      👋
+                    </button>
+                    <button
+                      onClick={handleDeleteAllGroupMessages}
+                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                      style={{ color: '#f97316' }}
+                      title="Delete all your messages"
+                    >
+                      🗑️ All
+                    </button>
+                  </>
+                )}
+                <X
+                  size={24}
+                  className="cursor-pointer hover:opacity-70"
+                  style={{ color: currentTheme.text }}
+                  onClick={() => {
+                    setSelectedConversation(null);
+                    setSelectedGroup(null);
+                  }}
+                />
+              </div>
+            </div>
 
-                {/* --- THIS SHOWS THE ADMIN REPLY --- */}
-                {viewingQuery.adminReply ? (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <span className="text-[10px] uppercase font-black text-green-500">Official Response</span>
-                    <div className="p-4 rounded-xl mt-1 text-sm bg-green-500/5 border border-green-500/20 shadow-inner" style={{ color: currentTheme.text }}>
-                      {viewingQuery.adminReply}
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: currentTheme.background }}>
+              {(chatTab === 'direct' && !selectedConversation) || (chatTab === 'groups' && !selectedGroup) ? (
+                <div className="flex items-center justify-center h-full" style={{ color: currentTheme.textSecondary }}>
+                  <p className="text-center">
+                    <span className="text-lg mb-2">
+                      {chatTab === 'direct' ? 'Select a conversation' : 'Select a group'}
+                    </span>
+                    <span className="text-sm">👈 Choose from the list to start chatting</span>
+                  </p>
+                </div>
+              ) : (chatTab === 'direct' ? messages : groupMessages).length === 0 ? (
+                <div className="flex items-center justify-center h-full" style={{ color: currentTheme.textSecondary }}>
+                  <p className="text-center">
+                    <span className="text-lg mb-2">No messages yet</span>
+                    <span className="text-sm">Start the conversation! 💬</span>
+                  </p>
+                </div>
+              ) : (
+                (chatTab === 'direct' ? messages : groupMessages).map((message) => {
+                  const senderId = typeof message.sender === 'string' ? message.sender : (message.sender?.id);
+                  const isFromCurrentUser = senderId === currentUserId;
+                  return (
+                  <div
+                    key={message.id || message._id}
+                    className={`flex ${
+                      isFromCurrentUser ? 'justify-end group' : 'justify-start'
+                    }`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-md transform transition relative ${
+                        isFromCurrentUser
+                          ? 'rounded-br-none bg-blue-500 text-white'
+                          : 'rounded-bl-none'
+                      }`}
+                      style={
+                        !isFromCurrentUser
+                          ? {
+                              backgroundColor: currentTheme.input,
+                              color: currentTheme.text,
+                            }
+                          : undefined
+                      }
+                    >
+                      {chatTab === 'groups' && message.sender?.name && (
+                        <p className="text-xs font-semibold opacity-75 mb-1">{message.sender.name}</p>
+                      )}
+                      {message.type === 'file' && message.file ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold">📎 {message.file.name}</p>
+                          <p className="text-xs opacity-75">
+                            {(message.file.size / 1024).toFixed(2)} KB
+                          </p>
+                          <a
+                            href={message.file.url}
+                            download
+                            className="inline-block text-xs font-semibold underline hover:opacity-80 transition"
+                          >
+                            📥 Download
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="whitespace-normal break-all">{message.content}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs opacity-60">
+                          {new Date(message.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                        {isFromCurrentUser && (
+                          <button
+                            onClick={() => {
+                              if (chatTab === 'direct') {
+                                handleDeleteMessage(message._id);
+                              } else {
+                                handleDeleteGroupMessage(message._id);
+                              }
+                            }}
+                            className="text-xs opacity-60 hover:opacity-100 hover:text-red-500 transition"
+                            title="Delete message"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </motion.div>
-                ) : (
-                  <div className="flex items-center gap-2 p-4 rounded-xl bg-orange-500/5 border border-orange-500/10">
-                    <Clock className="w-4 h-4 text-orange-500" />
-                    <p className="text-xs font-medium text-orange-500/80">Our team is currently reviewing your request.</p>
+                  </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input Area */}
+            {((chatTab === 'direct' && selectedConversation) || (chatTab === 'groups' && selectedGroup)) && (
+            <div
+              className="p-4 border-t space-y-2 shrink-0"
+              style={{
+                backgroundColor: currentTheme.surface,
+                borderColor: currentTheme.border,
+              }}
+            >
+              {/* File Preview */}
+              {selectedFile && (
+                <div
+                  className="p-2 rounded-lg flex items-center justify-between text-sm"
+                  style={{
+                    backgroundColor: currentTheme.input,
+                    borderColor: currentTheme.border,
+                  }}
+                >
+                  <div className="flex items-center gap-2" style={{ color: currentTheme.text }}>
+                    <span>📎</span>
+                    <span className="truncate">{selectedFile.name}</span>
+                    <span className="text-xs opacity-70">
+                      ({(selectedFile.size / 1024).toFixed(2)} KB)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <label
+                  className={`cursor-pointer p-2 rounded-lg transition ${
+                    isUploadingFile ? 'opacity-50' : 'opacity-70 hover:opacity-100'
+                  }`}
+                  style={{ color: currentTheme.primary }}
+                >
+                  <Paperclip size={20} />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                      e.target.value = '';
+                    }}
+                    disabled={isUploadingFile}
+                  />
+                </label>
+
+                <button
+                  className="opacity-70 hover:opacity-100 p-2 rounded-lg transition"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  style={{ color: currentTheme.primary }}
+                >
+                  <Smile size={20} />
+                </button>
+
+                {showEmojiPicker && (
+                  <div
+                    className="absolute bottom-24 left-4 p-4 rounded-lg shadow-lg grid grid-cols-6 gap-2 z-10"
+                    style={{ backgroundColor: currentTheme.surface, border: `1px solid ${currentTheme.border}` }}
+                  >
+                    {['😀', '😂', '❤️', '👍', '🔥', '✨', '🎉', '😍', '🚀', '💯'].map(
+                      (emoji) => (
+                        <button
+                          key={emoji}
+                          className="text-2xl hover:scale-110 transition"
+                          onClick={() => {
+                            handleAddEmoji(emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
+
+                <input
+                  type="text"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder="Type a message..."
+                  disabled={isSendingMessage || isUploadingFile}
+                  className="flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 transition disabled:opacity-50"
+                  style={{
+                    backgroundColor: currentTheme.input,
+                    borderColor: currentTheme.border,
+                    color: currentTheme.text,
+                  }}
+                />
+
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isSendingMessage || isUploadingFile || !messageInput.trim()}
+                  className="p-2 rounded-lg hover:opacity-80 transition font-semibold disabled:opacity-50"
+                  style={{ backgroundColor: currentTheme.primary, color: 'white' }}
+                >
+                  {isSendingMessage ? '⏳' : <Send size={20} />}
+                </button>
               </div>
-              
-              <button 
-                onClick={() => setViewingQuery(null)}
-                className="w-full mt-8 py-3 rounded-xl font-bold opacity-70 hover:opacity-100 transition-opacity"
-                style={{ backgroundColor: currentTheme.background, color: currentTheme.text, border: `1px solid ${currentTheme.border}` }}
-              >
-                Close
-              </button>
-            </motion.div>
+            </div>
+            )}
+          </>
+        ) : (
+          <div
+            className="flex-1 flex items-center justify-center"
+            style={{ color: currentTheme.textSecondary }}
+          >
+            <div className="text-center">
+              <Send size={48} className="mx-auto mb-4 opacity-50" />
+              <p className="text-lg">Select a conversation to continue</p>
+              <p className="text-sm mt-2">Search for friends to start a new chat</p>
+            </div>
           </div>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="bg-white rounded-lg shadow-xl w-96 p-6 max-h-96 overflow-y-auto"
+            style={{ backgroundColor: currentTheme.surface }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold" style={{ color: currentTheme.text }}>
+                Create New Group
+              </h2>
+              <button
+                onClick={() => setShowCreateGroup(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Group Name Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+                Group Name
+              </label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Enter group name"
+                className="w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2"
+                style={{
+                  backgroundColor: currentTheme.input,
+                  borderColor: currentTheme.border,
+                  color: currentTheme.text,
+                }}
+              />
+            </div>
+
+            {/* Members Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+                Select Members ({selectedMembers.length})
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {conversations.map((conv) => (
+                  <div
+                    key={conv.friend.id}
+                    className="flex items-center p-2 rounded hover:bg-opacity-70 cursor-pointer"
+                    style={{
+                      backgroundColor: selectedMembers.includes(conv.friend.id)
+                        ? currentTheme.primary
+                        : currentTheme.input,
+                    }}
+                    onClick={() => {
+                      if (selectedMembers.includes(conv.friend.id)) {
+                        setSelectedMembers(selectedMembers.filter((id) => id !== conv.friend.id));
+                      } else {
+                        setSelectedMembers([...selectedMembers, conv.friend.id]);
+                      }
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedMembers.includes(conv.friend.id)}
+                      onChange={() => {}}
+                      className="mr-3"
+                    />
+                    <img
+                      src={conv.friend.avatar || 'https://via.placeholder.com/32'}
+                      alt={conv.friend.name}
+                      className="w-8 h-8 rounded-full mr-2"
+                    />
+                    <span
+                      style={{
+                        color: selectedMembers.includes(conv.friend.id)
+                          ? 'white'
+                          : currentTheme.text,
+                      }}
+                    >
+                      {conv.friend.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowCreateGroup(false)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold transition"
+                style={{
+                  backgroundColor: currentTheme.input,
+                  color: currentTheme.text,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGroup}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition hover:opacity-90"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                Create Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member to Group Modal */}
+      {showAddMember && selectedGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="bg-white rounded-lg shadow-xl w-96 p-6 max-h-96 overflow-y-auto"
+            style={{ backgroundColor: currentTheme.surface }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold" style={{ color: currentTheme.text }}>
+                Add Member to {selectedGroup.name}
+              </h2>
+              <button
+                onClick={() => setShowAddMember(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Select Friends Not in Group */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+                Select Friends to Add
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {conversations.map((conv) => {
+                  const alreadyMember = selectedGroup?.members?.some(
+                    (m: any) => m.userId?.toString() === conv.friend.id || m.userId === conv.friend.id
+                  );
+                  return (
+                    <div
+                      key={conv.friend.id}
+                      className={`flex items-center p-2 rounded cursor-pointer ${
+                        alreadyMember ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-70'
+                      }`}
+                      style={{
+                        backgroundColor: selectedMembers.includes(conv.friend.id)
+                          ? currentTheme.primary
+                          : currentTheme.input,
+                      }}
+                      onClick={() => {
+                        if (!alreadyMember) {
+                          if (selectedMembers.includes(conv.friend.id)) {
+                            setSelectedMembers(selectedMembers.filter((id) => id !== conv.friend.id));
+                          } else {
+                            setSelectedMembers([...selectedMembers, conv.friend.id]);
+                          }
+                        }
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMembers.includes(conv.friend.id)}
+                        disabled={alreadyMember}
+                        onChange={() => {}}
+                        className="mr-3"
+                      />
+                      <img
+                        src={conv.friend.avatar || 'https://via.placeholder.com/32'}
+                        alt={conv.friend.name}
+                        className="w-8 h-8 rounded-full mr-2"
+                      />
+                      <span
+                        style={{
+                          color: selectedMembers.includes(conv.friend.id)
+                            ? 'white'
+                            : currentTheme.text,
+                        }}
+                      >
+                        {conv.friend.name}
+                        {alreadyMember && ' (in group)'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setShowAddMember(false);
+                  setSelectedMembers([]);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold transition"
+                style={{
+                  backgroundColor: currentTheme.input,
+                  color: currentTheme.text,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  selectedMembers.forEach((memberId) => handleAddMemberToGroup(memberId));
+                  setShowAddMember(false);
+                  setSelectedMembers([]);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition hover:opacity-90"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                Add Members
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

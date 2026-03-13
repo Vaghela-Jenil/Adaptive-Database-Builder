@@ -14,7 +14,8 @@ import { DatabaseFolder, FieldAttributes } from "@/components/DatabaseBuilder/ty
 import NearByStorePage from "../UserDashboard/pages/NearbyStore";
 import VisitTracker from "@/components/VisitTracker";
 import SharedDatabases from "./pages/SharedDatabase";
-import UserSupport from "./pages/chat-app";
+import UserSupport from "./pages/Query";
+import ChatPage from "./pages/chat-app";
 
 export default function DashboardLayout() {
     const { currentTheme } = useTheme();
@@ -43,6 +44,7 @@ export default function DashboardLayout() {
       case "nearby-stores": return <NearByStorePage />;
       case "share-folder": return <SharedDatabases />;
       case "query" : return <UserSupport/>
+      case "chat" : return <ChatPage />
       case "database":
         return (
           <Database

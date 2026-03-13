@@ -61,6 +61,11 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       label: "Query",
       icon: MessageSquareMore,
     },
+    {
+      id: "chat",
+      label: "Chat",
+      icon: MessageSquare,
+    },
   ]
 
 
