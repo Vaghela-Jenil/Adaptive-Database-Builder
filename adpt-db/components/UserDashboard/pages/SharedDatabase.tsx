@@ -16,6 +16,15 @@ interface ShareDatabase {
     db_Id: string;
 }
 
+type RoleType = "Viewer" | "Editor" | "Admin";
+
+interface EditRoleModalState {
+    friendshipId: string;
+    databaseId?: string;
+    databaseName: string;
+    role: RoleType;
+}
+
 type ActiveTab = "connections" | "requests";
 
 export default function ThemedNetwork() {
@@ -36,14 +45,36 @@ export default function ThemedNetwork() {
     const [dbSearchQuery, setDbSearchQuery] = useState("");
     const [showDbDropdown, setShowDbDropdown] = useState(false);
     const [databases, setDatabases] = useState<ShareDatabase[]>([]);
+    const [editRoleModal, setEditRoleModal] = useState<EditRoleModalState | null>(null);
+    const [updatingRole, setUpdatingRole] = useState(false);
 
     // Real-time notification state
     const prevReceivedCountRef = useRef<number>(0);
     const isInitialLoadRef = useRef(true);
 
-    const filteredDBs: ShareDatabase[] = databases.filter(db =>
-        db.dbname.toLowerCase().includes(dbSearchQuery.toLowerCase())
+    const getMySharedDBs = useCallback((friendship: any) => {
+        if (!friendship) return [];
+        return friendship.requesterId === myId
+            ? (friendship.requesterSharedDBs || [])
+            : (friendship.recipientSharedDBs || []);
+    }, [myId]);
+
+    const alreadySharedById = new Set(
+        getMySharedDBs(shareModalFriend)
+            .map((db: any) => db.databaseId)
+            .filter(Boolean)
     );
+
+    const alreadySharedByName = new Set(
+        getMySharedDBs(shareModalFriend)
+            .map((db: any) => (db.databaseName || "").toLowerCase())
+    );
+
+    const filteredDBs: ShareDatabase[] = databases.filter(db => {
+        const matchesQuery = db.dbname.toLowerCase().includes(dbSearchQuery.toLowerCase());
+        const alreadyShared = alreadySharedById.has(db.db_Id) || alreadySharedByName.has(db.dbname.toLowerCase());
+        return matchesQuery && !alreadyShared;
+    });
 
     const loadNetwork = useCallback(async () => {
         try {
@@ -164,6 +195,16 @@ export default function ThemedNetwork() {
 
     const grantAccess = async () => {
         if (!dbForm.name || !shareModalFriend) return toast.error("Select a database first");
+
+        const alreadyShared = getMySharedDBs(shareModalFriend).some((db: any) =>
+            (db.databaseId && db.databaseId === dbForm.db_id) ||
+            (db.databaseName || "").toLowerCase() === dbForm.name.toLowerCase()
+        );
+
+        if (alreadyShared) {
+            return toast.info("This database is already shared with this connection");
+        }
+
         setLoading(true);
         try {
             await axios.post("/api/network", {
@@ -181,6 +222,26 @@ export default function ThemedNetwork() {
             toast.error("Failed to grant access");
         }
         setLoading(false);
+    };
+
+    const updateSharedRole = async () => {
+        if (!editRoleModal) return;
+        setUpdatingRole(true);
+        try {
+            await axios.post("/api/network", {
+                action: "UPDATE_DB_ROLE",
+                friendshipId: editRoleModal.friendshipId,
+                databaseName: editRoleModal.databaseName,
+                databaseId: editRoleModal.databaseId,
+                role: editRoleModal.role,
+            });
+            toast.success("Role updated");
+            setEditRoleModal(null);
+            loadNetwork();
+        } catch {
+            toast.error("Failed to update role");
+        }
+        setUpdatingRole(false);
     };
 
     const friends = connections.filter(c => c.status === "Accepted");
@@ -251,7 +312,7 @@ export default function ThemedNetwork() {
                                     <div key={user.clerkId} className="flex items-center justify-between px-4 py-3 transition-colors hover:brightness-95" style={{ backgroundColor: currentTheme.surface }}>
                                         <div className="flex items-center gap-3">
                                             {user.imageUrl
-                                                ? <img src={user.imageUrl} className="w-8 h-8 rounded-full object-cover ring-2" style={{ ringColor: currentTheme.border }} alt="" />
+                                                ? <img src={user.imageUrl} className="w-8 h-8 rounded-full object-cover" style={{ border: `2px solid ${currentTheme.border}` }} alt="" />
                                                 : <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: `${currentTheme.primary}20`, color: currentTheme.primary }}>{user.username?.substring(0, 2).toUpperCase()}</div>
                                             }
                                             <div>
@@ -350,7 +411,13 @@ export default function ThemedNetwork() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setShareModalFriend(f); setDbSearchQuery(""); setDbForm({ name: "", db_id: "", role: "Viewer" }); }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShareModalFriend(f);
+                                                    setDbSearchQuery("");
+                                                    setShowDbDropdown(false);
+                                                    setDbForm({ name: "", db_id: "", role: "Viewer" });
+                                                }}
                                                 className="p-2 rounded-lg transition-all active:scale-90"
                                                 style={{ backgroundColor: `${currentTheme.primary}10`, color: currentTheme.primary }}
                                                 title="Share database"
@@ -395,6 +462,19 @@ export default function ThemedNetwork() {
                                                                                     {getRoleIcon(db.role)} {db.role}
                                                                                 </span>
                                                                             </div>
+                                                                            <button
+                                                                                onClick={() => setEditRoleModal({
+                                                                                    friendshipId: f._id,
+                                                                                    databaseId: db.databaseId,
+                                                                                    databaseName: db.databaseName,
+                                                                                    role: (db.role || "Viewer") as RoleType,
+                                                                                })}
+                                                                                className="p-1 rounded-md transition-all hover:scale-110"
+                                                                                style={{ color: currentTheme.textSecondary }}
+                                                                                title="Edit role"
+                                                                            >
+                                                                                <Edit3 size={13} />
+                                                                            </button>
                                                                             <button
                                                                                 onClick={() => removeAccess(f._id, db)}
                                                                                 className="p-1 rounded-md transition-all hover:scale-110"
@@ -592,7 +672,9 @@ export default function ThemedNetwork() {
                                                             {db.dbname}
                                                         </div>
                                                     )) : (
-                                                        <div className="px-3 py-2.5 text-xs" style={{ color: currentTheme.textSecondary }}>No database found</div>
+                                                        <div className="px-3 py-2.5 text-xs" style={{ color: currentTheme.textSecondary }}>
+                                                            No shareable database found
+                                                        </div>
                                                     )}
                                                 </motion.div>
                                             )}
@@ -638,6 +720,82 @@ export default function ThemedNetwork() {
                                     style={{ backgroundColor: currentTheme.primary }}
                                 >
                                     {loading ? "Granting..." : "Grant Access"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* EDIT ROLE MODAL */}
+            <AnimatePresence>
+                {editRoleModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                        onClick={() => setEditRoleModal(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 400 }}
+                            className="w-full max-w-md rounded-2xl shadow-2xl border overflow-hidden"
+                            style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: currentTheme.border }}>
+                                <div>
+                                    <h3 className="text-sm font-bold">Edit Shared Role</h3>
+                                    <p className="text-[11px]" style={{ color: currentTheme.textSecondary }}>
+                                        {editRoleModal.databaseName}
+                                    </p>
+                                </div>
+                                <button onClick={() => setEditRoleModal(null)} className="p-1.5 rounded-lg transition-all" style={{ color: currentTheme.textSecondary }}>
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="p-5">
+                                <label className="text-[10px] font-bold uppercase tracking-widest mb-2 block" style={{ color: currentTheme.textSecondary }}>
+                                    Permission Level
+                                </label>
+                                <div className="flex gap-2">
+                                    {(["Viewer", "Editor", "Admin"] as RoleType[]).map(role => (
+                                        <button
+                                            key={role}
+                                            onClick={() => setEditRoleModal({ ...editRoleModal, role })}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all border"
+                                            style={{
+                                                borderColor: editRoleModal.role === role ? getRoleColor(role) : currentTheme.border,
+                                                backgroundColor: editRoleModal.role === role ? `${getRoleColor(role)}12` : 'transparent',
+                                                color: editRoleModal.role === role ? getRoleColor(role) : currentTheme.textSecondary,
+                                            }}
+                                        >
+                                            {getRoleIcon(role)} {role}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 p-5 pt-0">
+                                <button
+                                    onClick={() => setEditRoleModal(null)}
+                                    className="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all"
+                                    style={{ borderColor: currentTheme.border, color: currentTheme.textSecondary }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={updateSharedRole}
+                                    disabled={updatingRole}
+                                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.97] disabled:opacity-40"
+                                    style={{ backgroundColor: currentTheme.primary }}
+                                >
+                                    {updatingRole ? "Updating..." : "Save Role"}
                                 </button>
                             </div>
                         </motion.div>

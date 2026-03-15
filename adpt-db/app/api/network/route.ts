@@ -81,18 +81,61 @@ export async function POST(req: Request) {
       // 5. SHARE A DATABASE (Update either requester or recipient side)
       case "SHARE_DB":
         const friendshipToUpdate = await Friendship.findById(data.friendshipId);
+        if (!friendshipToUpdate) {
+          return NextResponse.json({ error: "Friendship not found" }, { status: 404 });
+        }
         const fieldToPush = friendshipToUpdate.requesterId === userId
           ? "requesterSharedDBs"
           : "recipientSharedDBs";
+
+        const existingShare = (friendshipToUpdate[fieldToPush] || []).find(
+          (item: any) =>
+            (data.databaseId && item.databaseId === data.databaseId) ||
+            (!data.databaseId && item.databaseName === data.databaseName)
+        );
+
+        if (existingShare) {
+          return NextResponse.json({ success: true, message: "Database already shared" });
+        }
 
         await Friendship.findByIdAndUpdate(data.friendshipId, {
           $push: { [fieldToPush]: {databaseId : data.databaseId, databaseName: data.databaseName, role: data.role } }
         });
         return NextResponse.json({ success: true });
 
+      // 5.1 UPDATE ROLE OF AN ALREADY SHARED DATABASE
+      case "UPDATE_DB_ROLE":
+        if (!["Admin", "Editor", "Viewer"].includes(data.role)) {
+          return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+        }
+
+        const friendshipToEditRole = await Friendship.findById(data.friendshipId);
+        if (!friendshipToEditRole) {
+          return NextResponse.json({ error: "Friendship not found" }, { status: 404 });
+        }
+
+        const fieldToUpdate = friendshipToEditRole.requesterId === userId
+          ? "requesterSharedDBs"
+          : "recipientSharedDBs";
+
+        const arrayFilter = data.databaseId
+          ? { "item.databaseId": data.databaseId }
+          : { "item.databaseName": data.databaseName };
+
+        await Friendship.updateOne(
+          { _id: data.friendshipId },
+          { $set: { [`${fieldToUpdate}.$[item].role`]: data.role } },
+          { arrayFilters: [arrayFilter] }
+        );
+
+        return NextResponse.json({ success: true });
+
       // 6. REVOKE DATABASE ACCESS
       case "REVOKE_DB":
         const friendshipToRevoke = await Friendship.findById(data.friendshipId);
+        if (!friendshipToRevoke) {
+          return NextResponse.json({ error: "Friendship not found" }, { status: 404 });
+        }
         const fieldToPull = friendshipToRevoke.requesterId === userId
           ? "requesterSharedDBs"
           : "recipientSharedDBs";
