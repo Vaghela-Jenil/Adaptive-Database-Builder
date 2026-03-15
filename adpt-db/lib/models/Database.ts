@@ -129,6 +129,8 @@ const DatabaseSchema = new Schema(
 
     hasPassword: { type: Boolean, default: false },
     password: {type : String, default: ""},
+    passwordResetOtpHash: { type: String, default: null },
+    passwordResetOtpExpiresAt: { type: Date, default: null },
     recordCount: { type: Number, default: 0 },
 
     records: {

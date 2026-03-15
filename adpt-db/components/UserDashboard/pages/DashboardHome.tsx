@@ -23,6 +23,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { useRouter } from "next/navigation";
 
 type FilterType = "day" | "week" | "month";
 type ChartPoint = { label: string; visits: number };
@@ -47,6 +48,8 @@ export default function DashboardHome() {
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
   const [chartLoading, setChartLoading] = useState(true);
+
+  const router = useRouter();
 
   // Fetch real dashboard stats
   useEffect(() => {
@@ -133,10 +136,10 @@ export default function DashboardHome() {
   ];
 
   const quickActions = [
-    { label: "Create Database", icon: Database },
-    { label: "New Folder", icon: FolderLock },
-    { label: "Import Data", icon: ArrowUpRight },
-    { label: "View Analytics", icon: TrendingUp },
+    { label: "Create Database", icon: Database, link:'/databases' },
+    { label: "New Folder", icon: FolderLock, link:'/databases' },
+    { label: "Share Data", icon: ArrowUpRight, link:'/share-folder' },
+    { label: "View Analytics", icon: TrendingUp, link:'/analytics' },
   ];
 
   const filters: { label: string; value: FilterType }[] = [

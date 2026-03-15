@@ -54,6 +54,13 @@ export default function Database({
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [passwordError, setPasswordError] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [newDbPassword, setNewDbPassword] = useState("");
+  const [confirmNewDbPassword, setConfirmNewDbPassword] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetInfoMessage, setResetInfoMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sharedDatabases, setSharedDatabases] = useState<DatabaseFolder[]>([]);
   const [isSharedDatbases, setIsSharedDatbases] = useState(false);
@@ -97,8 +104,7 @@ export default function Database({
 
       if (verify.data.verified) {
         onEditDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
-        setPasswordInput("");
-        setPasswordModal(null);
+        resetPasswordModalState();
       } else {
         setPasswordError("Incorrect password");
       }
@@ -117,8 +123,7 @@ export default function Database({
         return;
       }
       await axios.delete(`/api/databases/${id}`);
-      setPasswordInput("");
-      setPasswordModal(null);
+      resetPasswordModalState();
       fetchDatabases();
     } catch (err) {
       throw new Error("Failed to delete database");
@@ -149,8 +154,7 @@ export default function Database({
       if (verify.data.verified) {
         const db = [...databases, ...sharedDatabases].find((db) => db._id === id)!;
         onViewDatabase(db, getSharedRole(id));
-        setPasswordInput("");
-        setPasswordModal(null);
+        resetPasswordModalState();
       } else {
         setPasswordError("Incorrect password!");
       }
@@ -175,6 +179,12 @@ export default function Database({
           fetchDatabases();
         }
       } else {
+        setForgotPasswordMode(false);
+        setOtpInput("");
+        setNewDbPassword("");
+        setConfirmNewDbPassword("");
+        setResetInfoMessage("");
+        setPasswordError("");
         setPasswordModal({ databaseId: id, action: func });
       }
     } catch (err) {
@@ -195,6 +205,84 @@ export default function Database({
       setIsLoading(false);
     }
   }
+
+  const resetPasswordModalState = () => {
+    setPasswordModal(null);
+    setPasswordInput("");
+    setPasswordError("");
+    setShowPassword(false);
+    setForgotPasswordMode(false);
+    setOtpInput("");
+    setNewDbPassword("");
+    setConfirmNewDbPassword("");
+    setResetInfoMessage("");
+    setIsSendingOtp(false);
+    setIsResettingPassword(false);
+  };
+
+  const handleRequestForgotPasswordOtp = async () => {
+    if (!passwordModal?.databaseId) return;
+
+    setIsSendingOtp(true);
+    setPasswordError("");
+    setResetInfoMessage("");
+
+    try {
+      const response = await axios.post(`/api/databases/${passwordModal.databaseId}/forgot-password/send-otp`);
+      setForgotPasswordMode(true);
+      setResetInfoMessage(response.data?.message || "OTP sent. It is valid for 5 minutes.");
+    } catch (error: any) {
+      const message = error?.response?.data?.error || "Failed to send OTP";
+      setPasswordError(message);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleResetDatabasePassword = async () => {
+    if (!passwordModal?.databaseId) return;
+
+    setPasswordError("");
+    setResetInfoMessage("");
+
+    if (!otpInput.trim()) {
+      setPasswordError("Please enter OTP");
+      return;
+    }
+
+    if (newDbPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      return;
+    }
+
+    if (newDbPassword !== confirmNewDbPassword) {
+      setPasswordError("New password and confirm password do not match");
+      return;
+    }
+
+    setIsResettingPassword(true);
+
+    try {
+      const response = await axios.post(`/api/databases/${passwordModal.databaseId}/forgot-password/reset`, {
+        otp: otpInput.trim(),
+        newPassword: newDbPassword,
+      });
+
+      setResetInfoMessage(response.data?.message || "Password reset successfully");
+
+      setForgotPasswordMode(false);
+      setOtpInput("");
+      setNewDbPassword("");
+      setConfirmNewDbPassword("");
+
+      await fetchDatabases();
+    } catch (error: any) {
+      const message = error?.response?.data?.error || "Failed to reset password";
+      setPasswordError(message);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   const fetchShared = async () => {
     try {
@@ -709,69 +797,148 @@ export default function Database({
             }}
           >
             <h2 className="text-lg font-semibold mb-4" style={{ color: currentTheme.text, }}>
-              Enter Database Password
+              {forgotPasswordMode ? "Reset Database Password" : "Enter Database Password"}
             </h2>
 
-            <div className="relative mb-3">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-3 py-2 pr-10 rounded-lg outline-none transition"
-                style={{
-                  backgroundColor: currentTheme.background,
-                  border: `1px solid ${currentTheme.border}`,
-                  color: currentTheme.text,
-                }}
-                placeholder="Enter password"
-                autoFocus
-              />
+            {!forgotPasswordMode ? (
+              <>
+                <div className="relative mb-3">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 rounded-lg outline-none transition"
+                    style={{
+                      backgroundColor: currentTheme.background,
+                      border: `1px solid ${currentTheme.border}`,
+                      color: currentTheme.text,
+                    }}
+                    placeholder="Enter password"
+                    autoFocus
+                  />
 
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
-                style={{ color: currentTheme.textSecondary }}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
+                    style={{ color: currentTheme.textSecondary }}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="mb-3 text-right">
+                  <button
+                    type="button"
+                    className="text-sm font-medium underline"
+                    style={{ color: currentTheme.primary }}
+                    disabled={isSendingOtp}
+                    onClick={handleRequestForgotPasswordOtp}
+                  >
+                    {isSendingOtp ? "Sending OTP..." : "Forgot Password?"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 mb-3">
+                <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                  Enter OTP sent to your Gmail. OTP is valid for 5 minutes.
+                </p>
+
+                <Input
+                  type="text"
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value)}
+                  placeholder="Enter 6-digit OTP"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    border: `1px solid ${currentTheme.border}`,
+                    color: currentTheme.text,
+                  }}
+                />
+
+                <Input
+                  type="password"
+                  value={newDbPassword}
+                  onChange={(e) => setNewDbPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    border: `1px solid ${currentTheme.border}`,
+                    color: currentTheme.text,
+                  }}
+                />
+
+                <Input
+                  type="password"
+                  value={confirmNewDbPassword}
+                  onChange={(e) => setConfirmNewDbPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    border: `1px solid ${currentTheme.border}`,
+                    color: currentTheme.text,
+                  }}
+                />
+
+                <div className="flex justify-between items-center">
+                  <button
+                    type="button"
+                    className="text-sm font-medium underline"
+                    style={{ color: currentTheme.primary }}
+                    disabled={isSendingOtp}
+                    onClick={handleRequestForgotPasswordOtp}
+                  >
+                    {isSendingOtp ? "Sending..." : "Resend OTP"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {passwordError && (
               <p className="text-red-500 text-sm mb-3">{passwordError}</p>
             )}
 
+            {resetInfoMessage && (
+              <p className="text-emerald-500 text-sm mb-3">{resetInfoMessage}</p>
+            )}
+
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => {
-                  setPasswordModal(null);
-                  setPasswordInput("");
-                  setPasswordError("");
-                  setShowPassword(false);
-                }}
+                onClick={resetPasswordModalState}
                 className="px-4 py-2 rounded-lg"
                 style={{ border: `1px solid ${currentTheme.border}`, color: currentTheme.text }}
               >
                 Cancel
               </button>
 
-              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white"
-                onClick={() => {
-                  if (passwordModal.action === "view") {
-                    handleViewDatabase(passwordModal.databaseId);
-                  } else if (passwordModal.action === "edit") {
-                    handleEditDatabase(passwordModal.databaseId);
-                  } else if (passwordModal.action === "delete") {
-                    handleDeleteDatabase(passwordModal.databaseId);
-                  }
-                }}
-              >
-                {passwordModal.action} Database
-              </button>
+              {!forgotPasswordMode ? (
+                <button className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+                  onClick={() => {
+                    if (passwordModal.action === "view") {
+                      handleViewDatabase(passwordModal.databaseId);
+                    } else if (passwordModal.action === "edit") {
+                      handleEditDatabase(passwordModal.databaseId);
+                    } else if (passwordModal.action === "delete") {
+                      handleDeleteDatabase(passwordModal.databaseId);
+                    }
+                  }}
+                >
+                  {passwordModal.action} Database
+                </button>
+              ) : (
+                <button
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-60"
+                  disabled={isResettingPassword}
+                  onClick={handleResetDatabasePassword}
+                >
+                  {isResettingPassword ? "Resetting..." : "Reset Password"}
+                </button>
+              )}
             </div>
           </div>
         </div>

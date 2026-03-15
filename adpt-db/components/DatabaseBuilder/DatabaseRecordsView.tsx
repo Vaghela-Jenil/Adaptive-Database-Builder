@@ -242,8 +242,14 @@ export default function DatabaseRecordsView({
         setOutOfStockItems(res.data.outOfStockItems || []);
         setGeneratedInvoices(res.data.generatedInvoices || []);
         setStockDataLoaded(true);
-      } catch (err) {
-        console.error('Failed to load stock management data:', err);
+      } catch (err: any) {
+        // Silently handle 404 errors (endpoint doesn't exist for this database)
+        if (err?.response?.status !== 404) {
+          console.warn('Stock management data unavailable');
+        }
+        // Initialize with empty arrays
+        setOutOfStockItems([]);
+        setGeneratedInvoices([]);
         setStockDataLoaded(true);
       }
     };
@@ -259,8 +265,11 @@ export default function DatabaseRecordsView({
           outOfStockItems,
           generatedInvoices,
         });
-      } catch (err) {
-        console.error('Failed to save stock management data:', err);
+      } catch (err: any) {
+        // Silently handle 404 errors (endpoint doesn't exist)
+        if (err?.response?.status !== 404) {
+          console.warn('Could not save stock management data');
+        }
       }
     };
     saveStockData();
@@ -1128,12 +1137,18 @@ export default function DatabaseRecordsView({
 
         showToast.success("Computed column created successfully!");
       }
-    } catch (error) {
-      console.error("Error creating computed column:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create computed column";
-      showToast.error(errorMessage);
-      throw new Error(errorMessage);
+    } catch (error: any) {
+      // Silently handle 404 errors for shared databases that don't support computed columns
+      if (error?.response?.status !== 404) {
+        console.error("Error creating computed column:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to create computed column";
+        showToast.error(errorMessage);
+        throw new Error(errorMessage);
+      } else {
+        console.warn("Computed columns not available for this database type");
+        showToast.warning("Computed columns feature is not available for this database type");
+      }
     } finally {
       setIsComputingColumns(false);
     }
@@ -1455,6 +1470,7 @@ export default function DatabaseRecordsView({
             {showAnalytics ? "Hide Analytics" : "Analytics"}
           </Button>
           {/* Export Button */}
+          {!isViewer && (
           <Button
             variant="outline"
             onClick={handleExportCSV}
@@ -1466,6 +1482,7 @@ export default function DatabaseRecordsView({
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
+          )}
 
           {/* Import Button */}
           {canEdit && (
@@ -2149,7 +2166,7 @@ export default function DatabaseRecordsView({
                 }}
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Add Column
+                custom Column
               </Button>
             </div> 
           <Button

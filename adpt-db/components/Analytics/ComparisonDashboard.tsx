@@ -12,11 +12,17 @@ import {
   RefreshCw,
   Database,
   TrendingUp,
+  TrendingDown,
   Grid3x3,
   NotebookTabs,
   Calculator,
   Maximize2,
   Layers,
+  PieChartIcon,
+  Zap,
+  RadarIcon,
+  Shuffle,
+  Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -123,17 +129,17 @@ const DB_COLORS = [
   '#f97316', '#8b5cf6', '#ef4444', '#14b8a6', '#a855f7',
 ];
 
-const CHART_TYPES: { value: ChartType; label: string; icon: string }[] = [
-  { value: 'bar', label: 'Bar', icon: '📊' },
-  { value: 'line', label: 'Line', icon: '📈' },
-  { value: 'area', label: 'Area', icon: '📉' },
-  { value: 'pie', label: 'Pie', icon: '🥧' },
-  { value: 'doughnut', label: 'Doughnut', icon: '🍩' },
-  { value: 'scatter', label: 'Scatter', icon: '⭐' },
-  { value: 'radar', label: 'Radar', icon: '🎯' },
-  { value: 'stackedBar', label: 'Stacked', icon: '📚' },
-  { value: 'composed', label: 'Composed', icon: '🔀' },
-  { value: 'horizontalBar', label: 'H-Bar', icon: '📏' },
+const CHART_TYPES: { value: ChartType; label: string }[] = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'line', label: 'Line' },
+  { value: 'area', label: 'Area' },
+  { value: 'pie', label: 'Pie' },
+  { value: 'doughnut', label: 'Doughnut' },
+  { value: 'scatter', label: 'Scatter' },
+  { value: 'radar', label: 'Radar' },
+  { value: 'stackedBar', label: 'Stacked' },
+  { value: 'composed', label: 'Composed' },
+  { value: 'horizontalBar', label: 'H-Bar' },
 ];
 
 const AGG_OPERATIONS: { value: AggOperation; label: string }[] = [
@@ -152,6 +158,19 @@ const AGG_ICONS: Record<AggOperation, typeof Calculator> = {
   max: Layers,
   count: Grid3x3,
   median: TrendingUp,
+};
+
+const CHART_ICONS: Record<ChartType, typeof BarChart3> = {
+  bar: BarChart3,
+  line: TrendingUp,
+  area: TrendingDown,
+  pie: PieChartIcon,
+  doughnut: PieChartIcon,
+  scatter: Zap,
+  radar: RadarIcon,
+  stackedBar: Layers,
+  composed: Shuffle,
+  horizontalBar: Minus,
 };
 
 /* ─── Utilities ────────────────────────────────────── */
@@ -1295,7 +1314,12 @@ export default function ComparisonDashboard({
                                   : currentTheme.border,
                             }}
                           >
-                            <div className="text-xl mb-0.5">{ct.icon}</div>
+                            <div className="text-xl mb-0.5">
+                              {(() => {
+                                const IconComponent = CHART_ICONS[ct.value as ChartType];
+                                return IconComponent ? <IconComponent size={24} className="mx-auto" /> : null;
+                              })()}
+                            </div>
                             <div
                               className="text-[10px] font-semibold"
                               style={{

@@ -2,7 +2,7 @@
 import { motion } from 'motion/react';
 import { useInView } from 'motion/react';
 import { useRef } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Check } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export default function DarkCTA() {
@@ -106,7 +106,14 @@ export default function DarkCTA() {
                 animate={isInView ? { opacity: 1 } : { opacity: 0 }}
                 transition={{ delay: 0.6, duration: 0.8 }}
               >
-                ✓ Free 14-day trial  •  ✓ No credit card  •  ✓ Cancel anytime
+                <div className="flex items-center gap-3 text-slate-500">
+                  <Check size={16} className="text-cyan-400 shrink-0" />
+                  Free 14-day trial  •
+                  <Check size={16} className="text-cyan-400 shrink-0 ml-3" />
+                  No credit card  •
+                  <Check size={16} className="text-cyan-400 shrink-0 ml-3" />
+                  Cancel anytime
+                </div>
               </motion.p>
             </div>
 

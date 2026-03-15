@@ -33,20 +33,20 @@ app.prepare().then(() => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`🔌 Socket connected: ${socket.id}`);
+    console.log(`Socket connected: ${socket.id}`);
 
     // ============== USER CONNECTION ==============
     socket.on('user_connect', (userId) => {
       if (!userId) {
-        console.error('❌ No userId in user_connect');
+        console.error('No userId in user_connect');
         return;
       }
 
       userSockets.set(userId, socket.id);
       userStatus.set(userId, 'online');
 
-      console.log(`✅ User ${userId} connected with socket ${socket.id}`);
-      console.log(`📊 Active users: ${userSockets.size}`);
+      console.log(`User ${userId} connected with socket ${socket.id}`);
+      console.log(`Active users: ${userSockets.size}`);
 
       io.emit('user_online', {
         userId,
@@ -59,7 +59,7 @@ app.prepare().then(() => {
     socket.on('send_message', (data) => {
       try {
         const { senderId, receiverId, content, type, senderName } = data;
-        console.log(`📨 Message from ${senderId} to ${receiverId} (encrypted: ${content.startsWith('ENC.') ? '✅' : '❌'})`);
+        console.log(`[MAIL] Message from ${senderId} to ${receiverId} (encrypted: ${content.startsWith('ENC.') ? '[CHECK]' : '[ERROR]'})`);
 
         const receiverSocketId = userSockets.get(receiverId);
 
@@ -71,9 +71,9 @@ app.prepare().then(() => {
             type,
             timestamp: new Date(),
           });
-          console.log(`✉️ Message delivered to ${receiverId}`);
+          console.log(`[ENVELOPE] Message delivered to ${receiverId}`);
         } else {
-          console.log(`⚠️ Receiver ${receiverId} not online`);
+          console.log(`[WARNING] Receiver ${receiverId} not online`);
         }
 
         socket.emit('message_sent', { id: Date.now().toString() });
@@ -87,7 +87,7 @@ app.prepare().then(() => {
     socket.on('friend_request_accepted', async (data) => {
       try {
         const { accepterId, senderId, senderName, accepterName, senderImage, accepterImage } = data;
-        console.log(`🤝 Friend request accepted: ${senderId} <-> ${accepterId}`);
+        console.log(`[HANDSHAKE] Friend request accepted: ${senderId} <-> ${accepterId}`);
 
         const senderSocketId = userSockets.get(senderId);
 
@@ -117,7 +117,7 @@ app.prepare().then(() => {
           lastMessage: null,
           unreadCount: 0,
         });
-        console.log(`📲 Accepter ${accepterId} notified`);
+        console.log(`Accepter ${accepterId} notified`);
       } catch (error) {
         console.error('Error in friend_request_accepted:', error);
         socket.emit('error', { message: 'Failed to process friend request' });
@@ -146,18 +146,18 @@ app.prepare().then(() => {
     // ============== GROUP MESSAGING ==============
     socket.on('join_group', (groupId) => {
       socket.join(`group_${groupId}`);
-      console.log(`👥 User joined group: ${groupId}`);
+      console.log(`User joined group: ${groupId}`);
     });
 
     socket.on('leave_group', (groupId) => {
       socket.leave(`group_${groupId}`);
-      console.log(`👥 User left group: ${groupId}`);
+      console.log(`User left group: ${groupId}`);
     });
 
     socket.on('send_group_message', (data) => {
       try {
         const { id, groupId, senderId, senderName, content, type } = data;
-        console.log(`💬 Group message to ${groupId} from ${senderId}`);
+        console.log(`Group message to ${groupId} from ${senderId}`);
 
         // Broadcast to all users in group with SAME ID from client
         io.to(`group_${groupId}`).emit('receive_group_message', {
@@ -168,7 +168,7 @@ app.prepare().then(() => {
           type,
           timestamp: new Date().toISOString(),
         });
-        console.log(`✉️ Group message delivered to ${groupId}`);
+        console.log(`Group message delivered to ${groupId}`);
       } catch (error) {
         console.error('Error in send_group_message:', error);
         socket.emit('error', { message: 'Failed to send group message' });
@@ -179,7 +179,7 @@ app.prepare().then(() => {
     socket.on('delete_message', (data) => {
       try {
         const { messageId, conversationId, type } = data; // type: 'direct' or 'group'
-        console.log(`🗑️ Delete ${type} message: ${messageId}`);
+        console.log(`Delete ${type} message: ${messageId}`);
 
         if (type === 'direct') {
           // Broadcast to conversation partner
@@ -188,7 +188,7 @@ app.prepare().then(() => {
           // Broadcast to group room
           io.to(`group_${conversationId}`).emit('message_deleted', { messageId, type: 'group' });
         }
-        console.log(`✅ Delete event broadcasted`);
+        console.log(`Delete event broadcasted`);
       } catch (error) {
         console.error('Error in delete_message:', error);
       }
@@ -213,8 +213,8 @@ app.prepare().then(() => {
           status: 'offline',
           timestamp: new Date()
         });
-        console.log(`❌ User ${disconnectedUserId} disconnected`);
-        console.log(`📊 Active users now: ${userSockets.size}`);
+        console.log(`User ${disconnectedUserId} disconnected`);
+        console.log(`Active users now: ${userSockets.size}`);
       }
     });
   });

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
-import { Loader2, Info, Compass } from "lucide-react";
+import { Loader2, Info, Compass, Check } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 import ResultsList from "@/components/Nearby-store/ResultList";
@@ -456,10 +456,10 @@ export default function NearByStorePage() {
                     Pro Tips
                   </p>
                   <ul className="text-xs space-y-1 opacity-70" style={{ color: currentTheme.textSecondary }}>
-                    <li>✓ Smaller radius = faster results & more accurate location</li>
-                    <li>✓ Sort by "DISTANCE" to find the closest stores first</li>
-                    <li>✓ Use "RATING" sort to find the best-reviewed places</li>
-                    <li>✓ Change "Open Now" to only see currently operating stores</li>
+                    <li className="flex items-center gap-2"><Check size={14} className="shrink-0" />Smaller radius = faster results & more accurate location</li>
+                    <li className="flex items-center gap-2"><Check size={14} className="shrink-0" />Sort by "DISTANCE" to find the closest stores first</li>
+                    <li className="flex items-center gap-2"><Check size={14} className="shrink-0" />Use "RATING" sort to find the best-reviewed places</li>
+                    <li className="flex items-center gap-2"><Check size={14} className="shrink-0" />Change "Open Now" to only see currently operating stores</li>
                   </ul>
                 </div>
               </div>

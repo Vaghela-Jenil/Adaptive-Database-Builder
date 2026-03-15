@@ -441,11 +441,11 @@ export default function ChatPage() {
         clearTimeout(joinTimer);
         // Remove listener when switching away from this group
         socket.off('receive_group_message', handleGroupMessage);
-        console.log(`📴 Listener removed for group messages`);
+        console.log(`Listener removed for group messages`);
         if (socket) {
           const groupId = selectedGroup._id || selectedGroup.id;
           socket.emit('leave_group', groupId);
-          console.log(`👋 Left group room: group_${groupId}`);
+          console.log(`Left group room: group_${groupId}`);
         }
       };
     }
@@ -457,7 +457,7 @@ export default function ChatPage() {
   }, [messages, groupMessages]);
 
   const handleSearch = async (query: string) => {
-    if (query.trim()) {
+    if (query.trim().length > 0) {
       try {
         const response = await axios.get(`/api/chat/search-friends?q=${query}`);
         setSearchResults(response.data);
@@ -525,7 +525,6 @@ export default function ChatPage() {
             : msg
         );
       });
-      console.log(`✅ Message saved with real ID: ${realMessageId}`);
 
       // Encrypt message for socket transmission using shared key
       const sharedKey = generateSharedKey(currentUserId, selectedConversation.friend.id);
@@ -541,7 +540,7 @@ export default function ChatPage() {
         timestamp: new Date(),
       });
 
-      console.log(`📤 Sent encrypted message to ${selectedConversation.friend.id}`);
+      console.log(` Sent encrypted message to ${selectedConversation.friend.id}`);
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message');
@@ -601,7 +600,7 @@ export default function ChatPage() {
               : msg
           );
         });
-        console.log(`✅ Group file message saved with real ID: ${realFileMessageId}`);
+        console.log(`Group file message saved with real ID: ${realFileMessageId}`);
 
         const encryptionKey = `group_${groupId}`;
         const encryptedFileName = encryptMessage(file.name, encryptionKey);
@@ -619,7 +618,7 @@ export default function ChatPage() {
           timestamp: new Date(),
         });
 
-        console.log(`📤 Sent encrypted file to group ${groupId}`);
+        console.log(` Sent encrypted file to group ${groupId}`);
       } catch (error) {
         console.error('Error uploading file to group:', error);
         alert('Failed to upload file');
@@ -1131,7 +1130,7 @@ export default function ChatPage() {
           {/* Search Results */}
           {showSearch && searchResults.length > 0 && (
             <div
-              className="absolute top-32 left-0 right-0 bg-white border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto"
+              className="w-80 absolute top-40 left-0 right-0 bg-white border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto"
               style={{
                 backgroundColor: currentTheme.surface,
                 borderColor: currentTheme.border,
@@ -1145,6 +1144,7 @@ export default function ChatPage() {
                     backgroundColor: currentTheme.surface,
                     borderColor: currentTheme.border,
                   }}
+                  onClick={() => handleSendFriendRequest(user.id)}
                 >
                   <div className="flex items-center gap-2">
                     <User size={20} style={{ color: currentTheme.primary }} />
@@ -1154,7 +1154,6 @@ export default function ChatPage() {
                     size={20}
                     className="cursor-pointer hover:opacity-70"
                     style={{ color: currentTheme.primary }}
-                    onClick={() => handleSendFriendRequest(user.id)}
                   />
                 </div>
               ))}
