@@ -23,10 +23,24 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const group = await Group.findById(new mongoose.Types.ObjectId(groupId));
     if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
 
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get('mode');
+
     // Check if user is in group
     const memberIndex = group.members.findIndex((m) => m.userId.toString() === currentUser._id.toString());
     if (memberIndex === -1) {
       return NextResponse.json({ error: 'User not in group' }, { status: 403 });
+    }
+
+    const currentMember = group.members[memberIndex];
+
+    if (mode === 'delete') {
+      if (currentMember.role !== 'admin') {
+        return NextResponse.json({ error: 'Only admins can delete the group' }, { status: 403 });
+      }
+
+      await Group.findByIdAndDelete(new mongoose.Types.ObjectId(groupId));
+      return NextResponse.json({ message: 'Group deleted' }, { status: 200 });
     }
 
     // If only one member (creator), delete group entirely
@@ -36,7 +50,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     // If user is admin and others exist, transfer admin to first remaining member
-    if (group.members[memberIndex].role === 'admin' && group.members.length > 1) {
+    if (currentMember.role === 'admin' && group.members.length > 1) {
       group.members[memberIndex === 0 ? 1 : 0].role = 'admin';
     }
 

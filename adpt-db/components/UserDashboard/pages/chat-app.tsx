@@ -91,6 +91,15 @@ export default function ChatPage() {
     return members.filter((member: any) => getGroupMemberStatus(member) === 'online').length;
   };
 
+  const getCurrentGroupMember = (group: any) => {
+    if (!group || !currentUserId) return null;
+    return group.members?.find((member: any) => getMemberId(member) === currentUserId) || null;
+  };
+
+  const isCurrentUserGroupAdmin = (group: any): boolean => {
+    return getCurrentGroupMember(group)?.role === 'admin';
+  };
+
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
@@ -520,7 +529,25 @@ export default function ChatPage() {
             // Normalize timestamp: use createdAt from DB or timestamp
             const timestamp = msg.createdAt || msg.timestamp || new Date();
             // IMPORTANT: Normalize ID to always use 'id' property (convert _id to id for consistency)
-            return { ...msg, id: (msg._id || msg.id), content, timestamp: new Date(timestamp) };
+            return {
+              ...msg,
+              id: (msg._id || msg.id),
+              _id: (msg._id || msg.id),
+              sender: {
+                id: typeof msg.sender === 'string' ? msg.sender : (msg.sender?.id || msg.sender?._id),
+                name: msg.senderName || msg.sender?.name || 'Unknown User',
+                avatar: msg.senderImage || msg.sender?.avatar,
+              },
+              file: msg.fileUrl
+                ? {
+                    name: msg.fileName || 'File',
+                    url: msg.fileUrl,
+                    size: msg.fileSize || 0,
+                  }
+                : undefined,
+              content,
+              timestamp: new Date(timestamp),
+            };
           });
           
           setGroupMessages(decryptedMessages);
@@ -1009,17 +1036,53 @@ export default function ChatPage() {
     if (!selectedGroup) return;
 
     try {
+      const groupId = getGroupId(selectedGroup);
+      if (!groupId) {
+        alert('Invalid group selected');
+        return;
+      }
+
       const response = await axios.patch(
-        `/api/chat/groups/${selectedGroup._id || selectedGroup.id}/members`,
+        `/api/chat/groups/${groupId}/members`,
         { action: 'remove', memberId }
       );
 
       setSelectedGroup(response.data);
+      setGroups((prev) => prev.map((g) => (getGroupId(g) === groupId ? response.data : g)));
       setGroupMembers(response.data.members || []);
       alert('✅ Member removed!');
     } catch (error) {
       console.error('Error removing member:', error);
       alert('Failed to remove member');
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup) return;
+
+    if (confirm('Delete this group for all members? This cannot be undone.')) {
+      try {
+        const groupId = getGroupId(selectedGroup);
+        if (!groupId) {
+          alert('Invalid group selected');
+          return;
+        }
+
+        await axios.delete(`/api/chat/groups/${groupId}?mode=delete`);
+
+        if (socket) {
+          socket.emit('leave_group', groupId);
+        }
+
+        setGroups((prev) => prev.filter((group) => getGroupId(group) !== groupId));
+        setSelectedGroup(null);
+        setGroupMembers([]);
+        setGroupMessages([]);
+        alert('✅ Group deleted');
+      } catch (error: any) {
+        console.error('Error deleting group:', error);
+        alert(error.response?.data?.error || 'Failed to delete group');
+      }
     }
   };
 
@@ -1033,15 +1096,15 @@ export default function ChatPage() {
           alert('Invalid group selected');
           return;
         }
-        console.log(`👋 Exiting group: ${groupId}`);
+        console.log(` Exiting group: ${groupId}`);
         
         await axios.delete(`/api/chat/groups/${groupId}`);
-        console.log(`✅ API delete successful`);
+        console.log(`API delete successful`);
         
         // Leave socket room
         if (socket) {
           socket.emit('leave_group', groupId);
-          console.log(`👋 Left socket room: group_${groupId}`);
+          console.log(`Left socket room: group_${groupId}`);
         }
         
         // Clear UI state
@@ -1054,7 +1117,7 @@ export default function ChatPage() {
         setGroupMessages([]);
         setSelectedGroup(null);
         
-        console.log(`✅ Successfully exited group`);
+        console.log(`Successfully exited group`);
         alert('✅ You left the group');
       } catch (error: any) {
         console.error('Error exiting group:', error);
@@ -1065,13 +1128,13 @@ export default function ChatPage() {
 
   const handleDeleteGroupMessage = async (messageId: string) => {
     if (!messageId) {
-      console.warn('❌ No message ID provided');
+      console.warn('No message ID provided');
       return;
     }
     try {
-      console.log(`🗑️ Deleting group message: ${messageId}`);
+      console.log(`Deleting group message: ${messageId}`);
       const response = await axios.delete(`/api/chat/group-messages/${messageId}`);
-      console.log(`✅ Delete API response:`, response.data);
+      console.log(`Delete API response:`, response.data);
       
       // Remove from local state immediately
       setGroupMessages((prev) => {
@@ -1080,7 +1143,7 @@ export default function ChatPage() {
           const targetId = messageId.toString();
           return mId !== targetId;
         });
-        console.log(`✅ Group message deleted locally - remaining: ${filtered.length}`);
+        console.log(`Group message deleted locally - remaining: ${filtered.length}`);
         return filtered;
       });
 
@@ -1092,30 +1155,30 @@ export default function ChatPage() {
           conversationId: groupId,
           type: 'group'
         });
-        console.log(`📡 Broadcasted message deletion to group: ${groupId}`);
+        console.log(`Broadcasted message deletion to group: ${groupId}`);
       }
     } catch (error: any) {
-      console.error('❌ Error deleting group message:', error.response?.data || error.message);
+      console.error('Error deleting group message:', error.response?.data || error.message);
       alert('Failed to delete message: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const handleDeleteMessage = async (messageId: string) => {
     if (!messageId) {
-      console.warn('❌ No message ID provided');
+      console.warn('No message ID provided');
       return;
     }
     try {
-      console.log(`🗑️ Deleting direct message: ${messageId}`);
+      console.log(`Deleting direct message: ${messageId}`);
       
       // Call delete API for direct messages
       const response = await axios.delete(`/api/chat/messages/${messageId}`);
-      console.log(`✅ Delete API response:`, response.data);
+      console.log(`Delete API response:`, response.data);
       
       // Remove from local state immediately
       setMessages((prev) => {
         const filtered = prev.filter((m) => m._id !== messageId);
-        console.log(`✅ Direct message deleted - remaining: ${filtered.length}`);
+        console.log(`Direct message deleted - remaining: ${filtered.length}`);
         return filtered;
       });
 
@@ -1126,10 +1189,10 @@ export default function ChatPage() {
           conversationId: selectedConversation.friend.id,
           type: 'direct'
         });
-        console.log(`📡 Broadcasted message deletion to: ${selectedConversation.friend.id}`);
+        console.log(`Broadcasted message deletion to: ${selectedConversation.friend.id}`);
       }
     } catch (error: any) {
-      console.error('❌ Error deleting direct message:', error.response?.data || error.message);
+      console.error('Error deleting direct message:', error.response?.data || error.message);
       alert('Failed to delete message: ' + (error.response?.data?.error || error.message));
     }
   };
@@ -1139,8 +1202,9 @@ export default function ChatPage() {
 
     if (confirm('Delete all your messages in this group?')) {
       try {
+        const groupId = getGroupId(selectedGroup);
         await axios.delete(
-          `/api/chat/group-messages/temp?deleteAll=true&groupId=${selectedGroup._id || selectedGroup.id}`
+          `/api/chat/group-messages/temp?deleteAll=true&groupId=${groupId}`
         );
         setGroupMessages((prev) => prev.filter((m) => m.sender.id !== currentUserId && m.sender !== currentUserId));
         alert('✅ All messages deleted!');
@@ -1356,13 +1420,16 @@ export default function ChatPage() {
                   style={{
                     backgroundColor:
                       selectedConversation?.id === conversation.id
-                        ? currentTheme.primary
+                        ? `${currentTheme.primary}20`
                         : currentTheme.surface,
                     borderColor: currentTheme.border,
                     color:
                       selectedConversation?.id === conversation.id
-                        ? 'white'
+                        ? currentTheme.text
                         : currentTheme.text,
+                    boxShadow: selectedConversation?.id === conversation.id
+                      ? `inset 3px 0 0 ${currentTheme.primary}`
+                      : 'none',
                   }}
                   onClick={() => {
                     setSelectedConversation(conversation);
@@ -1423,13 +1490,16 @@ export default function ChatPage() {
                   style={{
                     backgroundColor:
                       selectedGroup?._id === group._id || selectedGroup?.id === group.id
-                        ? currentTheme.primary
+                        ? `${currentTheme.primary}20`
                         : currentTheme.surface,
                     borderColor: currentTheme.border,
                     color:
                       selectedGroup?._id === group._id || selectedGroup?.id === group.id
-                        ? 'white'
+                        ? currentTheme.text
                         : currentTheme.text,
+                    boxShadow: selectedGroup?._id === group._id || selectedGroup?.id === group.id
+                      ? `inset 3px 0 0 ${currentTheme.primary}`
+                      : 'none',
                   }}
                   onClick={() => {
                     setSelectedGroup(group);
@@ -1512,12 +1582,23 @@ export default function ChatPage() {
                   <>
                     <button
                       onClick={() => setShowAddMember(true)}
-                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                      disabled={!isCurrentUserGroupAdmin(selectedGroup)}
+                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100 disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{ color: currentTheme.primary }}
-                      title="Add member"
+                      title={isCurrentUserGroupAdmin(selectedGroup) ? 'Add member' : 'Only admins can add members'}
                     >
                       <UserPlus size={16} />
                     </button>
+                    {isCurrentUserGroupAdmin(selectedGroup) && (
+                      <button
+                        onClick={handleDeleteGroup}
+                        className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                        style={{ color: '#ef4444' }}
+                        title="Delete group"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={handleExitGroup}
                       className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
@@ -1595,7 +1676,7 @@ export default function ChatPage() {
                           : undefined
                       }
                     >
-                      {message.sender?.name && (
+                      {chatTab === 'groups' && message.sender?.name && (
                         <p className="text-xs font-semibold opacity-75 mb-1">{message.sender.name}</p>
                       )}
                       {message.type === 'file' && message.file ? (
@@ -1988,8 +2069,9 @@ export default function ChatPage() {
                   setShowAddMember(false);
                   setSelectedMembers([]);
                 }}
+                disabled={!isCurrentUserGroupAdmin(selectedGroup) || selectedMembers.length === 0}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition hover:opacity-90"
-                style={{ backgroundColor: currentTheme.primary }}
+                style={{ backgroundColor: currentTheme.primary, opacity: !isCurrentUserGroupAdmin(selectedGroup) || selectedMembers.length === 0 ? 0.5 : 1 }}
               >
                 Add Members
               </button>
