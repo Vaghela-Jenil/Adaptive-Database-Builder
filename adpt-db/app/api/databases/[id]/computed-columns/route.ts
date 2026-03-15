@@ -212,6 +212,11 @@ export async function DELETE(
       );
     }
 
+    // Capture old labels before deletion for synonym-cache invalidation
+    const oldLabels: string[] = (db.formSchema ?? []).map(
+      (f: FieldAttributes) => f.label
+    ).filter(Boolean);
+
     // Remove from formSchema
     db.formSchema = db.formSchema.filter((f: FieldAttributes) => f.id !== columnId);
 
@@ -234,6 +239,15 @@ export async function DELETE(
 
     db.records = updatedRecords;
     await db.save();
+
+    // Invalidate stale synonym cache (best-effort, non-blocking)
+    if (oldLabels.length > 0) {
+      fetch("http://localhost:5001/api/invalidate-synonym-cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ old_labels: oldLabels }),
+      }).catch(() => {});
+    }
 
     return NextResponse.json(
       { message: "Computed column deleted successfully" },

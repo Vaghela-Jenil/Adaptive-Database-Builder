@@ -75,11 +75,16 @@ export default function Chatbot() {
 
     try {
       const res = await axios.post("/api/chatbot", { payload: messageToSend });
-      console.log(res.data);
-      
+
+      const responseText =
+        res.data?.response ||
+        res.data?.message ||
+        res.data?.answer ||
+        "No response from AI service.";
+
       const aiResponse: Message = {
         role: "assistant",
-        content: res.data.response || "No response from Python",
+        content: responseText,
         timestamp: new Date(),
       };
 

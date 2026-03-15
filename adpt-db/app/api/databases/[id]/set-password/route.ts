@@ -17,12 +17,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json();
     const { password } = body;
 
-    const hashPassword = await bcrypt.hash(password, 10);
+    if (!password || typeof password !== "string" || password.trim().length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters" },
+        { status: 400 }
+      );
+    }
 
-    const db = await DatabaseModel.findByIdAndUpdate({
+    const hashPassword = await bcrypt.hash(password.trim(), 10);
+
+    const db = await DatabaseModel.findOneAndUpdate({
       clerkId: userId,
-        _id: id
+      _id: id
     }, { password: hashPassword, hasPassword: true }, { new: true });
+
+    if (!db) {
+      return NextResponse.json({ error: "Database not found" }, { status: 404 });
+    }
 
     return NextResponse.json(db, { status: 201 });
   } catch (err) {

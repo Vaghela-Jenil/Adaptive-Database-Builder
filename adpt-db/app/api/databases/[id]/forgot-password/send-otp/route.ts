@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
 
@@ -33,8 +33,31 @@ export async function POST(
     }
 
     const currentUser = await User.findOne({ clerkId: userId }).select("email userName");
-    if (!currentUser?.email) {
+
+    let targetEmail = currentUser?.email?.trim();
+    if (!targetEmail) {
+      try {
+        const client = await clerkClient();
+        const clerkUser = await client.users.getUser(userId);
+        const primaryEmail =
+          clerkUser.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId)
+            ?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress;
+
+        targetEmail = primaryEmail?.trim();
+      } catch (clerkError) {
+        console.error("Failed to resolve email from Clerk:", clerkError);
+      }
+    }
+
+    if (!targetEmail) {
       return NextResponse.json({ error: "No email found for this account" }, { status: 400 });
+    }
+
+    if (!process.env.GMAIL_USER?.trim() || !process.env.GMAIL_PASS?.trim()) {
+      return NextResponse.json(
+        { error: "Email service is not configured. Please contact admin." },
+        { status: 500 }
+      );
     }
 
     const otp = generateOtp(6);
@@ -60,7 +83,7 @@ export async function POST(
 
     await transporter.sendMail({
       from: `"ADPT DB" <${process.env.GMAIL_USER}>`,
-      to: currentUser.email,
+      to: targetEmail,
       subject: "Database password reset OTP",
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.5;">

@@ -46,6 +46,11 @@ export default function Database({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [databases, setDatabases] = useState<DatabaseFolder[]>([]);
+  const [setPasswordFormModal, setSetPasswordFormModal] = useState<{ databaseId: string } | null>(null);
+  const [newSetPasswordInput, setNewSetPasswordInput] = useState("");
+  const [confirmSetPasswordValue, setConfirmSetPasswordValue] = useState("");
+  const [setPasswordFormErrorMessage, setSetPasswordFormErrorMessage] = useState("");
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
   const [passwordModal, setPasswordModal] = useState<{
     databaseId: string;
     action: string;
@@ -60,22 +65,19 @@ export default function Database({
   const [confirmNewDbPassword, setConfirmNewDbPassword] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isRemovingPassword, setIsRemovingPassword] = useState(false);
   const [resetInfoMessage, setResetInfoMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sharedDatabases, setSharedDatabases] = useState<DatabaseFolder[]>([]);
-  const [isSharedDatbases, setIsSharedDatbases] = useState(false);
   const [sharedMeta, setSharedMeta] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<DBType>('all');
 
   const filteredDatabases = useMemo(() => {
     let baseList: DatabaseFolder[] = [];
-      setIsSharedDatbases(false);
     if (activeTab === 'all') {
-      setIsSharedDatbases(true);
-      baseList = [...databases, ...sharedDatabases];
+      baseList = databases;
     } else if (activeTab === 'shared') {
-      setIsSharedDatbases(true);
-      // baseList = [...sharedDatabases];
+      baseList = [];
     } else if (activeTab === 'public') {
       baseList = databases.filter((db) => !db.hasPassword);
     } else if (activeTab === 'secure') {
@@ -87,6 +89,14 @@ export default function Database({
       db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [activeTab, searchQuery, databases, sharedDatabases]);
+
+  const filteredSharedDatabases = useMemo(() => {
+    return sharedDatabases.filter((db) =>
+      db.DatabaseName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [sharedDatabases, searchQuery]);
+
+  const shouldShowSharedSection = activeTab === 'all' || activeTab === 'shared';
 
   const handleTemplateClick = (templateKey: string) => {
     const schema = FORM_TEMPLATES[templateKey];
@@ -131,9 +141,49 @@ export default function Database({
   };
 
   const handleSetPassword = async (id: string) => {
-    const password = prompt("Enter password for this database:");
-    if (password) {
-      await axios.post(`/api/databases/${id}/set-password`, { password });
+    setSetPasswordFormErrorMessage("");
+    setNewSetPasswordInput("");
+    setConfirmSetPasswordValue("");
+    setSetPasswordFormModal({ databaseId: id });
+  };
+
+  const resetSetPasswordModalState = () => {
+    setSetPasswordFormModal(null);
+    setNewSetPasswordInput("");
+    setConfirmSetPasswordValue("");
+    setSetPasswordFormErrorMessage("");
+    setIsSettingPassword(false);
+  };
+
+  const handleSubmitSetPassword = async () => {
+    if (!setPasswordFormModal?.databaseId) return;
+
+    setSetPasswordFormErrorMessage("");
+
+    if (newSetPasswordInput.trim().length < 6) {
+      setSetPasswordFormErrorMessage("Password must be at least 6 characters");
+      return;
+    }
+
+    if (newSetPasswordInput !== confirmSetPasswordValue) {
+      setSetPasswordFormErrorMessage("Password and confirm password do not match");
+      return;
+    }
+
+    setIsSettingPassword(true);
+
+    try {
+      await axios.post(`/api/databases/${setPasswordFormModal.databaseId}/set-password`, {
+        password: newSetPasswordInput.trim(),
+      });
+
+      await fetchDatabases();
+      resetSetPasswordModalState();
+    } catch (error: any) {
+      const message = error?.response?.data?.error || "Failed to set password";
+      setSetPasswordFormErrorMessage(message);
+    } finally {
+      setIsSettingPassword(false);
     }
   };
 
@@ -218,6 +268,45 @@ export default function Database({
     setResetInfoMessage("");
     setIsSendingOtp(false);
     setIsResettingPassword(false);
+    setIsRemovingPassword(false);
+  };
+
+  const handleRemoveDatabasePassword = async () => {
+    if (!passwordModal?.databaseId) return;
+
+    setPasswordError("");
+    setResetInfoMessage("");
+
+    if (!passwordInput.trim()) {
+      setPasswordError("Enter current password to remove it");
+      return;
+    }
+
+    setIsRemovingPassword(true);
+
+    try {
+      const verify = await axios.post(`/api/databases/${passwordModal.databaseId}/verify`, {
+        password: passwordInput,
+      });
+
+      if (!verify.data.verified) {
+        setPasswordError("Current password is incorrect");
+        return;
+      }
+
+      const response = await axios.post(`/api/databases/${passwordModal.databaseId}/remove-password`, {
+        currentPassword: passwordInput,
+      });
+
+      alert(response.data?.message || "Password removed successfully");
+      await fetchDatabases();
+      resetPasswordModalState();
+    } catch (error: any) {
+      const message = error?.response?.data?.error || "Failed to remove password";
+      setPasswordError(message);
+    } finally {
+      setIsRemovingPassword(false);
+    }
   };
 
   const handleRequestForgotPasswordOtp = async () => {
@@ -424,7 +513,7 @@ export default function Database({
           ))}
         </div>
 
-        : filteredDatabases.length === 0 && sharedDatabases.length === 0 ? (
+        : filteredDatabases.length === 0 && filteredSharedDatabases.length === 0 ? (
           <Card
             className="p-12 text-center"
             style={{
@@ -547,14 +636,16 @@ export default function Database({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (database.hasPassword) return;
                               handleSetPassword(database._id);
                               setActiveMenu(null);
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-2"
-                            style={{ color: currentTheme.text }}
+                            disabled={database.hasPassword}
+                            className="w-full flex items-center gap-3 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ color: database.hasPassword ? currentTheme.textSecondary : currentTheme.text }}
                           >
                             <Lock className="w-4 h-4" />
-                            {database.hasPassword ? "Change Password" : "Set Password"}
+                            {database.hasPassword ? "Password Set" : "Set Password"}
                           </button>
                           <div
                             className="my-1 h-px mx-2"
@@ -620,7 +711,7 @@ export default function Database({
 
 
       {/* SHARED DATABASES SECTION */}
-      {!searchQuery && isSharedDatbases && sharedDatabases.length !== 0 && (
+      {shouldShowSharedSection && filteredSharedDatabases.length !== 0 && (
         <>
           <div className="w-full py-3 mt-8">
             <div className="flex items-center">
@@ -636,7 +727,8 @@ export default function Database({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {sharedDatabases.map((database: DatabaseFolder, index: number) => {
+            {filteredSharedDatabases.map((database: DatabaseFolder) => {
+              const index = sharedDatabases.findIndex((db) => db._id === database._id);
               const meta = sharedMeta[index];
 
               return (
@@ -832,15 +924,27 @@ export default function Database({
                 </div>
 
                 <div className="mb-3 text-right">
-                  <button
-                    type="button"
-                    className="text-sm font-medium underline"
-                    style={{ color: currentTheme.primary }}
-                    disabled={isSendingOtp}
-                    onClick={handleRequestForgotPasswordOtp}
-                  >
-                    {isSendingOtp ? "Sending OTP..." : "Forgot Password?"}
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      className="text-sm font-medium underline"
+                      style={{ color: currentTheme.primary }}
+                      disabled={isSendingOtp || isRemovingPassword}
+                      onClick={handleRequestForgotPasswordOtp}
+                    >
+                      {isSendingOtp ? "Sending OTP..." : "Forgot Password?"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="text-sm font-medium underline"
+                      style={{ color: "#ef4444" }}
+                      disabled={isSendingOtp || isRemovingPassword}
+                      onClick={handleRemoveDatabasePassword}
+                    >
+                      {isRemovingPassword ? "Removing..." : "Remove Password"}
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
@@ -918,6 +1022,7 @@ export default function Database({
 
               {!forgotPasswordMode ? (
                 <button className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+                  disabled={isRemovingPassword}
                   onClick={() => {
                     if (passwordModal.action === "view") {
                       handleViewDatabase(passwordModal.databaseId);
@@ -939,6 +1044,70 @@ export default function Database({
                   {isResettingPassword ? "Resetting..." : "Reset Password"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {setPasswordFormModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div
+            className="w-95 rounded-2xl p-6 shadow-2xl"
+            style={{
+              backgroundColor: currentTheme.surface,
+              border: `1px solid ${currentTheme.border}`,
+            }}
+          >
+            <h2 className="text-lg font-semibold mb-4" style={{ color: currentTheme.text }}>
+              Set Database Password
+            </h2>
+
+            <div className="space-y-3 mb-3">
+              <Input
+                type="password"
+                value={newSetPasswordInput}
+                onChange={(e) => setNewSetPasswordInput(e.target.value)}
+                placeholder="Enter password"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                  color: currentTheme.text,
+                }}
+              />
+
+              <Input
+                type="password"
+                value={confirmSetPasswordValue}
+                onChange={(e) => setConfirmSetPasswordValue(e.target.value)}
+                placeholder="Confirm password"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                  color: currentTheme.text,
+                }}
+              />
+            </div>
+
+            {setPasswordFormErrorMessage && (
+              <p className="text-red-500 text-sm mb-3">{setPasswordFormErrorMessage}</p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={resetSetPasswordModalState}
+                className="px-4 py-2 rounded-lg"
+                style={{ border: `1px solid ${currentTheme.border}`, color: currentTheme.text }}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-60"
+                disabled={isSettingPassword}
+                onClick={handleSubmitSetPassword}
+              >
+                {isSettingPassword ? "Setting..." : "Set Password"}
+              </button>
             </div>
           </div>
         </div>

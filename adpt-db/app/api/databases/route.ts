@@ -87,15 +87,57 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { name, formSchema } = body;
 
-    const existing = await DatabaseModel.findOneAndUpdate({
+    const oldDoc = await DatabaseModel.findOne({
       clerkId: userId,
       DatabaseName: name,
-    }, {
-      formSchema: formSchema,
-    }, { new: true });
+    });
 
+    if (!oldDoc) {
+      return NextResponse.json(
+        { error: "Database not found" },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json(existing, { status: 201 });
+    const oldLabels: string[] = (oldDoc.formSchema ?? []).map(
+      (f: any) => f.label
+    ).filter(Boolean);
+
+    // Determine which field IDs were removed
+    const newFieldIds = new Set(
+      (formSchema ?? []).map((f: any) => f.id).filter(Boolean)
+    );
+    const removedFieldIds: string[] = (oldDoc.formSchema ?? [])
+      .map((f: any) => f.id)
+      .filter((id: string) => id && !newFieldIds.has(id));
+
+    // Update formSchema
+    oldDoc.formSchema = formSchema;
+
+    // Clean record data for removed fields so stale values
+    // don't appear in chatbot query results.
+    if (removedFieldIds.length > 0 && oldDoc.records?.length > 0) {
+      oldDoc.records = oldDoc.records.map((record: any) => {
+        const cleanedData = { ...record.data };
+        for (const fieldId of removedFieldIds) {
+          delete cleanedData[fieldId];
+        }
+        return { ...record, data: cleanedData };
+      });
+    }
+
+    await oldDoc.save();
+
+    // Invalidate stale synonym cache (best-effort, non-blocking)
+    if (oldLabels.length > 0) {
+      fetch("http://localhost:5001/api/invalidate-synonym-cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ old_labels: oldLabels }),
+      }).catch(() => {});
+    }
+
+    return NextResponse.json(oldDoc, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

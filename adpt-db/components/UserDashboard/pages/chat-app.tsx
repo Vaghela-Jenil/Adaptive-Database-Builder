@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Send, Plus, Smile, Paperclip, Search, User, X } from 'lucide-react';
+import { Send, Plus, Smile, Paperclip, Search, User, X, Users, UserPlus, LogOut, Trash2, Download, Loader2, Circle } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import axios from 'axios';
 import { encryptMessage, decryptMessage, generateSharedKey, isEncrypted } from '@/lib/encryption';
@@ -66,6 +66,33 @@ export default function ChatPage() {
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [groupMessages, setGroupMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const selectedConversationRef = useRef<Conversation | null>(null);
+  const selectedGroupRef = useRef<any | null>(null);
+
+  const getMemberId = (member: any): string | undefined => {
+    const rawId = member?.userId ?? member?.id ?? member?._id;
+    return rawId?.toString?.() || rawId;
+  };
+
+  const getGroupMemberStatus = (member: any): 'online' | 'offline' => {
+    const memberId = getMemberId(member);
+    if (!memberId) return 'offline';
+    return userStatuses.get(memberId) || member?.status || 'offline';
+  };
+
+  const getOnlineGroupMemberCount = (group: any): number => {
+    const members = group?.members || [];
+    return members.filter((member: any) => getGroupMemberStatus(member) === 'online').length;
+  };
+
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
 
   // Initialize Socket.IO connection with current user
   useEffect(() => {
@@ -92,6 +119,15 @@ export default function ChatPage() {
           console.log('✅ Connected to chat server with socket ID:', newSocket.id);
           newSocket.emit('user_connect', userData.userId);
           console.log(`📡 Emitted user_connect for ${userData.userId}`);
+
+          const activeGroup = selectedGroupRef.current;
+          if (activeGroup) {
+            const activeGroupId = activeGroup._id || activeGroup.id;
+            if (activeGroupId) {
+              newSocket.emit('join_group', activeGroupId);
+              console.log(`👥 Re-joined group room on connect: group_${activeGroupId}`);
+            }
+          }
         });
 
         newSocket.on('connect_error', (error) => {
@@ -101,6 +137,15 @@ export default function ChatPage() {
         newSocket.on('reconnect', () => {
           console.log('🔄 Reconnected to server');
           newSocket.emit('user_connect', userData.userId);
+
+          const activeGroup = selectedGroupRef.current;
+          if (activeGroup) {
+            const activeGroupId = activeGroup._id || activeGroup.id;
+            if (activeGroupId) {
+              newSocket.emit('join_group', activeGroupId);
+              console.log(`👥 Re-joined group room on reconnect: group_${activeGroupId}`);
+            }
+          }
         });
 
         // ============ MESSAGE EVENTS ============
@@ -120,20 +165,34 @@ export default function ChatPage() {
             decryptedContent = message.content; // Fall back to encrypted
           }
           
+          const incomingSenderId = message.sender?.id;
+          const incomingSenderName = message.sender?.name || 'Unknown User';
+
           const decryptedMessage: Message = {
             ...message,
+            sender: {
+              ...message.sender,
+              name: incomingSenderName,
+            },
             content: decryptedContent
           };
-          
-          setMessages((prev) => [...prev, decryptedMessage]);
+
+          if (selectedConversationRef.current?.friend.id === incomingSenderId) {
+            setMessages((prev) => {
+              if (prev.some((m) => m._id === decryptedMessage._id)) {
+                return prev;
+              }
+              return [...prev, decryptedMessage];
+            });
+          }
           
           // Update last message in conversation with sender name
           setConversations((prev) =>
             prev.map((conv) =>
-              conv.friend.id === message.sender.id
+              conv.friend.id === incomingSenderId
                 ? {
                     ...conv,
-                    lastMessage: `${message.sender.name}: ${decryptedContent}`,
+                    lastMessage: `${incomingSenderName}: ${decryptedContent}`,
                     lastMessageTime: new Date(message.timestamp),
                   }
                 : conv
@@ -200,6 +259,50 @@ export default function ChatPage() {
           console.log('✅ Message confirmed sent:', data.id);
         });
 
+        // ============ GROUP MESSAGE EVENTS ============
+        newSocket.on('receive_group_message', (message: any) => {
+          console.log('💬 Received group message:', message);
+
+          let decryptedContent = message.content;
+          try {
+            const encryptionKey = `group_${message.groupId}`;
+            if (message.content && isEncrypted(message.content)) {
+              decryptedContent = decryptMessage(message.content, encryptionKey);
+            }
+          } catch (err) {
+            console.error('❌ Error decrypting group message:', err);
+          }
+
+          const activeGroup = selectedGroupRef.current;
+          const activeGroupId = activeGroup?._id || activeGroup?.id;
+          if (!activeGroupId) {
+            return;
+          }
+
+          const incomingGroupId = message.groupId?.toString?.() || message.groupId;
+          const currentGroupId = activeGroupId?.toString?.() || activeGroupId;
+
+          if (incomingGroupId !== currentGroupId) {
+            return;
+          }
+
+          const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
+          const normalizedMessage = {
+            ...message,
+            id: message.id || message._id,
+            content: decryptedContent,
+            timestamp,
+          };
+
+          setGroupMessages((prev) => {
+            const incomingId = (normalizedMessage.id || normalizedMessage._id)?.toString?.();
+            if (incomingId && prev.some((m) => (m.id || m._id)?.toString?.() === incomingId)) {
+              return prev;
+            }
+            return [...prev, normalizedMessage];
+          });
+        });
+
         // ============ ERROR HANDLING ============
         newSocket.on('error', (error: any) => {
           console.error('Socket error:', error);
@@ -234,6 +337,7 @@ export default function ChatPage() {
         });
 
         setSocket(newSocket);
+        socketRef.current = newSocket;
       } catch (error) {
         console.error('Error initializing socket:', error);
       }
@@ -243,8 +347,8 @@ export default function ChatPage() {
 
     return () => {
       // Cleanup on unmount
-      if (socket) {
-        socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
         console.log('Socket disconnected');
       }
     };
@@ -317,7 +421,15 @@ export default function ChatPage() {
     fetchConversations();
     fetchPendingRequests();
     fetchGroups();
-  }, []);
+
+    const refreshInterval = setInterval(() => {
+      fetchConversations();
+      fetchPendingRequests();
+      fetchGroups();
+    }, 5000);
+
+    return () => clearInterval(refreshInterval);
+  }, [currentUserId]);
 
   // Fetch messages when conversation changes
   useEffect(() => {
@@ -327,15 +439,49 @@ export default function ChatPage() {
           const response = await axios.get(
             `/api/chat/messages?friendId=${selectedConversation.friend.id}`
           );
-          setMessages(response.data);
+          const normalizedMessages: Message[] = response.data.map((msg: any) => {
+            const senderId = typeof msg.sender === 'string' ? msg.sender : msg.sender?.id;
+            const isCurrentUserSender = senderId === currentUserId;
+
+            return {
+              _id: msg._id,
+              sender: {
+                id: senderId,
+                name: isCurrentUserSender
+                  ? (currentUser?.userName || 'You')
+                  : selectedConversation.friend.name,
+                avatar: isCurrentUserSender
+                  ? currentUser?.userImage
+                  : selectedConversation.friend.avatar,
+              },
+              content: msg.content,
+              type: msg.type,
+              timestamp: new Date(msg.timestamp || msg.createdAt || new Date()),
+              file: msg.fileUrl
+                ? {
+                    name: msg.fileName || 'File',
+                    url: msg.fileUrl,
+                    size: msg.fileSize || 0,
+                  }
+                : undefined,
+            };
+          });
+
+          setMessages(normalizedMessages);
         } catch (error) {
           console.error('Error fetching messages:', error);
         }
       };
 
       fetchMessages();
+
+      const refreshInterval = setInterval(fetchMessages, 4000);
+
+      return () => clearInterval(refreshInterval);
     }
-  }, [selectedConversation]);
+
+    setMessages([]);
+  }, [selectedConversation, currentUserId, currentUser]);
 
   // Fetch group messages when group changes
   useEffect(() => {
@@ -376,72 +522,12 @@ export default function ChatPage() {
       };
 
       fetchGroupMessages();
-      
-      // Set up real-time listener for incoming messages in THIS group
-      const handleGroupMessage = (message: any) => {
-        console.log('💬 Received group message:', message);
-        
-        // Decrypt message if encrypted
-        let decryptedContent = message.content;
-        try {
-          const encryptionKey = `group_${message.groupId}`;
-          if (message.content && isEncrypted(message.content)) {
-            decryptedContent = decryptMessage(message.content, encryptionKey);
-            console.log('✅ Message decrypted successfully');
-          }
-        } catch (err) {
-          console.error('❌ Error decrypting group message:', err);
-          decryptedContent = message.content;
-        }
-        
-        // Normalize timestamp
-        const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
-        
-        // Check if this message is for the currently selected group
-        const messageGroupId = message.groupId?.toString() || message.groupId;
-        const selectedGroupId = selectedGroup?._id?.toString() || selectedGroup?.id?.toString() || selectedGroup?._id || selectedGroup?.id;
-        
-        console.log(`🔍 Comparing groupIds: message=${messageGroupId} vs selected=${selectedGroupId}`);
-        
-        if (messageGroupId === selectedGroupId) {
-          const normalizedMessage = { ...message, id: (message._id || message.id), content: decryptedContent, timestamp };
-          setGroupMessages((prev) => {
-            // Avoid duplicate messages using normalized ID
-            const messageId = normalizedMessage.id?.toString();
-            if (prev.some(m => m.id?.toString() === messageId)) {
-              console.log(`⚠️ Message already exists (ID: ${messageId}), skipping duplicate`);
-              return prev;
-            }
-            console.log(`✅ Adding new message to state (ID: ${messageId})`);
-            return [...prev, normalizedMessage];
-          });
-          console.log('📝 Group message added to state');
-        } else {
-          console.log(`⚠️ Message for different group, ignoring`);
-        }
-      };
-      
-      // Register listener for THIS group only
-      socket.on('receive_group_message', handleGroupMessage);
-      console.log(`📡 Listener registered for group messages`);
-      
-      // Ensure user joins group room AFTER fetching messages
-      const joinGroupRoom = () => {
-        if (socket) {
-          const groupId = selectedGroup._id || selectedGroup.id;
-          socket.emit('join_group', groupId);
-          console.log(`👥 Joined group room: group_${groupId}`);
-        }
-      };
-      
-      // Small delay to ensure socket is ready
-      const joinTimer = setTimeout(joinGroupRoom, 100);
+
+      const groupId = selectedGroup._id || selectedGroup.id;
+      socket.emit('join_group', groupId);
+      console.log(`👥 Joined group room: group_${groupId}`);
 
       return () => {
-        clearTimeout(joinTimer);
-        // Remove listener when switching away from this group
-        socket.off('receive_group_message', handleGroupMessage);
-        console.log(`Listener removed for group messages`);
         if (socket) {
           const groupId = selectedGroup._id || selectedGroup.id;
           socket.emit('leave_group', groupId);
@@ -1364,11 +1450,20 @@ export default function ChatPage() {
                   </p>
                   <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
                     {selectedConversation ? (
-                      userStatuses.get(selectedConversation.friend.id) === 'online'
-                        ? '🟢 Online'
-                        : '🔴 Offline'
+                      <span className="inline-flex items-center gap-2">
+                        <Circle
+                          className="w-2.5 h-2.5 fill-current"
+                          style={{
+                            color: userStatuses.get(selectedConversation.friend.id) === 'online' ? '#10b981' : '#ef4444',
+                          }}
+                        />
+                        {userStatuses.get(selectedConversation.friend.id) === 'online' ? 'Online' : 'Offline'}
+                      </span>
                     ) : (
-                      `👥 ${selectedGroup?.members?.length || 0} members`
+                      <span className="inline-flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        {getOnlineGroupMemberCount(selectedGroup)}/{selectedGroup?.members?.length || 0} online
+                      </span>
                     )}
                   </p>
                 </div>
@@ -1382,7 +1477,7 @@ export default function ChatPage() {
                       style={{ color: currentTheme.primary }}
                       title="Add member"
                     >
-                      ➕
+                      <UserPlus size={16} />
                     </button>
                     <button
                       onClick={handleExitGroup}
@@ -1390,7 +1485,7 @@ export default function ChatPage() {
                       style={{ color: '#ef4444' }}
                       title="Exit group"
                     >
-                      👋
+                      <LogOut size={16} />
                     </button>
                     <button
                       onClick={handleDeleteAllGroupMessages}
@@ -1398,7 +1493,10 @@ export default function ChatPage() {
                       style={{ color: '#f97316' }}
                       title="Delete all your messages"
                     >
-                      🗑️ All
+                      <span className="inline-flex items-center gap-1">
+                        <Trash2 size={14} />
+                        All
+                      </span>
                     </button>
                   </>
                 )}
@@ -1422,14 +1520,14 @@ export default function ChatPage() {
                     <span className="text-lg mb-2">
                       {chatTab === 'direct' ? 'Select a conversation' : 'Select a group'}
                     </span>
-                    <span className="text-sm">👈 Choose from the list to start chatting</span>
+                    <span className="text-sm">Choose from the list to start chatting</span>
                   </p>
                 </div>
               ) : (chatTab === 'direct' ? messages : groupMessages).length === 0 ? (
                 <div className="flex items-center justify-center h-full" style={{ color: currentTheme.textSecondary }}>
                   <p className="text-center">
                     <span className="text-lg mb-2">No messages yet</span>
-                    <span className="text-sm">Start the conversation! 💬</span>
+                    <span className="text-sm">Start the conversation</span>
                   </p>
                 </div>
               ) : (
@@ -1458,21 +1556,24 @@ export default function ChatPage() {
                           : undefined
                       }
                     >
-                      {chatTab === 'groups' && message.sender?.name && (
+                      {message.sender?.name && (
                         <p className="text-xs font-semibold opacity-75 mb-1">{message.sender.name}</p>
                       )}
                       {message.type === 'file' && message.file ? (
                         <div className="space-y-2">
-                          <p className="text-sm font-semibold">📎 {message.file.name}</p>
+                          <p className="text-sm font-semibold inline-flex items-center gap-2">
+                            <Paperclip size={14} />
+                            {message.file.name}
+                          </p>
                           <p className="text-xs opacity-75">
                             {(message.file.size / 1024).toFixed(2)} KB
                           </p>
                           <a
                             href={message.file.url}
                             download
-                            className="inline-block text-xs font-semibold underline hover:opacity-80 transition"
+                            className="inline-flex items-center gap-1 text-xs font-semibold underline hover:opacity-80 transition"
                           >
-                            📥 Download
+                            <Download size={12} /> Download
                           </a>
                         </div>
                       ) : (
@@ -1494,10 +1595,10 @@ export default function ChatPage() {
                                 handleDeleteGroupMessage(message._id);
                               }
                             }}
-                            className="text-xs opacity-60 hover:opacity-100 hover:text-red-500 transition"
+                            className="inline-flex items-center text-xs opacity-60 hover:opacity-100 hover:text-red-500 transition"
                             title="Delete message"
                           >
-                            🗑️
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>
@@ -1528,7 +1629,7 @@ export default function ChatPage() {
                   }}
                 >
                   <div className="flex items-center gap-2" style={{ color: currentTheme.text }}>
-                    <span>📎</span>
+                    <Paperclip size={14} />
                     <span className="truncate">{selectedFile.name}</span>
                     <span className="text-xs opacity-70">
                       ({(selectedFile.size / 1024).toFixed(2)} KB)
@@ -1619,7 +1720,7 @@ export default function ChatPage() {
                   className="p-2 rounded-lg hover:opacity-80 transition font-semibold disabled:opacity-50"
                   style={{ backgroundColor: currentTheme.primary, color: 'white' }}
                 >
-                  {isSendingMessage ? '⏳' : <Send size={20} />}
+                  {isSendingMessage ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
                 </button>
               </div>
             </div>
