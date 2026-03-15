@@ -14,6 +14,17 @@ const userSockets = new Map();
 const userStatus = new Map();
 
 app.prepare().then(() => {
+  const normalizeId = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') {
+      if (value._id) return String(value._id);
+      if (value.id) return String(value.id);
+      if (typeof value.toString === 'function') return value.toString();
+    }
+    return String(value);
+  };
+
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true);
@@ -145,30 +156,38 @@ app.prepare().then(() => {
 
     // ============== GROUP MESSAGING ==============
     socket.on('join_group', (groupId) => {
-      socket.join(`group_${groupId}`);
-      console.log(`User joined group: ${groupId}`);
+      const normalizedGroupId = normalizeId(groupId);
+      if (!normalizedGroupId) return;
+      socket.join(`group_${normalizedGroupId}`);
+      console.log(`User joined group: ${normalizedGroupId}`);
     });
 
     socket.on('leave_group', (groupId) => {
-      socket.leave(`group_${groupId}`);
-      console.log(`User left group: ${groupId}`);
+      const normalizedGroupId = normalizeId(groupId);
+      if (!normalizedGroupId) return;
+      socket.leave(`group_${normalizedGroupId}`);
+      console.log(`User left group: ${normalizedGroupId}`);
     });
 
     socket.on('send_group_message', (data) => {
       try {
-        const { id, groupId, senderId, senderName, content, type } = data;
-        console.log(`Group message to ${groupId} from ${senderId}`);
+        const { id, groupId, senderId, senderName, content, type, fileUrl, fileName, fileSize } = data;
+        const normalizedGroupId = normalizeId(groupId);
+        console.log(`Group message to ${normalizedGroupId} from ${senderId}`);
 
         // Broadcast to all users in group with SAME ID from client
-        io.to(`group_${groupId}`).emit('receive_group_message', {
+        io.to(`group_${normalizedGroupId}`).emit('receive_group_message', {
           id: id || Date.now().toString(), // Use client ID if provided
-          groupId,
+          groupId: normalizedGroupId,
           sender: { id: senderId, name: senderName },
           content, // Encrypted content
           type,
+          fileUrl,
+          fileName,
+          fileSize,
           timestamp: new Date().toISOString(),
         });
-        console.log(`Group message delivered to ${groupId}`);
+        console.log(`Group message delivered to ${normalizedGroupId}`);
       } catch (error) {
         console.error('Error in send_group_message:', error);
         socket.emit('error', { message: 'Failed to send group message' });

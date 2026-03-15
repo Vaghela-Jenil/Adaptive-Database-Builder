@@ -3,19 +3,24 @@ import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/mongodb';
 import { Group } from '@/lib/models/Group';
 import { User } from '@/lib/models/Users';
+import mongoose from 'mongoose';
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId: clerkId } = await auth();
     if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     await connectDB();
 
-    const groupId = params.id;
+    const groupId = (await params).id;
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      return NextResponse.json({ error: 'Invalid group ID' }, { status: 400 });
+    }
+
     const currentUser = await User.findOne({ clerkId });
     if (!currentUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const group = await Group.findById(groupId);
+    const group = await Group.findById(new mongoose.Types.ObjectId(groupId));
     if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
 
     // Check if user is in group
@@ -26,7 +31,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // If only one member (creator), delete group entirely
     if (group.members.length === 1) {
-      await Group.findByIdAndDelete(groupId);
+      await Group.findByIdAndDelete(new mongoose.Types.ObjectId(groupId));
       return NextResponse.json({ message: 'Group deleted' }, { status: 200 });
     }
 

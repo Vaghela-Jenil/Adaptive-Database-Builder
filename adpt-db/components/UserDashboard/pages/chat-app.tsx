@@ -75,6 +75,11 @@ export default function ChatPage() {
     return rawId?.toString?.() || rawId;
   };
 
+  const getGroupId = (group: any): string => {
+    const rawId = group?._id ?? group?.id;
+    return rawId?.toString?.() || '';
+  };
+
   const getGroupMemberStatus = (member: any): 'online' | 'offline' => {
     const memberId = getMemberId(member);
     if (!memberId) return 'offline';
@@ -122,7 +127,7 @@ export default function ChatPage() {
 
           const activeGroup = selectedGroupRef.current;
           if (activeGroup) {
-            const activeGroupId = activeGroup._id || activeGroup.id;
+            const activeGroupId = getGroupId(activeGroup);
             if (activeGroupId) {
               newSocket.emit('join_group', activeGroupId);
               console.log(`👥 Re-joined group room on connect: group_${activeGroupId}`);
@@ -140,7 +145,7 @@ export default function ChatPage() {
 
           const activeGroup = selectedGroupRef.current;
           if (activeGroup) {
-            const activeGroupId = activeGroup._id || activeGroup.id;
+            const activeGroupId = getGroupId(activeGroup);
             if (activeGroupId) {
               newSocket.emit('join_group', activeGroupId);
               console.log(`👥 Re-joined group room on reconnect: group_${activeGroupId}`);
@@ -274,7 +279,7 @@ export default function ChatPage() {
           }
 
           const activeGroup = selectedGroupRef.current;
-          const activeGroupId = activeGroup?._id || activeGroup?.id;
+          const activeGroupId = getGroupId(activeGroup);
           if (!activeGroupId) {
             return;
           }
@@ -290,6 +295,11 @@ export default function ChatPage() {
           const normalizedMessage = {
             ...message,
             id: message.id || message._id,
+            _id: message._id || message.id,
+            sender: {
+              id: typeof message.sender === 'string' ? message.sender : (message.sender?.id || message.sender?._id),
+              name: message.sender?.name || message.senderName || 'Unknown User',
+            },
             content: decryptedContent,
             timestamp,
           };
@@ -488,7 +498,8 @@ export default function ChatPage() {
     if (selectedGroup && socket) {
       const fetchGroupMessages = async () => {
         try {
-          const groupId = selectedGroup._id || selectedGroup.id;
+          const groupId = getGroupId(selectedGroup);
+          if (!groupId) return;
           console.log(`📥 Fetching messages for group: ${groupId}`);
           
           const response = await axios.get(
@@ -523,15 +534,22 @@ export default function ChatPage() {
 
       fetchGroupMessages();
 
-      const groupId = selectedGroup._id || selectedGroup.id;
-      socket.emit('join_group', groupId);
-      console.log(`👥 Joined group room: group_${groupId}`);
+      const groupId = getGroupId(selectedGroup);
+      if (groupId) {
+        socket.emit('join_group', groupId);
+        console.log(`👥 Joined group room: group_${groupId}`);
+      }
+
+      const refreshInterval = setInterval(fetchGroupMessages, 3000);
 
       return () => {
+        clearInterval(refreshInterval);
         if (socket) {
-          const groupId = selectedGroup._id || selectedGroup.id;
-          socket.emit('leave_group', groupId);
-          console.log(`Left group room: group_${groupId}`);
+          const leaveGroupId = getGroupId(selectedGroup);
+          if (leaveGroupId) {
+            socket.emit('leave_group', leaveGroupId);
+            console.log(`Left group room: group_${leaveGroupId}`);
+          }
         }
       };
     }
@@ -646,7 +664,14 @@ export default function ChatPage() {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('groupId', selectedGroup._id || selectedGroup.id);
+        const groupId = getGroupId(selectedGroup);
+        if (!groupId) {
+          alert('Invalid group selected');
+          setSelectedFile(null);
+          return;
+        }
+
+        formData.append('groupId', groupId);
 
         const response = await axios.post('/api/chat/upload', formData);
 
@@ -667,7 +692,6 @@ export default function ChatPage() {
         setSelectedFile(null);
 
         // Save file message to database to get real _id
-        const groupId = selectedGroup._id || selectedGroup.id;
         const fileDbResponse = await axios.post('/api/chat/group-messages', {
           groupId,
           content: `📎 ${file.name}`,
@@ -897,7 +921,11 @@ export default function ChatPage() {
     }
 
     const messageContent = messageInput;
-    const groupId = selectedGroup._id || selectedGroup.id;
+    const groupId = getGroupId(selectedGroup);
+    if (!groupId) {
+      console.warn('❌ Invalid group id');
+      return;
+    }
     setMessageInput('');
     setIsSendingMessage(true);
 
@@ -956,12 +984,19 @@ export default function ChatPage() {
     if (!selectedGroup) return;
 
     try {
+      const groupId = getGroupId(selectedGroup);
+      if (!groupId) {
+        alert('Invalid group selected');
+        return;
+      }
+
       const response = await axios.patch(
-        `/api/chat/groups/${selectedGroup._id || selectedGroup.id}/members`,
+        `/api/chat/groups/${groupId}/members`,
         { action: 'add', memberId }
       );
 
       setSelectedGroup(response.data);
+      setGroups((prev) => prev.map((g) => (getGroupId(g) === groupId ? response.data : g)));
       setGroupMembers(response.data.members || []);
       alert('✅ Member added!');
     } catch (error: any) {
@@ -993,7 +1028,11 @@ export default function ChatPage() {
 
     if (confirm('Are you sure you want to exit this group?')) {
       try {
-        const groupId = selectedGroup._id || selectedGroup.id;
+        const groupId = getGroupId(selectedGroup);
+        if (!groupId) {
+          alert('Invalid group selected');
+          return;
+        }
         console.log(`👋 Exiting group: ${groupId}`);
         
         await axios.delete(`/api/chat/groups/${groupId}`);

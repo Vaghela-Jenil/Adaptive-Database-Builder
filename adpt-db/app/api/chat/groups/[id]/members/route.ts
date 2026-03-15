@@ -3,22 +3,27 @@ import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/mongodb';
 import { Group } from '@/lib/models/Group';
 import { User } from '@/lib/models/Users';
+import mongoose from 'mongoose';
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId: clerkId } = await auth();
     if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     await connectDB();
 
-    const groupId = params.id;
+    const groupId = (await params).id;
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      return NextResponse.json({ error: 'Invalid group ID' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { action, memberId } = body;
 
     const currentUser = await User.findOne({ clerkId });
     if (!currentUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const group = await Group.findById(groupId);
+    const group = await Group.findById(new mongoose.Types.ObjectId(groupId));
     if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
 
     // Check if current user is admin
@@ -29,11 +34,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (action === 'add') {
       // Add new member to group
-      const member = await User.findById(memberId);
+      const member = mongoose.Types.ObjectId.isValid(memberId)
+        ? await User.findById(memberId)
+        : await User.findOne({ clerkId: memberId });
       if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 });
 
       // Check if already in group
-      if (group.members.find((m) => m.userId.toString() === memberId)) {
+      if (group.members.find((m) => m.userId.toString() === member._id.toString())) {
         return NextResponse.json({ error: 'Member already in group' }, { status: 400 });
       }
 
@@ -49,12 +56,28 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json(group, { status: 200 });
     } else if (action === 'remove') {
       // Remove member from group
-      group.members = group.members.filter((m) => m.userId.toString() !== memberId);
+      const removeId = mongoose.Types.ObjectId.isValid(memberId)
+        ? memberId
+        : (await User.findOne({ clerkId: memberId }))?._id?.toString();
+
+      if (!removeId) {
+        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+      }
+
+      group.members = group.members.filter((m) => m.userId.toString() !== removeId);
       await group.save();
       return NextResponse.json(group, { status: 200 });
     } else if (action === 'block') {
       // Block member
-      const memberToBlock = group.members.find((m) => m.userId.toString() === memberId);
+      const blockId = mongoose.Types.ObjectId.isValid(memberId)
+        ? memberId
+        : (await User.findOne({ clerkId: memberId }))?._id?.toString();
+
+      if (!blockId) {
+        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+      }
+
+      const memberToBlock = group.members.find((m) => m.userId.toString() === blockId);
       if (!memberToBlock) return NextResponse.json({ error: 'Member not found' }, { status: 404 });
 
       if (!currentMember.blockedMembers.includes(memberToBlock.userId)) {
@@ -65,8 +88,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json(group, { status: 200 });
     } else if (action === 'unblock') {
       // Unblock member
+      const unblockId = mongoose.Types.ObjectId.isValid(memberId)
+        ? memberId
+        : (await User.findOne({ clerkId: memberId }))?._id?.toString();
+
+      if (!unblockId) {
+        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+      }
+
       currentMember.blockedMembers = currentMember.blockedMembers.filter(
-        (id) => id.toString() !== memberId
+        (id) => id.toString() !== unblockId
       );
       await group.save();
       return NextResponse.json(group, { status: 200 });
