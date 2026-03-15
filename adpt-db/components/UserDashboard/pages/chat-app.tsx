@@ -91,6 +91,15 @@ export default function ChatPage() {
     return members.filter((member: any) => getGroupMemberStatus(member) === 'online').length;
   };
 
+  const getGroupPreviewText = (group: any): string => {
+    if (!group?.lastMessage) {
+      return `${group?.members?.length || 0} members`;
+    }
+
+    const senderName = group.lastMessageSenderName ? `${group.lastMessageSenderName}: ` : '';
+    return `${senderName}${group.lastMessage}`;
+  };
+
   const getCurrentGroupMember = (group: any) => {
     if (!group || !currentUserId) return null;
     return group.members?.find((member: any) => getMemberId(member) === currentUserId) || null;
@@ -320,6 +329,19 @@ export default function ChatPage() {
             }
             return [...prev, normalizedMessage];
           });
+
+          setGroups((prev) => prev.map((group) => {
+            if (getGroupId(group) !== currentGroupId) {
+              return group;
+            }
+
+            return {
+              ...group,
+              lastMessage: decryptedContent,
+              lastMessageSenderName: normalizedMessage.sender?.name || 'Unknown User',
+              lastMessageTime: timestamp,
+            };
+          }));
         });
 
         // ============ ERROR HANDLING ============
@@ -431,7 +453,24 @@ export default function ChatPage() {
     const fetchGroups = async () => {
       try {
         const response = await axios.get('/api/chat/groups');
-        setGroups(response.data);
+        const normalizedGroups = (response.data || []).map((group: any) => {
+          let decryptedLastMessage = group.lastMessage;
+
+          try {
+            if (group.lastMessage && isEncrypted(group.lastMessage)) {
+              decryptedLastMessage = decryptMessage(group.lastMessage, `group_${getGroupId(group)}`);
+            }
+          } catch (error) {
+            console.error('Error decrypting group preview:', error);
+          }
+
+          return {
+            ...group,
+            lastMessage: decryptedLastMessage,
+          };
+        });
+
+        setGroups(normalizedGroups);
       } catch (error) {
         console.error('Error fetching groups:', error);
       }
@@ -584,7 +623,7 @@ export default function ChatPage() {
 
   // Scroll to bottom when messages update
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, groupMessages]);
 
   const handleSearch = async (query: string) => {
@@ -716,6 +755,18 @@ export default function ChatPage() {
         };
 
         setGroupMessages((prev) => [...prev, fileMessage]);
+        setGroups((prev) => prev.map((group) => {
+          if (getGroupId(group) !== groupId) {
+            return group;
+          }
+
+          return {
+            ...group,
+            lastMessage: `📎 ${file.name}`,
+            lastMessageSenderName: currentUser.userName,
+            lastMessageTime: new Date(),
+          };
+        }));
         setSelectedFile(null);
 
         // Save file message to database to get real _id
@@ -970,6 +1021,18 @@ export default function ChatPage() {
       };
 
       setGroupMessages((prev) => [...prev, localMessage]);
+      setGroups((prev) => prev.map((group) => {
+        if (getGroupId(group) !== groupId) {
+          return group;
+        }
+
+        return {
+          ...group,
+          lastMessage: messageContent,
+          lastMessageSenderName: currentUser.userName,
+          lastMessageTime: new Date(),
+        };
+      }));
       console.log('✅ Message added to local state with ID:', messageId);
 
       // Ensure user is in group room BEFORE saving
@@ -1050,6 +1113,7 @@ export default function ChatPage() {
       setSelectedGroup(response.data);
       setGroups((prev) => prev.map((g) => (getGroupId(g) === groupId ? response.data : g)));
       setGroupMembers(response.data.members || []);
+      setSelectedMembers((prev) => prev.filter((id) => id !== memberId));
       alert('✅ Member removed!');
     } catch (error) {
       console.error('Error removing member:', error);
@@ -1217,12 +1281,12 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex h-screen overflow-hidden"
+      className="flex h-screen min-h-0 overflow-hidden"
       style={{ backgroundColor: currentTheme.background }}
     >
       {/* Sidebar - Conversations */}
       <div
-        className="w-80 border-r flex flex-col overflow-hidden"
+        className="w-80 min-h-0 border-r flex flex-col overflow-hidden"
         style={{
           borderColor: currentTheme.border,
           backgroundColor: currentTheme.surface,
@@ -1420,15 +1484,15 @@ export default function ChatPage() {
                   style={{
                     backgroundColor:
                       selectedConversation?.id === conversation.id
-                        ? `${currentTheme.primary}20`
+                        ? currentTheme.primary
                         : currentTheme.surface,
                     borderColor: currentTheme.border,
                     color:
                       selectedConversation?.id === conversation.id
-                        ? currentTheme.text
+                        ? 'white'
                         : currentTheme.text,
                     boxShadow: selectedConversation?.id === conversation.id
-                      ? `inset 3px 0 0 ${currentTheme.primary}`
+                      ? `inset 4px 0 0 rgba(255,255,255,0.8)`
                       : 'none',
                   }}
                   onClick={() => {
@@ -1459,7 +1523,7 @@ export default function ChatPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold">{conversation.friend.name}</p>
-                        <p className="text-sm opacity-75 truncate">
+                        <p className="text-sm truncate" style={{ opacity: selectedConversation?.id === conversation.id ? 0.9 : 0.75 }}>
                           {conversation.lastMessage}
                         </p>
                       </div>
@@ -1483,54 +1547,52 @@ export default function ChatPage() {
                 <p className="text-sm mt-2">Create a new group to start chatting</p>
               </div>
             ) : (
-              groups.map((group) => (
-                <div
-                  key={group._id || group.id}
-                  className="p-3 border-b cursor-pointer hover:bg-opacity-50 transition"
-                  style={{
-                    backgroundColor:
-                      selectedGroup?._id === group._id || selectedGroup?.id === group.id
-                        ? `${currentTheme.primary}20`
-                        : currentTheme.surface,
-                    borderColor: currentTheme.border,
-                    color:
-                      selectedGroup?._id === group._id || selectedGroup?.id === group.id
-                        ? currentTheme.text
-                        : currentTheme.text,
-                    boxShadow: selectedGroup?._id === group._id || selectedGroup?.id === group.id
-                      ? `inset 3px 0 0 ${currentTheme.primary}`
-                      : 'none',
-                  }}
-                  onClick={() => {
-                    setSelectedGroup(group);
-                    setSelectedConversation(null);
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: currentTheme.primary }}
-                      >
-                        <User size={20} style={{ color: 'white' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold">{group.name}</p>
-                        <p className="text-sm opacity-75">
-                          {group.members?.length || 0} members
-                        </p>
+              groups.map((group) => {
+                const isSelectedGroup = getGroupId(selectedGroup) === getGroupId(group);
+
+                return (
+                  <div
+                    key={group._id || group.id}
+                    className="p-3 border-b cursor-pointer hover:bg-opacity-50 transition"
+                    style={{
+                      backgroundColor: isSelectedGroup ? currentTheme.primary : currentTheme.surface,
+                      borderColor: currentTheme.border,
+                      color: isSelectedGroup ? 'white' : currentTheme.text,
+                      boxShadow: isSelectedGroup
+                        ? `inset 4px 0 0 rgba(255,255,255,0.8)`
+                        : 'none',
+                    }}
+                    onClick={() => {
+                      setSelectedGroup(group);
+                      setSelectedConversation(null);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: isSelectedGroup ? 'rgba(255,255,255,0.18)' : currentTheme.primary }}
+                        >
+                          <User size={20} style={{ color: 'white' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{group.name}</p>
+                          <p className="text-sm truncate" style={{ opacity: isSelectedGroup ? 0.9 : 0.75 }}>
+                            {getGroupPreviewText(group)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )
           )}
         </div>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {selectedConversation || selectedGroup ? (
           <>
             {/* Chat Header */}
@@ -1633,7 +1695,7 @@ export default function ChatPage() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: currentTheme.background }}>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: currentTheme.background }}>
               {(chatTab === 'direct' && !selectedConversation) || (chatTab === 'groups' && !selectedGroup) ? (
                 <div className="flex items-center justify-center h-full" style={{ color: currentTheme.textSecondary }}>
                   <p className="text-center">
@@ -1733,7 +1795,7 @@ export default function ChatPage() {
             {/* Message Input Area */}
             {((chatTab === 'direct' && selectedConversation) || (chatTab === 'groups' && selectedGroup)) && (
             <div
-              className="p-4 border-t space-y-2 shrink-0"
+              className="sticky bottom-0 z-10 p-4 border-t space-y-2 shrink-0"
               style={{
                 backgroundColor: currentTheme.surface,
                 borderColor: currentTheme.border,
@@ -1862,7 +1924,8 @@ export default function ChatPage() {
 
       {/* Create Group Modal */}
       {showCreateGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-white/70 flex items-center justify-center z-50"
+        onClick={() => setShowCreateGroup(false)}>
           <div
             className="bg-white rounded-lg shadow-xl w-96 p-6 max-h-96 overflow-y-auto"
             style={{ backgroundColor: currentTheme.surface }}
@@ -1979,7 +2042,7 @@ export default function ChatPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold" style={{ color: currentTheme.text }}>
-                Add Member to {selectedGroup.name}
+                Manage Members in {selectedGroup.name}
               </h2>
               <button
                 onClick={() => setShowAddMember(false)}
@@ -1988,6 +2051,62 @@ export default function ChatPage() {
                 ✕
               </button>
             </div>
+
+            {isCurrentUserGroupAdmin(selectedGroup) && (
+              <div className="mb-5">
+                <label className="block text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+                  Current Members
+                </label>
+                <div className="space-y-2 max-h-44 overflow-y-auto">
+                  {(selectedGroup.members || []).map((member: any) => {
+                    const memberId = getMemberId(member) || '';
+                    const isSelf = memberId === currentUserId;
+
+                    return (
+                      <div
+                        key={memberId}
+                        className="flex items-center justify-between p-2 rounded-lg"
+                        style={{ backgroundColor: currentTheme.input }}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {member.userImage ? (
+                            <img
+                              src={member.userImage}
+                              alt={member.userName}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          ) : (
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+                              style={{ backgroundColor: `${currentTheme.primary}25`, color: currentTheme.primary }}
+                            >
+                              {(member.userName || '?').slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: currentTheme.text }}>
+                              {member.userName} {isSelf ? '(you)' : ''}
+                            </p>
+                            <p className="text-xs uppercase" style={{ color: currentTheme.textSecondary }}>
+                              {member.role}
+                            </p>
+                          </div>
+                        </div>
+                        {!isSelf && (
+                          <button
+                            onClick={() => handleRemoveMemberFromGroup(memberId)}
+                            className="px-2 py-1 rounded text-xs font-semibold transition hover:opacity-90"
+                            style={{ backgroundColor: '#ef444420', color: '#ef4444' }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Select Friends Not in Group */}
             <div className="mb-4">

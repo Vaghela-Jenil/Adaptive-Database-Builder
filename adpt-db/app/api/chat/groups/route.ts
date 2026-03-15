@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/mongodb';
 import { Group } from '@/lib/models/Group';
+import { GroupMessage } from '@/lib/models/GroupMessage';
 import { User } from '@/lib/models/Users';
 
 export async function GET(request: NextRequest) {
@@ -19,7 +20,24 @@ export async function GET(request: NextRequest) {
       'members.userId': currentUser._id,
     }).sort({ updatedAt: -1 });
 
-    return NextResponse.json(groups, { status: 200 });
+    const groupsWithLastMessage = await Promise.all(
+      groups.map(async (group) => {
+        const lastMessage = await GroupMessage.findOne({ groupId: group._id })
+          .sort({ createdAt: -1 })
+          .select('content type senderName createdAt')
+          .lean();
+
+        return {
+          ...group.toObject(),
+          lastMessage: lastMessage?.content || null,
+          lastMessageType: lastMessage?.type || null,
+          lastMessageSenderName: lastMessage?.senderName || null,
+          lastMessageTime: lastMessage?.createdAt || null,
+        };
+      })
+    );
+
+    return NextResponse.json(groupsWithLastMessage, { status: 200 });
   } catch (error) {
     console.error('Error fetching groups:', error);
     return NextResponse.json({ error: 'Failed to fetch groups' }, { status: 500 });
