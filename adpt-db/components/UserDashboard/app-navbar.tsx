@@ -15,6 +15,13 @@ import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
 import { UserButton } from "@clerk/nextjs";
 import { UserContext } from "@/context/userContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type NavBarProps = {
   isSidebarOpen: boolean;
@@ -24,8 +31,68 @@ type NavBarProps = {
 
 export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRefresh }: NavBarProps) {
   const [notifications, setNotifications] = useState(3);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
+
+  const featureSummaries = [
+    {
+      title: "Dashboard",
+      points: [
+        "View key platform metrics and activity at a glance.",
+        "Track overall usage and recent updates quickly.",
+      ],
+    },
+    {
+      title: "Databases",
+      points: [
+        "Create and manage custom databases.",
+        "Open, edit, secure, and organize records with access control.",
+      ],
+    },
+    {
+      title: "Analytics",
+      points: [
+        "Build charts and compare data across datasets.",
+        "Analyze trends and generate insights from records.",
+      ],
+    },
+    {
+      title: "AI Assistant",
+      points: [
+        "Ask questions about your data in natural language.",
+        "Get guided help for workflows and data operations.",
+      ],
+    },
+    {
+      title: "Nearby Stores",
+      points: [
+        "Locate nearby stores using location-based search.",
+        "Use map-based results to plan stock or purchasing actions.",
+      ],
+    },
+    {
+      title: "Share Folder",
+      points: [
+        "Share databases with team members securely.",
+        "Assign role-based permissions for collaboration.",
+      ],
+    },
+    {
+      title: "Query",
+      points: [
+        "Raise support or functional queries from inside the app.",
+        "Get help for usage, issues, and feature guidance.",
+      ],
+    },
+    {
+      title: "Chat",
+      points: [
+        "Communicate in direct and group conversations.",
+        "Exchange messages and files with real-time updates.",
+      ],
+    },
+  ];
 
   return (
     <motion.header
@@ -78,6 +145,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="w-10 h-10 flex items-center justify-center rounded-xl transition-all"
+            onClick={() => setIsSummaryOpen(true)}
             style={{
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
@@ -134,6 +202,50 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
           </motion.button>
         </div>
       </div>
+
+      <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
+        <DialogContent
+          className="max-w-3xl max-h-[80vh] overflow-y-auto"
+          style={{
+            backgroundColor: currentTheme.surface,
+            border: `1px solid ${currentTheme.border}`,
+            color: currentTheme.text,
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: currentTheme.text }}>
+              System Feature Summary
+            </DialogTitle>
+            <DialogDescription style={{ color: currentTheme.textSecondary }}>
+              Quick point-wise overview of all side panel features.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {featureSummaries.map((feature) => (
+              <div
+                key={feature.title}
+                className="rounded-xl p-4"
+                style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.border}`,
+                }}
+              >
+                <h3 className="text-sm font-semibold mb-2" style={{ color: currentTheme.text }}>
+                  {feature.title}
+                </h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  {feature.points.map((point) => (
+                    <li key={point} className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.header>
   );
 }
