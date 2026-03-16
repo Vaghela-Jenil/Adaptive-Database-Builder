@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import {
   Search,
-  Bell,
+  Calendar,
   Plus,
   HelpCircle,
   PanelLeftClose,
@@ -10,11 +10,13 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { UserContext } from "@/context/userContext";
+import TaskManager from "../TaskManager/TaskManager";
+import axios from "axios";
 import {
   Dialog,
   DialogContent,
@@ -30,10 +32,49 @@ type NavBarProps = {
 };
 
 export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRefresh }: NavBarProps) {
-  const [notifications, setNotifications] = useState(3);
+  const [isTaskManagerOpen, setIsTaskManagerOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [taskCountForToday, setTaskCountForToday] = useState(0);
+  const [loadingTaskCount, setLoadingTaskCount] = useState(false);
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
+  const { user: clerkUser } = useUser();
+
+  const fetchTodayTaskCount = async () => {
+    if (!clerkUser?.id) return;
+    setLoadingTaskCount(true);
+    try {
+      const response = await axios.get("/api/tasks");
+      const data = response.data;
+      const today = new Date().toISOString().split("T")[0];
+      const todayTasks = data.taskLists.flatMap((list: any) => 
+        list.tasks.filter((task: any) => task.dueDate === today && !task.completed)
+      );
+      setTaskCountForToday(todayTasks.length);
+    } catch (error) {
+      console.error("Failed to fetch task count:", error);
+    } finally {
+      setLoadingTaskCount(false);
+    }
+  };
+
+  // Fetch task count on component mount
+  useEffect(() => {
+    fetchTodayTaskCount();
+  }, [clerkUser?.id]);
+
+  // Fetch task count when task manager opens/closes
+  useEffect(() => {
+    if (isTaskManagerOpen) {
+      fetchTodayTaskCount();
+    }
+  }, [isTaskManagerOpen, clerkUser?.id]);
+
+  const handleTaskManagerClose = () => {
+    setIsTaskManagerOpen(false);
+    fetchTodayTaskCount();
+  };
+
 
   const featureSummaries = [
     {
@@ -155,10 +196,11 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             <HelpCircle className="w-5 h-5" />
           </motion.button>
 
-          {/* Notifications */}
+          {/* Calendar / Task Manager */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => setIsTaskManagerOpen(true)}
             className="relative w-10 h-10 flex items-center justify-center rounded-xl transition-all"
             style={{
               backgroundColor: currentTheme.background,
@@ -166,13 +208,15 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               color: currentTheme.textSecondary,
             }}
           >
-            <Bell className="w-5 h-5" />
-            {notifications > 0 && (
+            <Calendar className="w-5 h-5" />
+            {taskCountForToday > 0 && (
               <span
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-semibold"
-                style={{ backgroundColor: currentTheme.primary }}
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{
+                  backgroundColor: currentTheme.primary,
+                }}
               >
-                {notifications}
+                {taskCountForToday > 99 ? "99+" : taskCountForToday}
               </span>
             )}
           </motion.button>
@@ -246,6 +290,8 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
           </div>
         </DialogContent>
       </Dialog>
+
+      <TaskManager isOpen={isTaskManagerOpen} onClose={handleTaskManagerClose} onTasksUpdate={fetchTodayTaskCount} />
     </motion.header>
   );
 }

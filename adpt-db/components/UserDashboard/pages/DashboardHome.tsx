@@ -164,7 +164,7 @@ export default function DashboardHome({ onChangePage }: DatabasePageProps) {
             className="text-3xl font-bold mb-2"
             style={{ color: currentTheme.text }}
           >
-            Welcome back, {user?.userName} 👋
+            Welcome, {user?.userName} 👋
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: -20 }}
