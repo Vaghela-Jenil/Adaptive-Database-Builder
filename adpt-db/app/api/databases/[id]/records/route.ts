@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { computeColumnValue } from "@/lib/computedColumns";
+import { deleteCloudinaryAssets } from "@/lib/cloudinary";
+import { extractUploadedFileAssetsFromRecordData, sanitizeRecordFileData } from "@/lib/uploadedFiles";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -136,7 +138,7 @@ export async function POST(
     }
 
     // Calculate computed columns if they exist
-    let enrichedData = { ...data };
+    let enrichedData = sanitizeRecordFileData({ ...data }, db.formSchema);
     if (db.computedColumns && db.computedColumns.length > 0) {
       for (const column of db.computedColumns) {
         const computedValue = computeColumnValue(enrichedData, column, db.formSchema);
@@ -191,34 +193,36 @@ export async function DELETE(
       );
     }
 
-    const updatedDatabase = await DatabaseModel.findOneAndUpdate(
-      {
-        _id: databaseId,
-        clerkId: userId,
-      },
-      {
-        $pull: {
-          records: {
-            id: { $in: ids },
-          },
-        },
-        $inc: {
-          recordCount: -ids.length,
-        },
-      },
-      { new: true }
-    );
+    const db = await DatabaseModel.findOne({
+      _id: databaseId,
+      clerkId: userId,
+    });
 
-    if (!updatedDatabase) {
+    if (!db) {
       return NextResponse.json(
         { error: "Database not found" },
         { status: 404 }
       );
     }
 
+    const recordsToDelete = db.records.filter((record: any) => ids.includes(record.id));
+    const fileAssets = recordsToDelete.flatMap((record: any) =>
+      extractUploadedFileAssetsFromRecordData(record.data || {}, db.formSchema)
+    );
+
+    db.records = db.records.filter((record: any) => !ids.includes(record.id));
+    db.recordCount = db.records.length;
+    await db.save();
+
+    try {
+      await deleteCloudinaryAssets(fileAssets);
+    } catch (cleanupError) {
+      console.error('Failed to clean up Cloudinary files after bulk delete:', cleanupError);
+    }
+
     return NextResponse.json({
       success: true,
-      records: updatedDatabase.records,
+      records: db.records,
     });
 
   } catch (error) {

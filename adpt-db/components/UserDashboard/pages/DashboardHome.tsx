@@ -8,6 +8,7 @@ import {
   Layers,
   BarChart3,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useEffect, useState } from "react";
@@ -35,7 +36,11 @@ type StatsData = {
   totalInvoices: number;
 };
 
-export default function DashboardHome() {
+type DatabasePageProps = {
+  onChangePage: (changePage: string) => void;
+};
+
+export default function DashboardHome({ onChangePage }: DatabasePageProps) {
   const { currentTheme } = useTheme();
   const { user } = useUserContext();
 
@@ -136,10 +141,10 @@ export default function DashboardHome() {
   ];
 
   const quickActions = [
-    { label: "Create Database", icon: Database, link:'/databases' },
-    { label: "New Folder", icon: FolderLock, link:'/databases' },
-    { label: "Share Data", icon: ArrowUpRight, link:'/share-folder' },
-    { label: "View Analytics", icon: TrendingUp, link:'/analytics' },
+    { label: "Create Database", icon: Database, page:'database' },
+    { label: "Assistance", icon: Sparkles, page:'chatbot' },
+    { label: "Share Data", icon: ArrowUpRight, page:'share-folder' },
+    { label: "View Analytics", icon: TrendingUp, page:'analytics' },
   ];
 
   const filters: { label: string; value: FilterType }[] = [
@@ -246,6 +251,7 @@ export default function DashboardHome() {
                     backgroundColor: currentTheme.background,
                     border: `1px solid ${currentTheme.border}`,
                   }}
+                  onClick={() => onChangePage(action.page)}
                 >
                   <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"

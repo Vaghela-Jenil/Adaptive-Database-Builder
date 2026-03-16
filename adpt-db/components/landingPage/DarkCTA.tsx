@@ -100,7 +100,7 @@ export default function DarkCTA() {
                 </Button>
               </motion.div>
 
-              <motion.p
+              <motion.div
                 className="mt-6 text-slate-500"
                 initial={{ opacity: 0 }}
                 animate={isInView ? { opacity: 1 } : { opacity: 0 }}
@@ -114,7 +114,7 @@ export default function DarkCTA() {
                   <Check size={16} className="text-cyan-400 shrink-0 ml-3" />
                   Cancel anytime
                 </div>
-              </motion.p>
+              </motion.div>
             </div>
 
             {/* Decorative corners */}

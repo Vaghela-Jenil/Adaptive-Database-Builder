@@ -10,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   RefreshCcw,
+  User,
 } from "lucide-react";
 import { useClerk, UserAvatar, UserButton } from '@clerk/clerk-react'
 import { useTheme } from "@/context/ThemeContext";
@@ -21,6 +22,7 @@ import { UserContext } from "@/context/userContext";
 import Image from "next/image";
 import logo from '../../public/logo.png'
 import VisitTracker from "../VisitTracker";
+import Link from "next/link";
 
 export default function AdminLayout() {
   const [activePage, setActivePage] = useState("users");
@@ -63,7 +65,7 @@ export default function AdminLayout() {
       className="flex h-screen overflow-hidden"
       style={{ backgroundColor: currentTheme.background }}
     >
-         <VisitTracker />
+      <VisitTracker />
       {/* Sidebar */}
       <motion.aside
         initial={false}
@@ -138,9 +140,22 @@ export default function AdminLayout() {
 
           {/* Logout Button */}
           <div
-            className="p-4"
+            className="p-4 flex flex-col gap-1"
             style={{ borderTop: `1px solid ${currentTheme.border}` }}
           >
+            <button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+                color: currentTheme.text,
+              }}
+            >
+              <User className="w-5 h-5" />
+              <Link href="/user/dashboard" className="font-medium">
+                User Dashboard
+              </Link>
+            </button>
             <button
               onClick={async () => await signOut()}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"

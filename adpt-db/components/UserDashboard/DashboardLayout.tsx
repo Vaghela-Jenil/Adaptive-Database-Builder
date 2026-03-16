@@ -38,7 +38,12 @@ export default function DashboardLayout() {
 
   const renderPage = () => {
     switch (activePage) {
-      case "dashboard": return <DashboardHome />;
+      case "dashboard": return <DashboardHome 
+       onChangePage={(changePage) => {
+              setEditingDatabase(null);
+              setActivePage(changePage);
+            }}
+      />;
       case "analytics": return <Analytics />;
       case "chatbot": return <Chatbot />;
       case "nearby-stores": return <NearByStorePage />;
@@ -83,7 +88,12 @@ export default function DashboardLayout() {
           <DatabaseChatbot database={viewingDatabase} onBack={() => setActivePage("database-records")} />
         ) : null;
       default:
-        return <DashboardHome />;
+        return <DashboardHome 
+       onChangePage={(changePage) => {
+              setEditingDatabase(null);
+              setActivePage(changePage);
+            }}
+      />;
     }
   };
 

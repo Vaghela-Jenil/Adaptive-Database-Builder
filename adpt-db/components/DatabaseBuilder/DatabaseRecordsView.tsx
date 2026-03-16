@@ -43,6 +43,11 @@ import { computeColumnValue, validateComputedColumn } from "@/lib/computedColumn
 import SellStocks, { InvoiceData } from "./SellStocks";
 import OutOfStockItems, { OutOfStockItem } from "./OutOfStockItems";
 import GeneratedInvoices from "./GeneratedInvoices";
+import {
+  extractTemporaryUploadedFileAssets,
+  extractUploadedFileAssets,
+  sanitizeRecordFileData,
+} from "@/lib/uploadedFiles";
 
 import {
   ResponsiveContainer,
@@ -776,12 +781,14 @@ export default function DatabaseRecordsView({
   const handleSaveForm = () => {
     if (!currentDatabase) return;
 
+    const sanitizedFormData = sanitizeRecordFileData(formData, editableFormFields);
+
     // Build schema excluding computed columns
     const schemaForValidation = editableFormFields.length > 0
       ? buildZodSchema(editableFormFields)
       : buildZodSchema(formSchema);
 
-    const result = schemaForValidation.safeParse(formData);
+    const result = schemaForValidation.safeParse(sanitizedFormData);
 
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -800,9 +807,9 @@ export default function DatabaseRecordsView({
     setFormErrors({});
 
     if (editingRecord) {
-      handleUpdateRecord(currentDatabase._id, editingRecord.id, formData);
+      handleUpdateRecord(currentDatabase._id, editingRecord.id, sanitizedFormData);
     } else {
-      handleAddRecord(currentDatabase._id, formData);
+      handleAddRecord(currentDatabase._id, sanitizedFormData);
     }
 
     setShowForm(false);
@@ -810,11 +817,67 @@ export default function DatabaseRecordsView({
     setEditingRecord(null);
   };
 
-  const handleCancelForm = () => {
+  const handleCancelForm = async () => {
+    const temporaryAssets = editableFormFields.flatMap((field) =>
+      extractTemporaryUploadedFileAssets(formData[field.id])
+    );
+
+    await Promise.all(
+      temporaryAssets.map((asset) =>
+        axios.delete('/api/uploads', {
+          data: {
+            publicId: asset.publicId,
+            resourceType: asset.resourceType,
+          },
+        }).catch(() => null)
+      )
+    );
+
     setShowForm(false);
     setFormData({});
     setEditingRecord(null);
     setFormErrors({});
+  };
+
+  const renderRecordCellValue = (field: FieldAttributes, rawValue: unknown) => {
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+      return '-';
+    }
+
+    if (field.type === 'file-upload') {
+      const files = extractUploadedFileAssets(rawValue);
+      if (!files.length) return '-';
+
+      return (
+        <div className="space-y-1">
+          {files.slice(0, 2).map((file, index) => (
+            <div key={`${file.publicId || file.url}-${index}`} className="group min-w-0">
+              <div className="truncate">{file.originalFilename || file.url}</div>
+              <a
+                href={file.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] underline"
+              >
+                Open
+              </a>
+            </div>
+          ))}
+          {files.length > 2 && <div className="text-[10px] opacity-70">+{files.length - 2} more</div>}
+        </div>
+      );
+    }
+
+    if (Array.isArray(rawValue)) {
+      return rawValue.join(', ');
+    }
+
+    if (typeof rawValue === 'object') {
+      return JSON.stringify(rawValue);
+    }
+
+    return String(rawValue);
   };
 
   const handleFieldChange = (fieldId: string, value: unknown) => {
@@ -2742,9 +2805,7 @@ export default function DatabaseRecordsView({
                                 maxWidth: `${getColumnWidth(field.id)}px`,
                               }}
                             >
-                              {record.data[field.id] !== undefined && record.data[field.id] !== null
-                                ? String(record.data[field.id])
-                                : "-"}
+                              {renderRecordCellValue(field, record.data[field.id])}
 
                             </td>
                           ))}

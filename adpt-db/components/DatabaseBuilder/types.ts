@@ -65,6 +65,16 @@ export type FieldTemplate = {
   defaultAttributes: Partial<FieldAttributes>;
 };
 
+export type UploadedFileValue = {
+  url: string;
+  publicId?: string;
+  originalFilename?: string;
+  mimeType?: string;
+  resourceType?: string;
+  size?: number;
+  isTemporary?: boolean;
+};
+
 
 
 export type DatabaseRecord = {

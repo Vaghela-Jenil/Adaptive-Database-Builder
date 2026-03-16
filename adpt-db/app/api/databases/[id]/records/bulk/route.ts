@@ -3,6 +3,8 @@ import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
 import { computeColumnValue } from "@/lib/computedColumns";
+import { deleteCloudinaryAssets } from "@/lib/cloudinary";
+import { extractUploadedFileAssetsFromRecordData, sanitizeRecordFileData } from "@/lib/uploadedFiles";
 
 export async function POST(
     req: NextRequest,
@@ -41,7 +43,7 @@ export async function POST(
 
         const recordsToInsert = records.map((data) => {
             // Calculate computed columns if they exist
-            let enrichedData = { ...data };
+            let enrichedData = sanitizeRecordFileData({ ...data }, db.formSchema);
             if (db.computedColumns && db.computedColumns.length > 0) {
                 for (const column of db.computedColumns) {
                     const computedValue = computeColumnValue(enrichedData, column, db.formSchema);
@@ -110,25 +112,30 @@ export async function DELETE(
     const databaseId = (await params).id;
 
     // We use findOneAndUpdate to ensure the user owns this database
-    const updatedDatabase = await DatabaseModel.findOneAndUpdate(
-      {
-        _id: databaseId,
-        clerkId: userId,
-      },
-      {
-        $set: { 
-          records: [],      // Empty the array
-          recordCount: 0    // Reset the counter
-        },
-      },
-      { new: true } // Return the fresh version
-    );
+    const db = await DatabaseModel.findOne({
+      _id: databaseId,
+      clerkId: userId,
+    });
 
-    if (!updatedDatabase) {
+    if (!db) {
       return NextResponse.json(
         { error: "Database not found or unauthorized" },
         { status: 404 }
       );
+    }
+
+    const fileAssets = db.records.flatMap((record: any) =>
+      extractUploadedFileAssetsFromRecordData(record.data || {}, db.formSchema)
+    );
+
+    db.records = [];
+    db.recordCount = 0;
+    await db.save();
+
+    try {
+      await deleteCloudinaryAssets(fileAssets);
+    } catch (cleanupError) {
+      console.error('Failed to clean up Cloudinary files after clearing records:', cleanupError);
     }
 
     return NextResponse.json({

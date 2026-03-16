@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+const uploadedFileSchema = z.object({
+  url: z.string().url("Invalid file URL"),
+  publicId: z.string().optional(),
+  originalFilename: z.string().optional(),
+  mimeType: z.string().optional(),
+  resourceType: z.string().optional(),
+  size: z.number().optional(),
+  isTemporary: z.boolean().optional(),
+});
+
 export const buildZodSchema = (fields: any[]) => {
   const shape: Record<string, z.ZodTypeAny> = {};
 
@@ -19,8 +29,7 @@ export const buildZodSchema = (fields: any[]) => {
       case "input-email":
       case "input-phone":
       case "input-url":
-      case "input-otp":
-      case "file-upload": {
+      case "input-otp": {
         let s = z.string();
 
         // 1. Specific Formats FIRST
@@ -40,6 +49,21 @@ export const buildZodSchema = (fields: any[]) => {
         schema = attrs.required
           ? s.min(1, `${field.label} is required`)
           : s.optional().or(z.literal("")).or(z.null());
+        break;
+      }
+
+      case "file-upload": {
+        if (attrs.multiple) {
+          const fileArraySchema = z.array(uploadedFileSchema);
+          schema = attrs.required
+            ? fileArraySchema.min(1, `${field.label} is required`)
+            : fileArraySchema.optional().default([]);
+        } else {
+          const singleFileSchema = uploadedFileSchema;
+          schema = attrs.required
+            ? singleFileSchema
+            : singleFileSchema.optional().or(z.literal("")).or(z.null());
+        }
         break;
       }
 
@@ -71,7 +95,7 @@ export const buildZodSchema = (fields: any[]) => {
       case "slider":
       case "rating": {
         let s = z.coerce.number({
-          invalid_type_error: `${field.label} must be a number`,
+          message: `${field.label} must be a number`,
         });
 
         if (attrs.min !== undefined) s = s.min(attrs.min, `Minimum value is ${attrs.min}`);
@@ -88,7 +112,7 @@ export const buildZodSchema = (fields: any[]) => {
       case "switch":
         // If required, it MUST be true. If not, true/false/undefined are okay.
         schema = attrs.required
-          ? z.literal(true, { errorMap: () => ({ message: `${field.label} must be checked` }) })
+          ? z.literal(true, { message: `${field.label} must be checked` })
           : z.boolean().optional();
         break;
 

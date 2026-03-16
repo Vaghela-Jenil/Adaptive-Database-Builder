@@ -13,6 +13,8 @@ import { FieldAttributes } from './types';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
+import axios from 'axios';
+import { extractUploadedFileAssets, normalizeUploadedFileAsset, UploadedFileAsset } from '@/lib/uploadedFiles';
 
 type Props = {
   field: FieldAttributes;
@@ -27,6 +29,8 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
   const [localTags, setLocalTags] = useState<string[]>(Array.isArray(value) ? value : []);
   const [tagInput, setTagInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     setLocalTags(Array.isArray(value) ? value : []);
@@ -50,6 +54,71 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
       setTagInput('');
     }
   };
+
+  const uploadSingleFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post('/api/uploads', formData);
+    return {
+      ...response.data,
+      isTemporary: true,
+    } as UploadedFileAsset;
+  };
+
+  const deleteUploadedFile = async (asset: UploadedFileAsset | null) => {
+    if (!asset?.publicId || !asset.isTemporary) return;
+    await axios.delete('/api/uploads', {
+      data: {
+        publicId: asset.publicId,
+        resourceType: asset.resourceType,
+      },
+    });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadError('');
+    setIsUploadingFile(true);
+    try {
+      const uploads = Array.from(files);
+      const urls = await Promise.all(uploads.map((file) => uploadSingleFile(file)));
+
+      if (field.multiple) {
+        const existing = Array.isArray(value) ? value : [];
+        const merged = [...existing, ...urls.filter(Boolean)];
+        onChange?.(merged);
+      } else {
+        const existing = normalizeUploadedFileAsset(value);
+        await deleteUploadedFile(existing);
+        onChange?.(urls[0] || '');
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || 'Failed to upload file';
+      setUploadError(message);
+    } finally {
+      setIsUploadingFile(false);
+      event.target.value = '';
+    }
+  };
+
+  const removeUploadedFile = (index?: number) => {
+    if (field.multiple) {
+      const existing = Array.isArray(value) ? value : [];
+      if (index === undefined) return;
+      const target = normalizeUploadedFileAsset(existing[index]);
+      void deleteUploadedFile(target);
+      onChange?.(existing.filter((_: unknown, idx: number) => idx !== index));
+      return;
+    }
+
+    const single = normalizeUploadedFileAsset(value);
+    void deleteUploadedFile(single);
+    onChange?.('');
+  };
+
+  const uploadedFiles = extractUploadedFileAssets(value);
 
   return (
     <div className="space-y-2.5">
@@ -152,11 +221,75 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
           style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.surface + '40' }}
         >
           <Upload className="w-8 h-8 opacity-40" style={{ color: currentTheme.text }} />
-          <input type="file" className="hidden" id={`file-${field.id}`} onChange={(e) => onChange?.(e.target.files?.[0]?.name)} />
-          <Button variant="outline" size="sm" onClick={() => document.getElementById(`file-${field.id}`)?.click()}>
-            Upload File
+          <input
+            type="file"
+            className="hidden"
+            id={`file-${field.id}`}
+            accept={field.accept}
+            multiple={!!field.multiple}
+            onChange={handleFileUpload}
+            disabled={field.disabled || isUploadingFile}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => document.getElementById(`file-${field.id}`)?.click()}
+            disabled={field.disabled || isUploadingFile}
+          >
+            {isUploadingFile ? 'Uploading...' : 'Upload File'}
           </Button>
-          {value && <span className="text-xs font-medium text-primary mt-2">{value}</span>}
+          {field.multiple && uploadedFiles.length > 0 && (
+            <div className="w-full mt-2 space-y-2">
+              {uploadedFiles.map((fileAsset, index: number) => (
+                <div
+                  key={`${fileAsset.publicId || fileAsset.url}-${index}`}
+                  className="group flex items-center justify-between gap-2 text-xs border rounded px-2 py-1"
+                  style={{ borderColor: currentTheme.border, color: currentTheme.text }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <a href={fileAsset.url} target="_blank" rel="noreferrer" className="truncate underline block">
+                      {fileAsset.originalFilename || fileAsset.url}
+                    </a>
+                    <a
+                      href={fileAsset.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] underline"
+                    >
+                      Open
+                    </a>
+                  </div>
+                  <button type="button" onClick={() => removeUploadedFile(index)}>
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {!field.multiple && uploadedFiles[0] && (
+            <div
+              className="group mt-2 w-full flex items-center justify-between gap-2 text-xs border rounded px-2 py-1"
+              style={{ borderColor: currentTheme.border, color: currentTheme.text }}
+            >
+              <div className="min-w-0 flex-1">
+                <a href={uploadedFiles[0].url} target="_blank" rel="noreferrer" className="truncate underline block">
+                  {uploadedFiles[0].originalFilename || uploadedFiles[0].url}
+                </a>
+                <a
+                  href={uploadedFiles[0].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] underline"
+                >
+                  Open
+                </a>
+              </div>
+              <button type="button" onClick={() => removeUploadedFile()}>
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          {uploadError && <span className="text-xs text-red-500 mt-1">{uploadError}</span>}
         </div>
       )}
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useAuth } from '@clerk/nextjs';
 import { Send, Plus, Smile, Paperclip, Search, User, X, Users, UserPlus, LogOut, Trash2, Download, Loader2, Circle } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import axios from 'axios';
@@ -39,6 +40,7 @@ interface Conversation {
 
 export default function ChatPage() {
   const { currentTheme } = useTheme();
+  const { getToken } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -67,6 +69,8 @@ export default function ChatPage() {
   const [groupMessages, setGroupMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const isUnmountingRef = useRef(false);
+  const lastSocketErrorRef = useRef<{ msg: string; at: number }>({ msg: '', at: 0 });
   const selectedConversationRef = useRef<Conversation | null>(null);
   const selectedGroupRef = useRef<any | null>(null);
 
@@ -132,16 +136,19 @@ export default function ChatPage() {
         const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000', {
           reconnection: true,
           reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
+          reconnectionDelayMax: 3000,
           reconnectionAttempts: 5,
+          timeout: 10000,
           transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+          auth: async (cb) => {
+            const token = await getToken();
+            cb({ token, userId: userData.userId });
+          },
         });
 
         // ============ CONNECTION EVENTS ============
         newSocket.on('connect', () => {
           console.log('✅ Connected to chat server with socket ID:', newSocket.id);
-          newSocket.emit('user_connect', userData.userId);
-          console.log(`📡 Emitted user_connect for ${userData.userId}`);
 
           const activeGroup = selectedGroupRef.current;
           if (activeGroup) {
@@ -153,13 +160,51 @@ export default function ChatPage() {
           }
         });
 
-        newSocket.on('connect_error', (error) => {
-          console.error('❌ Connection error:', error);
+        newSocket.on('connect_error', (error: any) => {
+          if (isUnmountingRef.current) return;
+
+          const message = String(error?.message || 'connection error').toLowerCase();
+          const isExpectedDownState =
+            message.includes('timeout') ||
+            message.includes('xhr') ||
+            message.includes('websocket') ||
+            message.includes('network');
+
+          const now = Date.now();
+          const last = lastSocketErrorRef.current;
+          if (last.msg === message && now - last.at < 4000) {
+            return;
+          }
+          lastSocketErrorRef.current = { msg: message, at: now };
+
+          if (isExpectedDownState) {
+            console.warn('Socket server unreachable, retrying...');
+            return;
+          }
+
+          console.error('Socket connection error:', error);
+        });
+
+        newSocket.io.on('reconnect_attempt', (attempt) => {
+          if (!isUnmountingRef.current) {
+            console.log(`Socket reconnect attempt: ${attempt}`);
+          }
+        });
+
+        newSocket.io.on('reconnect_failed', () => {
+          if (!isUnmountingRef.current) {
+            console.warn('Socket reconnect failed after max attempts');
+          }
+        });
+
+        newSocket.on('disconnect', (reason) => {
+          if (!isUnmountingRef.current && reason !== 'io client disconnect') {
+            console.warn(`Socket disconnected: ${reason}`);
+          }
         });
 
         newSocket.on('reconnect', () => {
           console.log('🔄 Reconnected to server');
-          newSocket.emit('user_connect', userData.userId);
 
           const activeGroup = selectedGroupRef.current;
           if (activeGroup) {
@@ -346,6 +391,12 @@ export default function ChatPage() {
 
         // ============ ERROR HANDLING ============
         newSocket.on('error', (error: any) => {
+          if (isUnmountingRef.current) return;
+          const message = String(error?.message || '').toLowerCase();
+          if (message.includes('timeout') || message.includes('network')) {
+            console.warn('Socket temporary network issue.');
+            return;
+          }
           console.error('Socket error:', error);
         });
 
@@ -387,13 +438,15 @@ export default function ChatPage() {
     initSocket();
 
     return () => {
+      isUnmountingRef.current = true;
       // Cleanup on unmount
       if (socketRef.current) {
+        socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
         console.log('Socket disconnected');
       }
     };
-  }, []);
+  }, [getToken]);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -1251,6 +1304,7 @@ export default function ChatPage() {
         socket.emit('delete_message', {
           messageId,
           conversationId: selectedConversation.friend.id,
+          targetUserId: selectedConversation.friend.id,
           type: 'direct'
         });
         console.log(`Broadcasted message deletion to: ${selectedConversation.friend.id}`);
@@ -1594,7 +1648,7 @@ export default function ChatPage() {
       {/* Chat Area */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {selectedConversation || selectedGroup ? (
-          <>
+          <div className='flex-1 flex flex-col min-h-0'>
             {/* Chat Header */}
             <div
               className="p-4 border-b flex items-center justify-between shrink-0"
@@ -1907,7 +1961,7 @@ export default function ChatPage() {
               </div>
             </div>
             )}
-          </>
+          </div>
         ) : (
           <div
             className="flex-1 flex items-center justify-center"
@@ -2147,7 +2201,7 @@ export default function ChatPage() {
                         className="mr-3"
                       />
                       <img
-                        src={conv.friend.avatar || 'https://via.placeholder.com/32'}
+                        src={conv.friend.avatar}
                         alt={conv.friend.name}
                         className="w-8 h-8 rounded-full mr-2"
                       />

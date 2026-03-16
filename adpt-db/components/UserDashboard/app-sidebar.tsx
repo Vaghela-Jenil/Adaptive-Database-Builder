@@ -4,23 +4,75 @@ import {
   LayoutDashboard,
   BarChart3,
   MessageSquare,
-  Database,
   FolderLock,
   ChevronRight,
   MapPinned,
   Folder,
   MessageSquareMore,
+  Sparkles,
+  LogOut,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { UserButton } from "@clerk/nextjs";
-import { useContext } from "react";
+import { useClerk, useUser } from "@clerk/nextjs";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { UserContext } from "@/context/userContext";
 import Image from "next/image";
 import logo from '../../public/logo.png'
 
 export default function DashboardSidebar({ activePage, setActivePage, isSidebarOpen }: { activePage: string; setActivePage: (page: string) => void; isSidebarOpen: boolean; }) {
   const { currentTheme } = useTheme();
-  const { user } = useContext(UserContext);
+  const { user } = useContext<any>(UserContext);
+  const { openUserProfile, signOut } = useClerk();
+  const { user: clerkUser } = useUser();
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const settingsMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openClerkSettings = () => {
+    setIsSettingsMenuOpen(false);
+    openUserProfile();
+  };
+
+  const openSettingsMenu = () => {
+    if (settingsMenuTimeoutRef.current) {
+      clearTimeout(settingsMenuTimeoutRef.current);
+      settingsMenuTimeoutRef.current = null;
+    }
+
+    setIsSettingsMenuOpen(true);
+  };
+
+  const closeSettingsMenu = () => {
+    if (settingsMenuTimeoutRef.current) {
+      clearTimeout(settingsMenuTimeoutRef.current);
+    }
+
+    settingsMenuTimeoutRef.current = setTimeout(() => {
+      setIsSettingsMenuOpen(false);
+      settingsMenuTimeoutRef.current = null;
+    }, 180);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (settingsMenuTimeoutRef.current) {
+        clearTimeout(settingsMenuTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const accountName = useMemo(() => {
+    const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
+    return fullName || user?.userName || clerkUser?.fullName || clerkUser?.username || "Account";
+  }, [clerkUser?.fullName, clerkUser?.username, user?.firstName, user?.lastName, user?.userName]);
+
+  const accountImage = user?.userImage || clerkUser?.imageUrl || "";
+  const accountInitials = accountName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part: string) => part[0]?.toUpperCase())
+    .join("") || "A";
 
   const navigationItems = [
     {
@@ -41,7 +93,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     {
       id: "chatbot",
       label: "AI Assistant",
-      icon: MessageSquare,
+      icon: Sparkles,
     },
     {
       id: 'nearby-stores',
@@ -184,25 +236,91 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
           {/* Bottom Items - Settings */}
           <div
             className="w-full absolute bottom-0 p-4"
-            title="Setting"
             style={{
               borderTop: `1px solid ${currentTheme.border}`,
               backgroundColor: currentTheme.surface
             }}
           >
             <div
-              className="p-3 rounded-xl"
+              className="relative p-3 rounded-xl"
+              onMouseEnter={openSettingsMenu}
+              onMouseLeave={closeSettingsMenu}
               style={{
                 backgroundColor: currentTheme.background,
                 border: `1px solid ${currentTheme.border}`,
               }}
             >
-              <div className="flex items-center gap-3">
-                <UserButton />
-                <p className="w-full text-sm font-medium truncate" style={{ color: currentTheme.text }}>
-                  Settings
-                </p>
-              </div>
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-xl text-left"
+                onClick={openClerkSettings}
+              >
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                  style={{
+                    backgroundColor: `${currentTheme.primary}18`,
+                    color: currentTheme.primary,
+                  }}
+                >
+                  {accountImage ? (
+                    <img src={accountImage} alt={accountName} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-semibold">{accountInitials}</span>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="w-full truncate text-sm font-medium" style={{ color: currentTheme.text }}>
+                    {accountName}
+                  </p>
+                  <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                    Hover for settings
+                  </p>
+                </div>
+
+                <ChevronRight className="h-4 w-4 shrink-0" style={{ color: currentTheme.textSecondary }} />
+              </button>
+
+              {isSettingsMenuOpen && (
+                <div
+                  className="absolute inset-x-0 bottom-full z-20 pb-2"
+                  onMouseEnter={openSettingsMenu}
+                  onMouseLeave={closeSettingsMenu}
+                >
+                  <div
+                    className="rounded-2xl p-2 shadow-2xl"
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    border: `1px solid ${currentTheme.border}`,
+                  }}
+                  >
+                    <button
+                      type="button"
+                      title="Setting"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all"
+                      style={{ color: currentTheme.text }}
+                      onClick={openClerkSettings}
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Logout"
+                      className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all"
+                      style={{ color: "#ef4444" }}
+                      onClick={async () => {
+                        setIsSettingsMenuOpen(false);
+                        await signOut();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
