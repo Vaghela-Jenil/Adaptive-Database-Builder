@@ -169,6 +169,9 @@ export default function DashboardLayout() {
 
           <div className="flex-1 flex flex-col overflow-hidden">
             <DashboardNavbar
+              onChangePage={(changePage) => {
+              setActivePage(changePage);
+            }}
               isSidebarOpen={isSidebarOpen}
               setIsSidebarOpen={setIsSidebarOpen}
               onRefresh={handleRefresh}

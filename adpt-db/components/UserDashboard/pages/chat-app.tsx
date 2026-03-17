@@ -69,7 +69,9 @@ export default function ChatPage() {
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [groupMessages, setGroupMessages] = useState<any[]>([]);
   const [expandedImage, setExpandedImage] = useState<{ url: string; name: string } | null>(null);
+  const [expandedFile, setExpandedFile] = useState<{ url: string; name: string; size: number; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const isUnmountingRef = useRef(false);
   const lastSocketErrorRef = useRef<{ msg: string; at: number }>({ msg: '', at: 0 });
@@ -130,7 +132,7 @@ export default function ChatPage() {
         // First, get the current user ID
         const currentUserResponse = await axios.get('/api/chat/current-user');
         const userData = currentUserResponse.data;
-        
+
         setCurrentUserId(userData.userId);
         setCurrentUser(userData);
 
@@ -222,9 +224,10 @@ export default function ChatPage() {
         // Receive messages in real-time
         newSocket.on('receive_message', (message: Message) => {
           console.log('💬 Received message:', message);
-          
+
           // Decrypt message if it's encrypted using userData.userId
           let decryptedContent = message.content;
+          let decryptedFileName = message.file?.name || (message as any).fileName || 'File';
           try {
             if (userData.userId && isEncrypted(message.content)) {
               const sharedKey = generateSharedKey(message.sender.id, userData.userId);
@@ -234,7 +237,18 @@ export default function ChatPage() {
             console.error('Error decrypting message:', err);
             decryptedContent = message.content; // Fall back to encrypted
           }
-          
+
+          // Decrypt fileName if it's encrypted
+          try {
+            if ((message as any).fileName && isEncrypted((message as any).fileName)) {
+              const sharedKey = generateSharedKey(message.sender.id, userData.userId);
+              decryptedFileName = decryptMessage((message as any).fileName, sharedKey);
+            }
+          } catch (err) {
+            console.error('Error decrypting fileName:', err);
+            decryptedFileName = (message as any).fileName || 'File';
+          }
+
           const incomingSenderId = message.sender?.id;
           const incomingSenderName = message.sender?.name || 'Unknown User';
 
@@ -244,7 +258,14 @@ export default function ChatPage() {
               ...message.sender,
               name: incomingSenderName,
             },
-            content: decryptedContent
+            content: decryptedContent,
+            file: (message as any).fileUrl
+              ? {
+                name: decryptedFileName,
+                url: (message as any).fileUrl,
+                size: (message as any).fileSize || 0,
+              }
+              : undefined
           };
 
           if (selectedConversationRef.current?.friend.id === incomingSenderId) {
@@ -261,26 +282,26 @@ export default function ChatPage() {
               prev.map((conv) =>
                 conv.friend.id === incomingSenderId
                   ? {
-                      ...conv,
-                      unreadCount: conv.unreadCount + 1,
-                      lastMessage: `${incomingSenderName}: ${decryptedContent}`,
-                      lastMessageTime: new Date(message.timestamp),
-                    }
+                    ...conv,
+                    unreadCount: conv.unreadCount + 1,
+                    lastMessage: `${incomingSenderName}: ${decryptedContent}`,
+                    lastMessageTime: new Date(message.timestamp),
+                  }
                   : conv
               )
             );
             return;
           }
-          
+
           // Update last message in conversation with sender name
           setConversations((prev) =>
             prev.map((conv) =>
               conv.friend.id === incomingSenderId
                 ? {
-                    ...conv,
-                    lastMessage: `${incomingSenderName}: ${decryptedContent}`,
-                    lastMessageTime: new Date(message.timestamp),
-                  }
+                  ...conv,
+                  lastMessage: `${incomingSenderName}: ${decryptedContent}`,
+                  lastMessageTime: new Date(message.timestamp),
+                }
                 : conv
             )
           );
@@ -314,7 +335,7 @@ export default function ChatPage() {
         newSocket.on('user_online', (data: any) => {
           console.log(`🟢 ${data.userId} is online`);
           setUserStatuses((prev) => new Map(prev).set(data.userId, 'online'));
-          
+
           // Update conversation with new status
           setConversations((prev) =>
             prev.map((conv) =>
@@ -329,7 +350,7 @@ export default function ChatPage() {
         newSocket.on('user_offline', (data: any) => {
           console.log(`🔴 ${data.userId} is offline`);
           setUserStatuses((prev) => new Map(prev).set(data.userId, 'offline'));
-          
+
           // Update conversation with new status
           setConversations((prev) =>
             prev.map((conv) =>
@@ -350,6 +371,7 @@ export default function ChatPage() {
           console.log('💬 Received group message:', message);
 
           let decryptedContent = message.content;
+          let decryptedFileName = message.fileName || 'File';
           try {
             const encryptionKey = `group_${message.groupId}`;
             if (message.content && isEncrypted(message.content)) {
@@ -357,6 +379,19 @@ export default function ChatPage() {
             }
           } catch (err) {
             console.error('❌ Error decrypting group message:', err);
+          }
+
+          // Decrypt fileName if it's encrypted
+          try {
+            const encryptionKey = `group_${message.groupId}`;
+            if (message.fileName && isEncrypted(message.fileName)) {
+              decryptedFileName = decryptMessage(message.fileName, encryptionKey);
+            } else {
+              decryptedFileName = message.fileName || 'File';
+            }
+          } catch (err) {
+            console.error('Error decrypting fileName:', err);
+            decryptedFileName = message.fileName || 'File';
           }
 
           const activeGroup = selectedGroupRef.current;
@@ -374,6 +409,13 @@ export default function ChatPage() {
               name: message.sender?.name || message.senderName || 'Unknown User',
             },
             content: decryptedContent,
+            file: message.fileUrl
+              ? {
+                name: decryptedFileName,
+                url: message.fileUrl,
+                size: message.fileSize || 0,
+              }
+              : undefined,
             timestamp,
           };
 
@@ -405,12 +447,12 @@ export default function ChatPage() {
               prev.map((group) =>
                 (getGroupId(group)?.toString?.() || getGroupId(group)) === incomingGroupId
                   ? {
-                      ...group,
-                      unreadCount: (group.unreadCount || 0) + 1,
-                      lastMessage: decryptedContent,
-                      lastMessageSenderName: normalizedMessage.sender?.name || 'Unknown User',
-                      lastMessageTime: timestamp,
-                    }
+                    ...group,
+                    unreadCount: (group.unreadCount || 0) + 1,
+                    lastMessage: decryptedContent,
+                    lastMessageSenderName: normalizedMessage.sender?.name || 'Unknown User',
+                    lastMessageTime: timestamp,
+                  }
                   : group
               )
             );
@@ -483,9 +525,9 @@ export default function ChatPage() {
         // First, try to get conversations with messages
         const conversationResponse = await axios.get('/api/chat/conversations').catch(() => ({ data: [] }));
         let conversations = conversationResponse.data || [];
-        
+
         console.log(`📨 Fetched ${conversations.length} conversations`);
-        
+
         // Decrypt lastMessage if encrypted
         const decryptedConversations = conversations.map((conv: Conversation) => {
           if (conv.lastMessage && currentUserId) {
@@ -503,7 +545,7 @@ export default function ChatPage() {
           }
           return conv;
         });
-        
+
         // If no conversations, get all friends instead
         if (decryptedConversations.length === 0) {
           try {
@@ -598,10 +640,10 @@ export default function ChatPage() {
               timestamp: new Date(msg.timestamp || msg.createdAt || new Date()),
               file: msg.fileUrl
                 ? {
-                    name: msg.fileName || 'File',
-                    url: msg.fileUrl,
-                    size: msg.fileSize || 0,
-                  }
+                  name: msg.fileName || 'File',
+                  url: msg.fileUrl,
+                  size: msg.fileSize || 0,
+                }
                 : undefined,
             };
           });
@@ -630,7 +672,7 @@ export default function ChatPage() {
             )
           );
           console.log(`✅ Marked all messages as read from: ${selectedConversation.friend.name}`);
-          
+
           // Refetch conversations after a short delay to ensure database is updated
           setTimeout(() => {
             axios.get('/api/chat/conversations')
@@ -673,15 +715,16 @@ export default function ChatPage() {
           const groupId = getGroupId(selectedGroup);
           if (!groupId) return;
           console.log(`📥 Fetching messages for group: ${groupId}`);
-          
+
           const response = await axios.get(
             `/api/chat/group-messages?groupId=${groupId}`
           );
-          
+
           // Decrypt all fetched messages and normalize timestamps + IDs
           const encryptionKey = `group_${groupId}`;
           const decryptedMessages = response.data.map((msg: any) => {
             let content = msg.content;
+            let fileName = msg.fileName || 'File';
             try {
               if (msg.content && isEncrypted(msg.content)) {
                 content = decryptMessage(msg.content, encryptionKey);
@@ -689,6 +732,17 @@ export default function ChatPage() {
             } catch (err) {
               console.error('Error decrypting stored message:', err);
             }
+
+            // Decrypt fileName if it's encrypted
+            try {
+              if (msg.fileName && isEncrypted(msg.fileName)) {
+                fileName = decryptMessage(msg.fileName, encryptionKey);
+              }
+            } catch (err) {
+              console.error('Error decrypting fileName:', err);
+              fileName = msg.fileName || 'File';
+            }
+
             // Normalize timestamp: use createdAt from DB or timestamp
             const timestamp = msg.createdAt || msg.timestamp || new Date();
             // IMPORTANT: Normalize ID to always use 'id' property (convert _id to id for consistency)
@@ -703,19 +757,19 @@ export default function ChatPage() {
               },
               file: msg.fileUrl
                 ? {
-                    name: msg.fileName || 'File',
-                    url: msg.fileUrl,
-                    size: msg.fileSize || 0,
-                  }
+                  name: fileName,
+                  url: msg.fileUrl,
+                  size: msg.fileSize || 0,
+                }
                 : undefined,
               content,
               timestamp: new Date(timestamp),
             };
           });
-          
+
           setGroupMessages(decryptedMessages);
           setGroupMembers(selectedGroup.members || []);
-          
+
           console.log(`✅ Loaded ${decryptedMessages.length} messages`);
         } catch (error) {
           console.error('Error fetching group messages:', error);
@@ -728,7 +782,7 @@ export default function ChatPage() {
       if (groupId) {
         socket.emit('join_group', groupId);
         console.log(`👥 Joined group room: group_${groupId}`);
-        
+
         // Mark all group messages as read when opening the group
         const markReadPromise = axios.patch('/api/chat/group-messages/mark-read', {
           groupId: groupId
@@ -776,7 +830,16 @@ export default function ChatPage() {
 
   // Scroll to bottom when messages update
   useEffect(() => {
-    // messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 0);
+    }
   }, [messages, groupMessages]);
 
   const handleSearch = async (query: string) => {
@@ -824,10 +887,10 @@ export default function ChatPage() {
         prev.map((conv) =>
           conv.id === selectedConversation.friend.id
             ? {
-                ...conv,
-                lastMessage: `${currentUser.userName}: ${messageContent}`,
-                lastMessageTime: new Date(),
-              }
+              ...conv,
+              lastMessage: `${currentUser.userName}: ${messageContent}`,
+              lastMessageTime: new Date(),
+            }
             : conv
         )
       );
@@ -838,12 +901,12 @@ export default function ChatPage() {
         content: messageContent,
         type: 'text',
       });
-      
+
       // Update local message with real MongoDB _id from API response
       const realMessageId = apiResponse.data._id;
       setMessages((prev) => {
-        return prev.map((msg) => 
-          msg._id === localMessage._id 
+        return prev.map((msg) =>
+          msg._id === localMessage._id
             ? { ...msg, _id: realMessageId }
             : msg
         );
@@ -885,7 +948,7 @@ export default function ChatPage() {
 
       const formData = new FormData();
       formData.append('file', file);
-      
+
       if (chatTab === 'groups' && selectedGroup) {
         const groupId = getGroupId(selectedGroup);
         if (groupId) formData.append('groupId', groupId);
@@ -980,15 +1043,15 @@ export default function ChatPage() {
         setGroupMessages((prev) => {
           return prev.map((msg) =>
             msg.id === fileMessage.id
-              ? { 
-                  ...msg, 
-                  id: realFileMessageId, 
-                  _id: realFileMessageId,
-                  file: {
-                    ...msg.file,
-                    url: filePreview.url
-                  }
+              ? {
+                ...msg,
+                id: realFileMessageId,
+                _id: realFileMessageId,
+                file: {
+                  ...msg.file,
+                  url: filePreview.url
                 }
+              }
               : msg
           );
         });
@@ -1063,14 +1126,14 @@ export default function ChatPage() {
         setMessages((prev) => {
           return prev.map((msg) =>
             msg._id === fileMessage._id
-              ? { 
-                  ...msg, 
-                  _id: realFileMessageId,
-                  file: {
-                    ...msg.file,
-                    url: filePreview.url
-                  }
+              ? {
+                ...msg,
+                _id: realFileMessageId,
+                file: {
+                  ...msg.file,
+                  url: filePreview.url
                 }
+              }
               : msg
           );
         });
@@ -1081,10 +1144,10 @@ export default function ChatPage() {
           prev.map((conv) =>
             conv.friend.id === selectedConversation.friend.id
               ? {
-                  ...conv,
-                  lastMessage: `${currentUser.userName}: sent a file`,
-                  lastMessageTime: new Date(),
-                }
+                ...conv,
+                lastMessage: `${currentUser.userName}: sent a file`,
+                lastMessageTime: new Date(),
+              }
               : conv
           )
         );
@@ -1130,18 +1193,18 @@ export default function ChatPage() {
   const handleSendFriendRequest = async (userId: string) => {
     try {
       console.log(`📤 Sending friend request to user: ${userId}`);
-      
+
       await axios.post('/api/chat/friend-requests', {
         receiverId: userId
       });
-      
+
       setSearchQuery('');
       setSearchResults([]);
       alert('✅ Friend request sent!');
       console.log(`✅ Friend request sent successfully`);
     } catch (error: any) {
       console.error('❌ Error sending friend request:', error);
-      
+
       const errorMessage = error.response?.data?.error || error.message || 'Failed to send friend request';
       alert(`❌ ${errorMessage}`);
     }
@@ -1235,7 +1298,7 @@ export default function ChatPage() {
 
     try {
       console.log(`📤 Sending message to group: ${groupId}`);
-      
+
       // Add message immediately to local state (plaintext for display)
       const messageId = Date.now().toString();
       const localMessage: any = {
@@ -1276,7 +1339,7 @@ export default function ChatPage() {
       // Encrypt for socket transmission
       const encryptionKey = `group_${groupId}`;
       const encryptedContent = encryptMessage(messageContent, encryptionKey);
-      
+
       // Send encrypted message through socket
       socket.emit('send_group_message', {
         id: messageId,
@@ -1387,26 +1450,26 @@ export default function ChatPage() {
           return;
         }
         console.log(` Exiting group: ${groupId}`);
-        
+
         await axios.delete(`/api/chat/groups/${groupId}`);
         console.log(`API delete successful`);
-        
+
         // Leave socket room
         if (socket) {
           socket.emit('leave_group', groupId);
           console.log(`Left socket room: group_${groupId}`);
         }
-        
+
         // Clear UI state
         setGroups((prev) => {
           const filtered = prev.filter((g) => (g._id || g.id) !== groupId);
           console.log(`📋 Updated groups list - remaining: ${filtered.length}`);
           return filtered;
         });
-        
+
         setGroupMessages([]);
         setSelectedGroup(null);
-        
+
         console.log(`Successfully exited group`);
         alert('✅ You left the group');
       } catch (error: any) {
@@ -1425,7 +1488,7 @@ export default function ChatPage() {
       console.log(`Deleting group message: ${messageId}`);
       const response = await axios.delete(`/api/chat/group-messages/${messageId}`);
       console.log(`Delete API response:`, response.data);
-      
+
       // Remove from local state immediately
       setGroupMessages((prev) => {
         const filtered = prev.filter((m) => {
@@ -1460,11 +1523,11 @@ export default function ChatPage() {
     }
     try {
       console.log(`Deleting direct message: ${messageId}`);
-      
+
       // Call delete API for direct messages
       const response = await axios.delete(`/api/chat/messages/${messageId}`);
       console.log(`Delete API response:`, response.data);
-      
+
       // Remove from local state immediately
       setMessages((prev) => {
         const filtered = prev.filter((m) => m._id !== messageId);
@@ -1543,11 +1606,10 @@ export default function ChatPage() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setChatTab('direct')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                chatTab === 'direct'
-                  ? 'text-white'
-                  : ''
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${chatTab === 'direct'
+                ? 'text-white'
+                : ''
+                }`}
               style={{
                 backgroundColor: chatTab === 'direct' ? currentTheme.primary : currentTheme.input,
                 color: chatTab === 'direct' ? 'white' : currentTheme.text,
@@ -1557,11 +1619,10 @@ export default function ChatPage() {
             </button>
             <button
               onClick={() => setChatTab('groups')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                chatTab === 'groups'
-                  ? 'text-white'
-                  : ''
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${chatTab === 'groups'
+                ? 'text-white'
+                : ''
+                }`}
               style={{
                 backgroundColor: chatTab === 'groups' ? currentTheme.primary : currentTheme.input,
                 color: chatTab === 'groups' ? 'white' : currentTheme.text,
@@ -1727,10 +1788,10 @@ export default function ChatPage() {
                     setSelectedGroup(null);
                   }}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                         style={{
                           backgroundColor:
                             conversation.friend.status === 'online'
@@ -1749,7 +1810,7 @@ export default function ChatPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold">{conversation.friend.name}</p>
+                        <p className="font-semibold truncate">{conversation.friend.name}</p>
                         <p className="text-sm truncate" style={{ opacity: selectedConversation?.id === conversation.id ? 0.9 : 0.75 }}>
                           {conversation.lastMessage}
                         </p>
@@ -1757,7 +1818,7 @@ export default function ChatPage() {
                     </div>
                     {conversation.unreadCount > 0 && (
                       <div
-                        className="px-2 py-1 rounded-full text-xs font-bold"
+                        className="shrink-0 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap"
                         style={{ backgroundColor: currentTheme.primary, color: 'white' }}
                       >
                         {conversation.unreadCount}
@@ -1794,8 +1855,8 @@ export default function ChatPage() {
                       setSelectedConversation(null);
                     }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
                           className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                           style={{ backgroundColor: isSelectedGroup ? 'rgba(255,255,255,0.18)' : currentTheme.primary }}
@@ -1810,7 +1871,7 @@ export default function ChatPage() {
                         </div>
                       </div>
                       {group.unreadCount > 0 && (
-                        <div className="px-2 py-1 rounded-full text-xs font-bold"
+                        <div className="shrink-0 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap"
                           style={{ backgroundColor: currentTheme.primary, color: 'white' }}>
                           {group.unreadCount}
                         </div>
@@ -1852,7 +1913,7 @@ export default function ChatPage() {
                   <p className="font-semibold" style={{ color: currentTheme.text }}>
                     {selectedConversation ? selectedConversation.friend.name : selectedGroup?.name}
                   </p>
-                  <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                  <div className="text-sm" style={{ color: currentTheme.textSecondary }}>
                     {selectedConversation ? (
                       <span className="inline-flex items-center gap-2">
                         <Circle
@@ -1864,12 +1925,21 @@ export default function ChatPage() {
                         {userStatuses.get(selectedConversation.friend.id) === 'online' ? 'Online' : 'Offline'}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        {getOnlineGroupMemberCount(selectedGroup)}/{selectedGroup?.members?.length || 0} online
-                      </span>
+                      <div className="space-y-1">
+                        <div className="inline-flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          <span className="font-semibold">{getOnlineGroupMemberCount(selectedGroup)}/{selectedGroup?.members?.length || 0} online</span>
+                        </div>
+                        <div className="text-xs truncate max-w-md" title={(selectedGroup?.members || []).map((m: any) => m.userName || m.name).join(', ')}>
+                          {(selectedGroup?.members || [])
+                            .map((m: any) => m.userName || m.name)
+                            .slice(0, 3)
+                            .join(', ')}
+                          {(selectedGroup?.members || []).length > 3 ? ` +${(selectedGroup?.members || []).length - 3}` : ''}
+                        </div>
+                      </div>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1928,7 +1998,7 @@ export default function ChatPage() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: currentTheme.background }}>
+            <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: currentTheme.background }}>
               {(chatTab === 'direct' && !selectedConversation) || (chatTab === 'groups' && !selectedGroup) ? (
                 <div className="flex items-center justify-center h-full" style={{ color: currentTheme.textSecondary }}>
                   <p className="text-center">
@@ -1950,91 +2020,85 @@ export default function ChatPage() {
                   const senderId = typeof message.sender === 'string' ? message.sender : (message.sender?.id);
                   const isFromCurrentUser = senderId === currentUserId;
                   return (
-                  <div
-                    key={message.id || message._id}
-                    className={`flex ${
-                      isFromCurrentUser ? 'justify-end group' : 'justify-start'
-                    }`}
-                  >
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-md transform transition relative ${
-                        isFromCurrentUser
+                      key={message.id || message._id}
+                      className={`flex ${isFromCurrentUser ? 'justify-end group' : 'justify-start'
+                        }`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-md transform transition relative ${isFromCurrentUser
                           ? 'rounded-br-none bg-blue-500 text-white'
                           : 'rounded-bl-none'
-                      }`}
-                      style={
-                        !isFromCurrentUser
-                          ? {
+                          }`}
+                        style={
+                          !isFromCurrentUser
+                            ? {
                               backgroundColor: currentTheme.input,
                               color: currentTheme.text,
                             }
-                          : undefined
-                      }
-                    >
-                      {chatTab === 'groups' && message.sender?.name && (
-                        <p className="text-xs font-semibold opacity-75 mb-1">{message.sender.name}</p>
-                      )}
-                      {message.type === 'image' ? (
-                        <div className="space-y-2 cursor-pointer" onClick={() => setExpandedImage({ url: message.file?.url || message.content, name: message.file?.name || 'Image' })}>
-                          <img 
-                            src={message.file?.url || message.content} 
-                            alt={message.file?.name || 'Shared image'} 
-                            className="max-w-xs max-h-80 rounded-lg border border-gray-300 hover:opacity-90 transition object-cover"
-                            style={{ backgroundColor: isFromCurrentUser ? '#3b82f6' : currentTheme.input }}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              if (e.currentTarget.nextElementSibling) {
-                                (e.currentTarget.nextElementSibling as HTMLElement).classList.remove('hidden');
-                              }
-                            }}
-                          />
-                          <p className="hidden text-sm" style={{ color: currentTheme.text }}>Failed to load image</p>
-                        </div>
-                      ) : message.type === 'file' && message.file ? (
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold inline-flex items-center gap-2">
-                            <Paperclip size={14} />
-                            {message.file.name}
-                          </p>
-                          <p className="text-xs opacity-75">
-                            {(message.file.size / 1024).toFixed(2)} KB
-                          </p>
-                          <a
-                            href={message.file.url}
-                            download
-                            className="inline-flex items-center gap-1 text-xs font-semibold underline hover:opacity-80 transition"
-                          >
-                            <Download size={12} /> Download
-                          </a>
-                        </div>
-                      ) : (
-                        <p className="whitespace-normal break-all">{message.content}</p>
-                      )}
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs opacity-60">
-                          {new Date(message.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                        {isFromCurrentUser && (
-                          <button
-                            onClick={() => {
-                              if (chatTab === 'direct') {
-                                handleDeleteMessage(message._id);
-                              } else {
-                                handleDeleteGroupMessage(message._id);
-                              }
-                            }}
-                            className="inline-flex items-center text-xs opacity-60 hover:opacity-100 hover:text-red-500 transition"
-                            title="Delete message"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                            : undefined
+                        }
+                      >
+                        {chatTab === 'groups' && message.sender?.name && (
+                          <p className="text-xs font-semibold opacity-75 mb-1">{message.sender.name}</p>
                         )}
+                        {message.type === 'image' ? (
+                          <div className="space-y-2 cursor-pointer" onClick={() => setExpandedImage({ url: message.file?.url || message.content, name: message.file?.name || 'Image' })}>
+                            <img
+                              src={message.file?.url || message.content}
+                              alt={message.file?.name || 'Shared image'}
+                              className="max-w-xs max-h-80 rounded-lg border border-gray-300 hover:opacity-90 transition object-cover"
+                              style={{ backgroundColor: isFromCurrentUser ? '#3b82f6' : currentTheme.input }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextElementSibling) {
+                                  (e.currentTarget.nextElementSibling as HTMLElement).classList.remove('hidden');
+                                }
+                              }}
+                            />
+                            <p className="hidden text-sm" style={{ color: currentTheme.text }}>Failed to load image</p>
+                          </div>
+                        ) : message.type === 'file' && message.file ? (
+                          <div className="space-y-2 cursor-pointer" onClick={() => setExpandedFile({ url: message.file?.url || '', name: message.file?.name || 'File', size: message.file?.size || 0, type: message.file?.type || 'unknown' })}>
+                            <p className="text-sm font-semibold inline-flex items-center gap-2 hover:opacity-80 transition">
+                              <Paperclip size={14} />
+                              {message.file.name}
+                            </p>
+                            <p className="text-xs opacity-75">
+                              {(message.file.size / 1024).toFixed(2)} KB
+                            </p>
+                            <p className="text-xs opacity-60 hover:opacity-100 transition inline-flex items-center gap-1">
+                              <Download size={12} /> Click to preview
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="whitespace-normal break-all">{message.content}</p>
+                        )}
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs opacity-60">
+                            {new Date(message.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                          {isFromCurrentUser && (
+                            <button
+                              onClick={() => {
+                                if (chatTab === 'direct') {
+                                  handleDeleteMessage(message._id);
+                                } else {
+                                  handleDeleteGroupMessage(message._id);
+                                }
+                              }}
+                              className="inline-flex items-center text-xs opacity-60 hover:opacity-100 hover:text-red-500 transition"
+                              title="Delete message"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })
               )}
@@ -2043,149 +2107,148 @@ export default function ChatPage() {
 
             {/* Message Input Area */}
             {((chatTab === 'direct' && selectedConversation) || (chatTab === 'groups' && selectedGroup)) && (
-            <div
-              className="sticky bottom-0 z-10 p-4 border-t space-y-2 shrink-0"
-              style={{
-                backgroundColor: currentTheme.surface,
-                borderColor: currentTheme.border,
-              }}
-            >
-              {/* File Preview */}
-              {filePreview && (
-                <div
-                  className="p-3 rounded-lg space-y-2 border-2"
-                  style={{
-                    backgroundColor: currentTheme.input,
-                    borderColor: currentTheme.primary,
-                  }}
-                >
-                  {filePreview.isImage ? (
-                    <div className="space-y-2">
-                      <img 
-                        src={filePreview.url} 
-                        alt="Preview" 
-                        className="max-w-xs max-h-64 rounded-lg object-cover"
-                      />
-                      <p style={{ color: currentTheme.text }} className="text-sm font-semibold">{filePreview.name}</p>
-                      <p style={{ color: currentTheme.textSecondary }} className="text-xs">
-                        {(filePreview.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2" style={{ color: currentTheme.text }}>
-                      <Paperclip size={14} />
-                      <span className="truncate">{filePreview.name}</span>
-                      <span className="text-xs opacity-70">
-                        ({(filePreview.size / 1024).toFixed(2)} KB)
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex gap-2 items-center justify-end pt-2">
-                    <button
-                      onClick={handleCancelFile}
-                      className="px-3 py-1 rounded text-sm font-semibold transition"
-                      style={{
-                        backgroundColor: currentTheme.surface,
-                        color: currentTheme.text,
-                      }}
-                      disabled={isSendingMessage}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSendFile}
-                      className="px-3 py-1 rounded text-sm font-semibold text-white transition disabled:opacity-50"
-                      style={{ backgroundColor: currentTheme.primary }}
-                      disabled={isSendingMessage || isUploadingFile}
-                    >
-                      {isSendingMessage ? 'Sending...' : 'Send'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <label
-                  className={`cursor-pointer p-2 rounded-lg transition ${
-                    isUploadingFile || filePreview ? 'opacity-50' : 'opacity-70 hover:opacity-100'
-                  }`}
-                  style={{ color: currentTheme.primary }}
-                  title={isUploadingFile ? 'Uploading...' : filePreview ? 'Send or cancel preview first' : 'Attach file or image'}
-                >
-                  <Paperclip size={20} />
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file && !filePreview) handleFileSelection(file);
-                      e.target.value = '';
-                    }}
-                    disabled={isUploadingFile || !!filePreview}
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
-                  />
-                </label>
-
-                <button
-                  className="opacity-70 hover:opacity-100 p-2 rounded-lg transition"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  style={{ color: currentTheme.primary }}
-                >
-                  <Smile size={20} />
-                </button>
-
-                {showEmojiPicker && (
+              <div
+                className="sticky bottom-0 z-10 p-4 border-t space-y-2 shrink-0"
+                style={{
+                  backgroundColor: currentTheme.surface,
+                  borderColor: currentTheme.border,
+                }}
+              >
+                {/* File Preview */}
+                {filePreview && (
                   <div
-                    className="absolute bottom-24 left-4 p-4 rounded-lg shadow-lg grid grid-cols-6 gap-2 z-10"
-                    style={{ backgroundColor: currentTheme.surface, border: `1px solid ${currentTheme.border}` }}
+                    className="p-3 rounded-lg space-y-2 border-2"
+                    style={{
+                      backgroundColor: currentTheme.input,
+                      borderColor: currentTheme.primary,
+                    }}
                   >
-                    {['😀', '😂', '❤️', '👍', '🔥', '✨', '🎉', '😍', '🚀', '💯'].map(
-                      (emoji) => (
-                        <button
-                          key={emoji}
-                          className="text-2xl hover:scale-110 transition"
-                          onClick={() => {
-                            handleAddEmoji(emoji);
-                            setShowEmojiPicker(false);
-                          }}
-                        >
-                          {emoji}
-                        </button>
-                      )
+                    {filePreview.isImage ? (
+                      <div className="space-y-2">
+                        <img
+                          src={filePreview.url}
+                          alt="Preview"
+                          className="max-w-xs max-h-64 rounded-lg object-cover"
+                        />
+                        <p style={{ color: currentTheme.text }} className="text-sm font-semibold">{filePreview.name}</p>
+                        <p style={{ color: currentTheme.textSecondary }} className="text-xs">
+                          {(filePreview.size / 1024).toFixed(2)} KB
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2" style={{ color: currentTheme.text }}>
+                        <Paperclip size={14} />
+                        <span className="truncate">{filePreview.name}</span>
+                        <span className="text-xs opacity-70">
+                          ({(filePreview.size / 1024).toFixed(2)} KB)
+                        </span>
+                      </div>
                     )}
+                    <div className="flex gap-2 items-center justify-end pt-2">
+                      <button
+                        onClick={handleCancelFile}
+                        className="px-3 py-1 rounded text-sm font-semibold transition"
+                        style={{
+                          backgroundColor: currentTheme.surface,
+                          color: currentTheme.text,
+                        }}
+                        disabled={isSendingMessage}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSendFile}
+                        className="px-3 py-1 rounded text-sm font-semibold text-white transition disabled:opacity-50"
+                        style={{ backgroundColor: currentTheme.primary }}
+                        disabled={isSendingMessage || isUploadingFile}
+                      >
+                        {isSendingMessage ? 'Sending...' : 'Send'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="Type a message..."
-                  disabled={isSendingMessage || isUploadingFile}
-                  className="flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 transition disabled:opacity-50"
-                  style={{
-                    backgroundColor: currentTheme.input,
-                    borderColor: currentTheme.border,
-                    color: currentTheme.text,
-                  }}
-                />
+                <div className="flex items-center gap-2">
+                  <label
+                    className={`cursor-pointer p-2 rounded-lg transition ${isUploadingFile || filePreview ? 'opacity-50' : 'opacity-70 hover:opacity-100'
+                      }`}
+                    style={{ color: currentTheme.primary }}
+                    title={isUploadingFile ? 'Uploading...' : filePreview ? 'Send or cancel preview first' : 'Attach file or image'}
+                  >
+                    <Paperclip size={20} />
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && !filePreview) handleFileSelection(file);
+                        e.target.value = '';
+                      }}
+                      disabled={isUploadingFile || !!filePreview}
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+                    />
+                  </label>
 
-                <button
-                  onClick={handleSendMessage}
-                  disabled={isSendingMessage || isUploadingFile || !messageInput.trim()}
-                  className="p-2 rounded-lg hover:opacity-80 transition font-semibold disabled:opacity-50"
-                  style={{ backgroundColor: currentTheme.primary, color: 'white' }}
-                >
-                  {isSendingMessage ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-                </button>
+                  <button
+                    className="opacity-70 hover:opacity-100 p-2 rounded-lg transition"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    style={{ color: currentTheme.primary }}
+                  >
+                    <Smile size={20} />
+                  </button>
+
+                  {showEmojiPicker && (
+                    <div
+                      className="absolute bottom-24 left-4 p-4 rounded-lg shadow-lg grid grid-cols-6 gap-2 z-10"
+                      style={{ backgroundColor: currentTheme.surface, border: `1px solid ${currentTheme.border}` }}
+                    >
+                      {['😀', '😂', '❤️', '👍', '🔥', '✨', '🎉', '😍', '🚀', '💯'].map(
+                        (emoji) => (
+                          <button
+                            key={emoji}
+                            className="text-2xl hover:scale-110 transition"
+                            onClick={() => {
+                              handleAddEmoji(emoji);
+                              setShowEmojiPicker(false);
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type a message..."
+                    disabled={isSendingMessage || isUploadingFile}
+                    className="flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 transition disabled:opacity-50"
+                    style={{
+                      backgroundColor: currentTheme.input,
+                      borderColor: currentTheme.border,
+                      color: currentTheme.text,
+                    }}
+                  />
+
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={isSendingMessage || isUploadingFile || !messageInput.trim()}
+                    className="p-2 rounded-lg hover:opacity-80 transition font-semibold disabled:opacity-50"
+                    style={{ backgroundColor: currentTheme.primary, color: 'white' }}
+                  >
+                    {isSendingMessage ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  </button>
+                </div>
               </div>
-            </div>
             )}
           </div>
         ) : (
@@ -2205,7 +2268,7 @@ export default function ChatPage() {
       {/* Create Group Modal */}
       {showCreateGroup && (
         <div className="fixed inset-0 bg-white/70 flex items-center justify-center z-50"
-        onClick={() => setShowCreateGroup(false)}>
+          onClick={() => setShowCreateGroup(false)}>
           <div
             className="bg-white rounded-lg shadow-xl w-96 p-6 max-h-96 overflow-y-auto"
             style={{ backgroundColor: currentTheme.surface }}
@@ -2267,7 +2330,7 @@ export default function ChatPage() {
                     <input
                       type="checkbox"
                       checked={selectedMembers.includes(conv.friend.id)}
-                      onChange={() => {}}
+                      onChange={() => { }}
                       className="mr-3"
                     />
                     <img
@@ -2401,9 +2464,8 @@ export default function ChatPage() {
                   return (
                     <div
                       key={conv.friend.id}
-                      className={`flex items-center p-2 rounded cursor-pointer ${
-                        alreadyMember ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-70'
-                      }`}
+                      className={`flex items-center p-2 rounded cursor-pointer ${alreadyMember ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-70'
+                        }`}
                       style={{
                         backgroundColor: selectedMembers.includes(conv.friend.id)
                           ? currentTheme.primary
@@ -2423,7 +2485,7 @@ export default function ChatPage() {
                         type="checkbox"
                         checked={selectedMembers.includes(conv.friend.id)}
                         disabled={alreadyMember}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         className="mr-3"
                       />
                       <img
@@ -2481,16 +2543,16 @@ export default function ChatPage() {
 
       {/* Expanded Image Modal */}
       {expandedImage && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
           onClick={() => setExpandedImage(null)}
         >
-          <div 
+          <div
             className="relative bg-black rounded-lg shadow-2xl max-w-4xl max-h-96 flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <img 
-              src={expandedImage.url} 
+            <img
+              src={expandedImage.url}
               alt={expandedImage.name}
               className="max-w-full max-h-full object-contain rounded-lg"
             />
@@ -2507,6 +2569,63 @@ export default function ChatPage() {
             >
               <Download size={16} /> Download
             </a>
+          </div>
+        </div>
+      )}
+
+      {expandedFile && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          onClick={() => setExpandedFile(null)}
+        >
+          <div
+            className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-96 p-6"
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: currentTheme.surface }}
+          >
+            <button
+              onClick={() => setExpandedFile(null)}
+              className="absolute top-4 right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition font-bold text-lg"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-center p-8 rounded-lg" style={{ backgroundColor: currentTheme.input }}>
+                <Paperclip size={48} style={{ color: currentTheme.textSecondary }} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold" style={{ color: currentTheme.text }}>
+                  {expandedFile.name}
+                </h3>
+                <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                  Size: {(expandedFile.size / 1024).toFixed(2)} KB
+                </p>
+                <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
+                  Type: {expandedFile.type || 'File'}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <a
+                  href={expandedFile.url}
+                  download={expandedFile.name}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold"
+                >
+                  <Download size={18} /> Download
+                </a>
+                <a
+                  href={expandedFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition font-semibold"
+                  style={{ backgroundColor: currentTheme.input, color: currentTheme.text }}
+                >
+                  Open
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ import {
   Sparkles,
   LogOut,
   Settings,
+  MessageCircle,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useClerk, useUser } from "@clerk/nextjs";
@@ -116,7 +117,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     {
       id: "chat",
       label: "Chat",
-      icon: MessageSquare,
+      icon: MessageCircle,
     },
   ]
 

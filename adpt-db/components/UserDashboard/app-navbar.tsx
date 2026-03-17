@@ -8,6 +8,8 @@ import {
   PanelLeftOpen,
   PanelLeft,
   RefreshCcw,
+  MessageSquare,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useContext, useState, useEffect } from "react";
@@ -17,6 +19,7 @@ import { UserButton, useUser } from "@clerk/nextjs";
 import { UserContext } from "@/context/userContext";
 import TaskManager from "../TaskManager/TaskManager";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -28,19 +31,23 @@ import { useOnborda } from "onborda";
 import { dashboardTourName } from "./dashboard-tour-steps";
 
 type NavBarProps = {
+  onChangePage: (changePage: string) => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
   onRefresh: () => void;
 };
 
-export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRefresh }: NavBarProps) {
+export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRefresh, onChangePage }: NavBarProps) {
   const [isTaskManagerOpen, setIsTaskManagerOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [taskCountForToday, setTaskCountForToday] = useState(0);
   const [loadingTaskCount, setLoadingTaskCount] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [loadingMessageCount, setLoadingMessageCount] = useState(false);
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
   const { user: clerkUser } = useUser();
+  const router = useRouter();
   const { startOnborda } = useOnborda();
 
   const handleStartTour = () => {
@@ -70,6 +77,29 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
     }
   };
 
+  const fetchUnreadMessageCount = async () => {
+    if (!clerkUser?.id) return;
+    setLoadingMessageCount(true);
+    try {
+      // Fetch conversations with unread count
+      const conversationsResponse = await axios.get("/api/chat/conversations").catch(() => ({ data: [] }));
+      const conversations = conversationsResponse.data || [];
+      const conversationUnread = conversations.reduce((sum: number, conv: any) => sum + (conv.unreadCount || 0), 0);
+
+      // Fetch groups with unread count
+      const groupsResponse = await axios.get("/api/chat/groups").catch(() => ({ data: [] }));
+      const groups = groupsResponse.data || [];
+      const groupUnread = groups.reduce((sum: number, group: any) => sum + (group.unreadCount || 0), 0);
+
+      const total = conversationUnread + groupUnread;
+      setUnreadMessageCount(total);
+    } catch (error) {
+      console.error("Failed to fetch unread message count:", error);
+    } finally {
+      setLoadingMessageCount(false);
+    }
+  };
+
   // Fetch task count on component mount
   useEffect(() => {
     fetchTodayTaskCount();
@@ -81,6 +111,14 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
       fetchTodayTaskCount();
     }
   }, [isTaskManagerOpen, clerkUser?.id]);
+
+  // Fetch unread message count on component mount
+  useEffect(() => {
+    fetchUnreadMessageCount();
+    // Refetch every 5 seconds to keep it updated
+    const refreshInterval = setInterval(fetchUnreadMessageCount, 5000);
+    return () => clearInterval(refreshInterval);
+  }, [clerkUser?.id]);
 
   const handleTaskManagerClose = () => {
     setIsTaskManagerOpen(false);
@@ -207,6 +245,31 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             }}
           >
             <HelpCircle className="w-5 h-5" />
+          </motion.button>
+
+          {/* Messages */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onChangePage("chat")}
+            className="relative w-10 h-10 flex items-center justify-center rounded-xl transition-all"
+            style={{
+              backgroundColor: currentTheme.background,
+              border: `1px solid ${currentTheme.border}`,
+              color: currentTheme.textSecondary,
+            }}
+          >
+            <MessageCircle className="w-5 h-5" />
+            {unreadMessageCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{
+                  backgroundColor: currentTheme.primary,
+                }}
+              >
+                {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+              </span>
+            )}
           </motion.button>
 
           {/* Calendar / Task Manager */}
