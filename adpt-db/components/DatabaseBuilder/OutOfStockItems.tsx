@@ -148,7 +148,7 @@ export default function OutOfStockItems({
   const handleOrderFromVendor = (itemId: string, productName: string, vendorName: string, buildUrl: (q: string) => string) => {
     window.open(buildUrl(productName), "_blank");
     onUpdateItem(itemId, {
-      orderStatus: "ordered",
+      orderStatus: "not_ordered",
       orderedFrom: vendorName,
       orderedAt: new Date().toISOString(),
     });
