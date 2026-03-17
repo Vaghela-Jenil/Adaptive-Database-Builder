@@ -16,7 +16,10 @@ export default function CreateUserOnSignIn() {
 
     const syncUser = async () => {
     try {
-      await axios.post("/api/auth/verify-user");
+      const response = await axios.post("/api/auth/verify-user");
+      if (response.data?.isNewUser) {
+        localStorage.setItem("onborda-tour-pending", "1");
+      }
     } catch (err: any) {
       if (err.response?.status === 403) {
         throw new Error('You are banned from this application')

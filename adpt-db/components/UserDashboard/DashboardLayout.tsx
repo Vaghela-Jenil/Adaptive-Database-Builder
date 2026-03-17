@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from "react";
+import { Onborda, OnbordaProvider, useOnborda } from "onborda";
 import { useTheme } from "@/context/ThemeContext";
 import DashboardSidebar from "../UserDashboard/app-sidebar";
 import DashboardNavbar from "../UserDashboard/app-navbar";
@@ -16,6 +17,48 @@ import VisitTracker from "@/components/VisitTracker";
 import SharedDatabases from "./pages/SharedDatabase";
 import UserSupport from "./pages/Query";
 import ChatPage from "./pages/chat-app";
+import { DashboardTourCard } from "./DashboardTourCard";
+import { dashboardTourSteps, dashboardTourName } from "./dashboard-tour-steps";
+
+function TourAutoLaunch({ setIsSidebarOpen }: { setIsSidebarOpen: (v: boolean) => void }) {
+  const { startOnborda } = useOnborda();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!localStorage.getItem("onborda-tour-pending")) return;
+
+    setIsSidebarOpen(true);
+
+    let attempts = 0;
+    let cancelled = false;
+
+    const tryStartTour = () => {
+      if (cancelled) return;
+
+      const firstTarget = document.querySelector("#onborda-dashboard-home");
+      if (firstTarget) {
+        localStorage.removeItem("onborda-tour-pending");
+        startOnborda(dashboardTourName);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < 12) {
+        window.setTimeout(tryStartTour, 250);
+      }
+    };
+
+    const initialTimer = window.setTimeout(tryStartTour, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
 
 export default function DashboardLayout() {
     const { currentTheme } = useTheme();
@@ -107,38 +150,49 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: currentTheme.background }}>
-      <VisitTracker />
-      <DashboardSidebar
-        activePage={activePage}
-        setActivePage={setActivePage}
-        isSidebarOpen={isSidebarOpen}
-      />
+    <OnbordaProvider>
+      <Onborda
+        steps={dashboardTourSteps}
+        shadowRgb="15, 23, 42"
+        shadowOpacity="0.72"
+        cardComponent={DashboardTourCard}
+        cardTransition={{ type: "spring", stiffness: 140, damping: 18 }}
+      >
+        <TourAutoLaunch setIsSidebarOpen={setIsSidebarOpen} />
+        <div className="flex h-screen overflow-hidden" style={{ backgroundColor: currentTheme.background }}>
+          <VisitTracker />
+          <DashboardSidebar
+            activePage={activePage}
+            setActivePage={setActivePage}
+            isSidebarOpen={isSidebarOpen}
+          />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardNavbar
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-          onRefresh={handleRefresh}
-        />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <DashboardNavbar
+              isSidebarOpen={isSidebarOpen}
+              setIsSidebarOpen={setIsSidebarOpen}
+              onRefresh={handleRefresh}
+            />
 
-        <main
-          key={refreshKey}
-          className="flex-1 overflow-y-auto relative"
-          style={{ backgroundColor: currentTheme.background }}
-        >
-          {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-                style={{ borderColor: `${currentTheme.primary} transparent transparent ${currentTheme.primary}` }}
-              />
-            </div>
-          ) : (
-            renderPage()
-          )}
-        </main>
-      </div>
-    </div>
+            <main
+              key={refreshKey}
+              className="flex-1 overflow-y-auto relative"
+              style={{ backgroundColor: currentTheme.background }}
+            >
+              {isLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+                    style={{ borderColor: `${currentTheme.primary} transparent transparent ${currentTheme.primary}` }}
+                  />
+                </div>
+              ) : (
+                renderPage()
+              )}
+            </main>
+          </div>
+        </div>
+      </Onborda>
+    </OnbordaProvider>
   );
 }

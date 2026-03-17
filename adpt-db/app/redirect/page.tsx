@@ -20,6 +20,11 @@ export default function AuthSync() {
         const data = await axios.post("/api/auth/verify-user");
         const role = data.data.user.role || "user";
 
+         if (data.data.isNewUser) {
+           localStorage.setItem("onborda-tour-pending", "1");
+           console.log("New user detected. Onboarding tour will be triggered.");
+         }
+
         if (role === "admin") {
           router.push("/admin/dashboard");
         } else {

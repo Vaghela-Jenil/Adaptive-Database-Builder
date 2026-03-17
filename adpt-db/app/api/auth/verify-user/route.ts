@@ -23,9 +23,11 @@ export async function POST() {
       }, { status: 403 });
     }
 
+    let isNewUser = false;
     let user = await User.findOne({ clerkId: userId });
 
     if (!user) {
+      isNewUser = true;
       const email = clerkUser.emailAddresses[0]?.emailAddress;
       const firstName = clerkUser.firstName || "";
       const lastName = clerkUser.lastName || "";
@@ -51,7 +53,8 @@ export async function POST() {
 
     return NextResponse.json({ 
       message: "User verified and synced", 
-      user: user 
+      user: user,
+      isNewUser,
     }, { status: 200 });
 
   } catch (err: any) {

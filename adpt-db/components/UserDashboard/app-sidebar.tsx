@@ -120,6 +120,16 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     },
   ]
 
+  const tourTargetIds: Record<string, string> = {
+    dashboard: "onborda-dashboard-home",
+    database: "onborda-database",
+    analytics: "onborda-analytics",
+    chatbot: "onborda-chatbot",
+    "nearby-stores": "onborda-nearby-store",
+    "share-folder": "onborda-shared-database",
+    query: "onborda-query",
+    chat: "onborda-chat-app",
+  };
 
   return (
     <div suppressHydrationWarning className="relative"
@@ -175,6 +185,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                   <div key={item.id}>
                     <motion.button
                       key={item.id}
+                      id={tourTargetIds[item.id]}
                       onClick={() => setActivePage(item.id)}
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
@@ -211,6 +222,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                   <div key={item.id}>
                     <motion.button
                       key={item.id}
+                      id={tourTargetIds[item.id]}
                       onClick={() => setActivePage(item.id)}
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}

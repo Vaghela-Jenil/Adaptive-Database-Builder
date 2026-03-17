@@ -24,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useOnborda } from "onborda";
+import { dashboardTourName } from "./dashboard-tour-steps";
 
 type NavBarProps = {
   isSidebarOpen: boolean;
@@ -39,6 +41,16 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
   const { user: clerkUser } = useUser();
+  const { startOnborda } = useOnborda();
+
+  const handleStartTour = () => {
+    setIsSidebarOpen(true);
+    setIsSummaryOpen(false);
+
+    window.setTimeout(() => {
+      startOnborda(dashboardTourName);
+    }, 180);
+  };
 
   const fetchTodayTaskCount = async () => {
     if (!clerkUser?.id) return;
@@ -187,6 +199,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             whileTap={{ scale: 0.95 }}
             className="w-10 h-10 flex items-center justify-center rounded-xl transition-all"
             onClick={() => setIsSummaryOpen(true)}
+            id="onborda-navbar-info"
             style={{
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
@@ -201,6 +214,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsTaskManagerOpen(true)}
+            id="onborda-navbar-task-manager"
             className="relative w-10 h-10 flex items-center justify-center rounded-xl transition-all"
             style={{
               backgroundColor: currentTheme.background,
@@ -264,6 +278,35 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               Quick point-wise overview of all side panel features.
             </DialogDescription>
           </DialogHeader>
+
+          <div
+            className="rounded-2xl border p-4"
+            style={{
+              background: `linear-gradient(135deg, ${currentTheme.surface}E6 0%, ${currentTheme.background}CC 100%)`,
+              borderColor: currentTheme.border,
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: currentTheme.text }}>
+                  Guided onboarding tour
+                </p>
+                <p className="mt-1 text-sm" style={{ color: currentTheme.textSecondary }}>
+                  Walk through dashboard modules, shared tools, and the navbar actions with the new Onborda tour.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={handleStartTour}
+                className="shrink-0 rounded-xl text-white"
+                style={{ backgroundColor: currentTheme.primary }}
+              >
+                Start tour
+              </Button>
+            </div>
+          </div>
 
           <div className="space-y-4">
             {featureSummaries.map((feature) => (
