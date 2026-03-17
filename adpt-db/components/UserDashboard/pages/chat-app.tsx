@@ -16,12 +16,12 @@ interface Message {
     avatar?: string;
   };
   content: string;
-  type: 'text' | 'file' | 'emoji';
+  type: 'text' | 'file' | 'emoji' | 'image';
   timestamp: Date;
   file?: {
-    name: string;
+    name?: string;
     url: string;
-    size: number;
+    size?: number;
   };
 }
 
@@ -56,6 +56,7 @@ export default function ChatPage() {
   const [showRequests, setShowRequests] = useState(false);
   const [userStatuses, setUserStatuses] = useState<Map<string, 'online' | 'offline'>>(new Map());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<{ url: string; isImage: boolean; name: string; size: number; type: string } | null>(null);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [groups, setGroups] = useState<any[]>([]);
@@ -67,6 +68,7 @@ export default function ChatPage() {
   const [chatTab, setChatTab] = useState<'direct' | 'groups'>('direct');
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [groupMessages, setGroupMessages] = useState<any[]>([]);
+  const [expandedImage, setExpandedImage] = useState<{ url: string; name: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const isUnmountingRef = useRef(false);
@@ -246,12 +248,28 @@ export default function ChatPage() {
           };
 
           if (selectedConversationRef.current?.friend.id === incomingSenderId) {
+            // Message is from currently selected conversation
             setMessages((prev) => {
               if (prev.some((m) => m._id === decryptedMessage._id)) {
                 return prev;
               }
               return [...prev, decryptedMessage];
             });
+          } else {
+            // Message is from a different conversation - increment unreadCount
+            setConversations((prev) =>
+              prev.map((conv) =>
+                conv.friend.id === incomingSenderId
+                  ? {
+                      ...conv,
+                      unreadCount: conv.unreadCount + 1,
+                      lastMessage: `${incomingSenderName}: ${decryptedContent}`,
+                      lastMessageTime: new Date(message.timestamp),
+                    }
+                  : conv
+              )
+            );
+            return;
           }
           
           // Update last message in conversation with sender name
@@ -343,16 +361,8 @@ export default function ChatPage() {
 
           const activeGroup = selectedGroupRef.current;
           const activeGroupId = getGroupId(activeGroup);
-          if (!activeGroupId) {
-            return;
-          }
-
           const incomingGroupId = message.groupId?.toString?.() || message.groupId;
           const currentGroupId = activeGroupId?.toString?.() || activeGroupId;
-
-          if (incomingGroupId !== currentGroupId) {
-            return;
-          }
 
           const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
           const normalizedMessage = {
@@ -367,26 +377,44 @@ export default function ChatPage() {
             timestamp,
           };
 
-          setGroupMessages((prev) => {
-            const incomingId = (normalizedMessage.id || normalizedMessage._id)?.toString?.();
-            if (incomingId && prev.some((m) => (m.id || m._id)?.toString?.() === incomingId)) {
-              return prev;
-            }
-            return [...prev, normalizedMessage];
-          });
+          if (incomingGroupId === currentGroupId) {
+            // Message is from currently selected group
+            setGroupMessages((prev) => {
+              const incomingId = (normalizedMessage.id || normalizedMessage._id)?.toString?.();
+              if (incomingId && prev.some((m) => (m.id || m._id)?.toString?.() === incomingId)) {
+                return prev;
+              }
+              return [...prev, normalizedMessage];
+            });
 
-          setGroups((prev) => prev.map((group) => {
-            if (getGroupId(group) !== currentGroupId) {
-              return group;
-            }
+            setGroups((prev) => prev.map((group) => {
+              if (getGroupId(group) !== currentGroupId) {
+                return group;
+              }
 
-            return {
-              ...group,
-              lastMessage: decryptedContent,
-              lastMessageSenderName: normalizedMessage.sender?.name || 'Unknown User',
-              lastMessageTime: timestamp,
-            };
-          }));
+              return {
+                ...group,
+                lastMessage: decryptedContent,
+                lastMessageSenderName: normalizedMessage.sender?.name || 'Unknown User',
+                lastMessageTime: timestamp,
+              };
+            }));
+          } else {
+            // Message is from a different group - increment unreadCount
+            setGroups((prev) =>
+              prev.map((group) =>
+                (getGroupId(group)?.toString?.() || getGroupId(group)) === incomingGroupId
+                  ? {
+                      ...group,
+                      unreadCount: (group.unreadCount || 0) + 1,
+                      lastMessage: decryptedContent,
+                      lastMessageSenderName: normalizedMessage.sender?.name || 'Unknown User',
+                      lastMessageTime: timestamp,
+                    }
+                  : group
+              )
+            );
+          }
         });
 
         // ============ ERROR HANDLING ============
@@ -586,6 +614,49 @@ export default function ChatPage() {
 
       fetchMessages();
 
+      // Mark all messages as read when opening the conversation
+      const markReadPromise = axios.patch('/api/chat/messages/mark-read', {
+        senderId: selectedConversation.friend.id
+      });
+
+      markReadPromise
+        .then(() => {
+          // Clear unread count for this conversation
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.friend.id === selectedConversation.friend.id
+                ? { ...conv, unreadCount: 0 }
+                : conv
+            )
+          );
+          console.log(`✅ Marked all messages as read from: ${selectedConversation.friend.name}`);
+          
+          // Refetch conversations after a short delay to ensure database is updated
+          setTimeout(() => {
+            axios.get('/api/chat/conversations')
+              .then(res => {
+                const decryptedConversations = res.data.map((conv: Conversation) => {
+                  if (conv.lastMessage && currentUserId) {
+                    try {
+                      if (isEncrypted(conv.lastMessage)) {
+                        const sharedKey = generateSharedKey(conv.friend.id, currentUserId);
+                        const decrypted = decryptMessage(conv.lastMessage, sharedKey);
+                        return { ...conv, lastMessage: decrypted };
+                      }
+                    } catch (err) {
+                      console.error(`Error decrypting:`, err);
+                    }
+                  }
+                  return conv;
+                });
+                setConversations(decryptedConversations);
+                console.log('✅ Refetched conversations to sync unreadCount');
+              })
+              .catch(err => console.error('Error refetching conversations:', err));
+          }, 100);
+        })
+        .catch(err => console.error('Error marking messages as read:', err));
+
       const refreshInterval = setInterval(fetchMessages, 4000);
 
       return () => clearInterval(refreshInterval);
@@ -657,6 +728,35 @@ export default function ChatPage() {
       if (groupId) {
         socket.emit('join_group', groupId);
         console.log(`👥 Joined group room: group_${groupId}`);
+        
+        // Mark all group messages as read when opening the group
+        const markReadPromise = axios.patch('/api/chat/group-messages/mark-read', {
+          groupId: groupId
+        });
+
+        markReadPromise
+          .then(() => {
+            // Clear unread count for this group
+            setGroups((prev) =>
+              prev.map((g) =>
+                getGroupId(g) === groupId
+                  ? { ...g, unreadCount: 0 }
+                  : g
+              )
+            );
+            console.log(`✅ Marked all messages as read for group: ${groupId}`);
+
+            // Refetch groups after a short delay to ensure database is updated
+            setTimeout(() => {
+              axios.get('/api/chat/groups')
+                .then(res => {
+                  setGroups(res.data);
+                  console.log('✅ Refetched groups to sync unreadCount');
+                })
+                .catch(err => console.error('Error refetching groups:', err));
+            }, 100);
+          })
+          .catch(err => console.error('Error marking group messages as read:', err));
       }
 
       const refreshInterval = setInterval(fetchGroupMessages, 3000);
@@ -773,37 +873,79 @@ export default function ChatPage() {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileSelection = async (file: File) => {
+    if (chatTab === 'groups') {
+      if (!selectedGroup || !currentUserId || !currentUser) return;
+    } else {
+      if (!selectedConversation || !currentUserId || !currentUser) return;
+    }
+
+    try {
+      setIsUploadingFile(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      if (chatTab === 'groups' && selectedGroup) {
+        const groupId = getGroupId(selectedGroup);
+        if (groupId) formData.append('groupId', groupId);
+      } else if (selectedConversation) {
+        formData.append('receiverId', selectedConversation.friend.id);
+      }
+
+      const response = await axios.post('/api/chat/upload', formData);
+
+      // Determine if file is an image
+      const isImage = response.data.isImage || file.type.startsWith('image/');
+
+      setFilePreview({
+        url: response.data.url,
+        isImage: isImage,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+
+      setSelectedFile(file);
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file: ' + (error.response?.data?.error || error.message));
+      setSelectedFile(null);
+      setFilePreview(null);
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const handleSendFile = async () => {
+    if (!filePreview || !selectedFile) return;
+
     if (chatTab === 'groups') {
       if (!selectedGroup || !socket || !currentUserId || !currentUser) return;
 
-      setSelectedFile(file);
-      setIsUploadingFile(true);
+      setIsSendingMessage(true);
 
       try {
-        const formData = new FormData();
-        formData.append('file', file);
         const groupId = getGroupId(selectedGroup);
         if (!groupId) {
           alert('Invalid group selected');
           setSelectedFile(null);
+          setFilePreview(null);
           return;
         }
 
-        formData.append('groupId', groupId);
-
-        const response = await axios.post('/api/chat/upload', formData);
-
+        const filename = selectedFile.name;
         const fileMessage: any = {
           id: Date.now().toString(),
+          _id: Date.now().toString(),
           sender: { id: currentUserId, name: currentUser.userName },
-          content: `📎 ${file.name}`,
-          type: 'file',
+          content: filePreview.isImage ? filePreview.url : `📎 ${filename}`,
+          type: filePreview.isImage ? 'image' : 'file',
           timestamp: new Date(),
           file: {
-            name: file.name,
-            url: response.data.url,
-            size: file.size,
+            name: filename,
+            url: filePreview.url,
+            size: filePreview.size,
           },
         };
 
@@ -815,72 +957,76 @@ export default function ChatPage() {
 
           return {
             ...group,
-            lastMessage: `📎 ${file.name}`,
+            lastMessage: filename,
             lastMessageSenderName: currentUser.userName,
             lastMessageTime: new Date(),
           };
         }));
         setSelectedFile(null);
+        setFilePreview(null);
 
         // Save file message to database to get real _id
         const fileDbResponse = await axios.post('/api/chat/group-messages', {
           groupId,
-          content: `📎 ${file.name}`,
-          type: 'file',
-          fileUrl: response.data.url,
-          fileName: file.name,
-          fileSize: file.size,
+          content: filePreview.isImage ? filePreview.url : `📎 ${filename}`,
+          type: filePreview.isImage ? 'image' : 'file',
+          fileUrl: filePreview.url,
+          fileName: filename,
+          fileSize: filePreview.size,
         });
 
-        // Update local message with real MongoDB _id from API response
+        // Update local message with real MongoDB _id
         const realFileMessageId = fileDbResponse.data._id;
         setGroupMessages((prev) => {
           return prev.map((msg) =>
             msg.id === fileMessage.id
-              ? { ...msg, id: realFileMessageId, _id: realFileMessageId }
+              ? { 
+                  ...msg, 
+                  id: realFileMessageId, 
+                  _id: realFileMessageId,
+                  file: {
+                    ...msg.file,
+                    url: filePreview.url
+                  }
+                }
               : msg
           );
         });
         console.log(`Group file message saved with real ID: ${realFileMessageId}`);
 
         const encryptionKey = `group_${groupId}`;
-        const encryptedFileName = encryptMessage(file.name, encryptionKey);
+        const encryptedFileName = encryptMessage(filename, encryptionKey);
 
         socket.emit('send_group_message', {
           id: realFileMessageId,
+          _id: realFileMessageId,
           groupId,
           senderId: currentUserId,
           senderName: currentUser.userName,
-          content: `📎 ${encryptedFileName}`,
-          type: 'file',
-          fileUrl: response.data.url,
+          content: filePreview.isImage ? filePreview.url : `📎 ${encryptedFileName}`,
+          type: filePreview.isImage ? 'image' : 'file',
+          fileUrl: filePreview.url,
           fileName: encryptedFileName,
-          fileSize: file.size,
+          fileSize: filePreview.size,
           timestamp: new Date(),
         });
 
-        console.log(` Sent encrypted file to group ${groupId}`);
+        console.log(`📤 Sent file to group ${groupId}`);
       } catch (error) {
-        console.error('Error uploading file to group:', error);
-        alert('Failed to upload file');
+        console.error('Error sending file to group:', error);
+        alert('Failed to send file');
         setSelectedFile(null);
+        setFilePreview(null);
       } finally {
-        setIsUploadingFile(false);
+        setIsSendingMessage(false);
       }
     } else {
       if (!selectedConversation || !socket || !currentUserId || !currentUser) return;
 
-      setSelectedFile(file);
-      setIsUploadingFile(true);
+      setIsSendingMessage(true);
 
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('receiverId', selectedConversation.friend.id);
-
-        const response = await axios.post('/api/chat/upload', formData);
-
-        // Add file message immediately to local state for sender (with temp ID)
+        const filename = selectedFile.name;
         const fileMessage: Message = {
           _id: Date.now().toString(),
           sender: {
@@ -888,66 +1034,93 @@ export default function ChatPage() {
             name: currentUser.userName,
             avatar: currentUser.userImage,
           },
-          content: `📎 ${file.name}`,
-          type: 'file',
+          content: filePreview.isImage ? filePreview.url : `📎 ${filename}`,
+          type: filePreview.isImage ? 'image' : 'file',
           timestamp: new Date(),
           file: {
-            name: file.name,
-            url: response.data.url,
-            size: file.size,
+            name: filename,
+            url: filePreview.url,
+            size: filePreview.size,
           },
         };
 
         setMessages((prev) => [...prev, fileMessage]);
         setSelectedFile(null);
+        setFilePreview(null);
 
         // Save file message to database to get real _id
         const fileDbResponse = await axios.post('/api/chat/messages', {
           receiverId: selectedConversation.friend.id,
-          content: `📎 ${file.name}`,
-          type: 'file',
-          fileUrl: response.data.url,
-          fileName: file.name,
-          fileSize: file.size,
+          content: filePreview.isImage ? filePreview.url : `📎 ${filename}`,
+          type: filePreview.isImage ? 'image' : 'file',
+          fileUrl: filePreview.url,
+          fileName: filename,
+          fileSize: filePreview.size,
         });
 
-        // Update local message with real MongoDB _id from API response
+        // Update local message with real MongoDB _id
         const realFileMessageId = fileDbResponse.data._id;
         setMessages((prev) => {
           return prev.map((msg) =>
             msg._id === fileMessage._id
-              ? { ...msg, _id: realFileMessageId }
+              ? { 
+                  ...msg, 
+                  _id: realFileMessageId,
+                  file: {
+                    ...msg.file,
+                    url: filePreview.url
+                  }
+                }
               : msg
           );
         });
         console.log(`✅ File message saved with real ID: ${realFileMessageId}`);
 
+        // Update last message in conversations
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.friend.id === selectedConversation.friend.id
+              ? {
+                  ...conv,
+                  lastMessage: `${currentUser.userName}: sent a file`,
+                  lastMessageTime: new Date(),
+                }
+              : conv
+          )
+        );
+
         // Encrypt file metadata for socket transmission
         const sharedKey = generateSharedKey(currentUserId, selectedConversation.friend.id);
-        const encryptedFileName = encryptMessage(file.name, sharedKey);
+        const encryptedFileName = encryptMessage(filename, sharedKey);
 
         // Emit encrypted file message through socket
         socket.emit('send_message', {
           senderId: currentUserId,
           receiverId: selectedConversation.friend.id,
           senderName: currentUser.userName,
-          content: `📎 ${encryptedFileName}`,
-          type: 'file',
-          fileUrl: response.data.url,
+          content: filePreview.isImage ? filePreview.url : `📎 ${encryptedFileName}`,
+          type: filePreview.isImage ? 'image' : 'file',
+          fileUrl: filePreview.url,
           fileName: encryptedFileName,
-          fileSize: file.size,
+          fileSize: filePreview.size,
           timestamp: new Date(),
         });
 
-        console.log(`📤 Sent encrypted file to ${selectedConversation.friend.id}`);
+        console.log(`📤 Sent file to ${selectedConversation.friend.id}`);
       } catch (error) {
-        console.error('Error uploading file:', error);
-        alert('Failed to upload file');
+        console.error('Error sending file:', error);
+        alert('Failed to send file');
         setSelectedFile(null);
+        setFilePreview(null);
       } finally {
-        setIsUploadingFile(false);
+        setIsSendingMessage(false);
       }
     }
+  };
+
+  const handleCancelFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
   };
 
   const handleAddEmoji = (emoji: string) => {
@@ -1636,6 +1809,12 @@ export default function ChatPage() {
                           </p>
                         </div>
                       </div>
+                      {group.unreadCount > 0 && (
+                        <div className="px-2 py-1 rounded-full text-xs font-bold"
+                          style={{ backgroundColor: currentTheme.primary, color: 'white' }}>
+                          {group.unreadCount}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1795,7 +1974,23 @@ export default function ChatPage() {
                       {chatTab === 'groups' && message.sender?.name && (
                         <p className="text-xs font-semibold opacity-75 mb-1">{message.sender.name}</p>
                       )}
-                      {message.type === 'file' && message.file ? (
+                      {message.type === 'image' ? (
+                        <div className="space-y-2 cursor-pointer" onClick={() => setExpandedImage({ url: message.file?.url || message.content, name: message.file?.name || 'Image' })}>
+                          <img 
+                            src={message.file?.url || message.content} 
+                            alt={message.file?.name || 'Shared image'} 
+                            className="max-w-xs max-h-80 rounded-lg border border-gray-300 hover:opacity-90 transition object-cover"
+                            style={{ backgroundColor: isFromCurrentUser ? '#3b82f6' : currentTheme.input }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              if (e.currentTarget.nextElementSibling) {
+                                (e.currentTarget.nextElementSibling as HTMLElement).classList.remove('hidden');
+                              }
+                            }}
+                          />
+                          <p className="hidden text-sm" style={{ color: currentTheme.text }}>Failed to load image</p>
+                        </div>
+                      ) : message.type === 'file' && message.file ? (
                         <div className="space-y-2">
                           <p className="text-sm font-semibold inline-flex items-center gap-2">
                             <Paperclip size={14} />
@@ -1856,36 +2051,66 @@ export default function ChatPage() {
               }}
             >
               {/* File Preview */}
-              {selectedFile && (
+              {filePreview && (
                 <div
-                  className="p-2 rounded-lg flex items-center justify-between text-sm"
+                  className="p-3 rounded-lg space-y-2 border-2"
                   style={{
                     backgroundColor: currentTheme.input,
-                    borderColor: currentTheme.border,
+                    borderColor: currentTheme.primary,
                   }}
                 >
-                  <div className="flex items-center gap-2" style={{ color: currentTheme.text }}>
-                    <Paperclip size={14} />
-                    <span className="truncate">{selectedFile.name}</span>
-                    <span className="text-xs opacity-70">
-                      ({(selectedFile.size / 1024).toFixed(2)} KB)
-                    </span>
+                  {filePreview.isImage ? (
+                    <div className="space-y-2">
+                      <img 
+                        src={filePreview.url} 
+                        alt="Preview" 
+                        className="max-w-xs max-h-64 rounded-lg object-cover"
+                      />
+                      <p style={{ color: currentTheme.text }} className="text-sm font-semibold">{filePreview.name}</p>
+                      <p style={{ color: currentTheme.textSecondary }} className="text-xs">
+                        {(filePreview.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2" style={{ color: currentTheme.text }}>
+                      <Paperclip size={14} />
+                      <span className="truncate">{filePreview.name}</span>
+                      <span className="text-xs opacity-70">
+                        ({(filePreview.size / 1024).toFixed(2)} KB)
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 items-center justify-end pt-2">
+                    <button
+                      onClick={handleCancelFile}
+                      className="px-3 py-1 rounded text-sm font-semibold transition"
+                      style={{
+                        backgroundColor: currentTheme.surface,
+                        color: currentTheme.text,
+                      }}
+                      disabled={isSendingMessage}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSendFile}
+                      className="px-3 py-1 rounded text-sm font-semibold text-white transition disabled:opacity-50"
+                      style={{ backgroundColor: currentTheme.primary }}
+                      disabled={isSendingMessage || isUploadingFile}
+                    >
+                      {isSendingMessage ? 'Sending...' : 'Send'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setSelectedFile(null)}
-                    className="text-red-500 hover:text-red-600"
-                  >
-                    ✕
-                  </button>
                 </div>
               )}
 
               <div className="flex items-center gap-2">
                 <label
                   className={`cursor-pointer p-2 rounded-lg transition ${
-                    isUploadingFile ? 'opacity-50' : 'opacity-70 hover:opacity-100'
+                    isUploadingFile || filePreview ? 'opacity-50' : 'opacity-70 hover:opacity-100'
                   }`}
                   style={{ color: currentTheme.primary }}
+                  title={isUploadingFile ? 'Uploading...' : filePreview ? 'Send or cancel preview first' : 'Attach file or image'}
                 >
                   <Paperclip size={20} />
                   <input
@@ -1893,10 +2118,11 @@ export default function ChatPage() {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
+                      if (file && !filePreview) handleFileSelection(file);
                       e.target.value = '';
                     }}
-                    disabled={isUploadingFile}
+                    disabled={isUploadingFile || !!filePreview}
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
                   />
                 </label>
 
@@ -2249,6 +2475,38 @@ export default function ChatPage() {
                 Add Members
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded Image Modal */}
+      {expandedImage && (
+        <div 
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          onClick={() => setExpandedImage(null)}
+        >
+          <div 
+            className="relative bg-black rounded-lg shadow-2xl max-w-4xl max-h-96 flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={expandedImage.url} 
+              alt={expandedImage.name}
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+            <button
+              onClick={() => setExpandedImage(null)}
+              className="absolute top-4 right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition font-bold text-lg"
+            >
+              ✕
+            </button>
+            <a
+              href={expandedImage.url}
+              download={expandedImage.name}
+              className="absolute bottom-4 left-4 bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition text-sm font-semibold"
+            >
+              <Download size={16} /> Download
+            </a>
           </div>
         </div>
       )}

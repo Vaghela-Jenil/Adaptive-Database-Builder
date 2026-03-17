@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/mongodb';
 import { Message } from '@/lib/models/Message';
 import { User } from '@/lib/models/Users';
 import { encryptMessage, decryptMessage, generateSharedKey, isEncrypted } from '@/lib/encryption';
+import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,13 +103,25 @@ export async function POST(request: NextRequest) {
     const currentUser = await User.findOne({ clerkId });
     if (!currentUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    // Find receiver - handle both ObjectId string and regular user ID
+    let receiverUser: any;
+    if (mongoose.Types.ObjectId.isValid(receiverId)) {
+      receiverUser = await User.findById(receiverId);
+    } else {
+      receiverUser = await User.findById(receiverId);
+    }
+    
+    if (!receiverUser) {
+      return NextResponse.json({ error: 'Receiver not found' }, { status: 404 });
+    }
+
     // Generate shared key and encrypt the message
-    const sharedKey = generateSharedKey(currentUser._id.toString(), receiverId);
+    const sharedKey = generateSharedKey(currentUser._id.toString(), receiverUser._id.toString());
     const encryptedContent = encryptMessage(content, sharedKey);
 
     const message = await Message.create({
       sender: currentUser._id,
-      receiver: receiverId,
+      receiver: receiverUser._id,
       content: encryptedContent, // Store encrypted message
       type: type || 'text',
       fileUrl: fileUrl || null,
@@ -121,7 +134,7 @@ export async function POST(request: NextRequest) {
       {
         _id: message._id.toString(),
         sender: currentUser._id.toString(),
-        receiver: receiverId,
+        receiver: receiverUser._id.toString(),
         content, // Return original (decrypted) content
         type: message.type,
         timestamp: message.createdAt,

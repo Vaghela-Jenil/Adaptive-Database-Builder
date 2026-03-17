@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       fileUrl: fileUrl || null,
       fileName: fileName || null,
       fileSize: fileSize || null,
+      readBy: [currentUser._id], // Sender automatically marks as read
     });
 
     return NextResponse.json(

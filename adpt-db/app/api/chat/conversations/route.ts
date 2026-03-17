@@ -63,6 +63,13 @@ export async function GET(request: NextRequest) {
 
         if (!friend) return null;
 
+        // Count unread messages from this friend
+        const unreadCount = await Message.countDocuments({
+          sender: item._id,
+          receiver: currentUserId,
+          read: false
+        });
+
         return {
           id: friend._id.toString(),
           friend: {
@@ -74,7 +81,7 @@ export async function GET(request: NextRequest) {
           lastMessage: item.lastMessage.content || '',
           lastMessageTime: item.lastMessage.createdAt,
           type: item.lastMessage.type,
-          unreadCount: 0
+          unreadCount: unreadCount
         };
       })
     );

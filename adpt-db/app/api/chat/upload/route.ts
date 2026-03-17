@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/mongodb';
 import { User } from '@/lib/models/Users';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 
-// Max file size: 5MB
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const configureCloudinary = () => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,47 +29,63 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const receiverId = formData.get('receiverId') as string;
 
-    if (!file || !receiverId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file size
+    // Validate file size (50MB max)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'File too large (Max 5MB)' }, { status: 400 });
+      return NextResponse.json({ error: `File too large (Max 50MB)` }, { status: 400 });
     }
 
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create uploads directory if it doesn't exist
-    // Note: On Vercel, this local folder is read-only. 
-    // This works for local development or VPS (DigitalOcean/Railway).
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'chat');
-    await mkdir(uploadsDir, { recursive: true });
+    // Check if file is an image
+    const isImage = file.type.startsWith('image/');
 
-    // Sanitize filename: remove spaces and special characters
-    const safeName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9.-]/g, '');
-    const filename = `${Date.now()}-${safeName}`;
-    const filepath = join(uploadsDir, filename);
+    try {
+      // Configure Cloudinary
+      configureCloudinary();
+      
+      // Convert buffer to data URI
+      const base64 = buffer.toString('base64');
+      const dataURI = `data:${file.type};base64,${base64}`;
 
-    // Save file to the public directory
-    await writeFile(filepath, buffer);
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(dataURI, {
+        resource_type: isImage ? 'image' : 'raw',
+        folder: isImage ? 'chat/images' : 'chat/files',
+        public_id: `${Date.now()}-${file.name.split('.')[0]}`,
+        overwrite: false,
+      });
 
-    const fileUrl = `/uploads/chat/${filename}`;
+      return NextResponse.json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        isImage: isImage,
+        cloudinaryUrl: result.secure_url,
+        savedAt: new Date().toISOString()
+      }, { status: 201 });
 
-    return NextResponse.json({
-      url: fileUrl,
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }, { status: 201 });
+    } catch (cloudinaryError: any) {
+      console.error('Cloudinary upload error:', cloudinaryError);
+      return NextResponse.json(
+        { error: `Cloudinary error: ${cloudinaryError.message}` },
+        { status: 500 }
+      );
+    }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploading file:', error);
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      { error: `Upload error: ${error.message}` },
       { status: 500 }
     );
   }

@@ -39,7 +39,7 @@ const shortText = (max = 5000) => z.string().trim().min(1).max(max);
 const directMessageSchema = z.object({
   receiverId: shortText(128),
   content: shortText(10000),
-  type: z.enum(['text', 'file', 'emoji']).optional().default('text'),
+  type: z.enum(['text', 'file', 'emoji', 'image']).optional().default('text'),
   senderName: z.string().trim().max(120).optional(),
 });
 
@@ -62,7 +62,7 @@ const groupMessageSchema = z.object({
   groupId: z.union([z.string(), z.number()]),
   senderName: z.string().trim().max(120).optional(),
   content: shortText(10000),
-  type: z.enum(['text', 'file', 'emoji']).optional().default('text'),
+  type: z.enum(['text', 'file', 'emoji', 'image']).optional().default('text'),
   fileUrl: z.string().trim().max(2048).optional(),
   fileName: z.string().trim().max(255).optional(),
   fileSize: z.number().nonnegative().max(50 * 1024 * 1024).optional(),

@@ -27,12 +27,19 @@ export async function GET(request: NextRequest) {
           .select('content type senderName createdAt')
           .lean();
 
+        // Count unread messages for current user
+        const unreadCount = await GroupMessage.countDocuments({
+          groupId: group._id,
+          readBy: { $nin: [currentUser._id] }
+        });
+
         return {
           ...group.toObject(),
           lastMessage: lastMessage?.content || null,
           lastMessageType: lastMessage?.type || null,
           lastMessageSenderName: lastMessage?.senderName || null,
           lastMessageTime: lastMessage?.createdAt || null,
+          unreadCount: unreadCount,
         };
       })
     );
