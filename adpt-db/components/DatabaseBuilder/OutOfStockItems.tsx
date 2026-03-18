@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import {
   ChevronLeft,
@@ -21,6 +21,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card } from "../ui/card";
 import { motion, AnimatePresence } from "motion/react";
+import axios from "axios";
 
 export type OrderStatus = "not_ordered" | "ordered" | "shipped" | "out_for_delivery" | "delivered";
 
@@ -35,6 +36,8 @@ export type OutOfStockItem = {
   orderedAt?: string;
   trackingUrl?: string;
   trackingId?: string;
+  lastStatusSyncAt?: string;
+  lastStatusSyncSource?: "auto" | "manual";
 };
 
 type OutOfStockItemsProps = {
@@ -46,6 +49,7 @@ type OutOfStockItemsProps = {
 
 const ORDER_VENDORS = [
   {
+    id: "amazon",
     name: "Amazon",
     icon: "🛒",
     color: "#FF9900",
@@ -54,6 +58,7 @@ const ORDER_VENDORS = [
       `https://www.amazon.in/s?k=${encodeURIComponent(q)}`,
   },
   {
+    id: "flipkart",
     name: "Flipkart",
     icon: "🛍️",
     color: "#2874F0",
@@ -62,6 +67,7 @@ const ORDER_VENDORS = [
       `https://www.flipkart.com/search?q=${encodeURIComponent(q)}`,
   },
   {
+    id: "myntra",
     name: "Myntra",
     icon: "👗",
     color: "#FF3F6C",
@@ -70,6 +76,7 @@ const ORDER_VENDORS = [
       `https://www.myntra.com/${encodeURIComponent(q)}`,
   },
   {
+    id: "indiamart",
     name: "IndiaMart",
     icon: "🏭",
     color: "#1B5E20",
@@ -78,12 +85,22 @@ const ORDER_VENDORS = [
       `https://dir.indiamart.com/search.mp?ss=${encodeURIComponent(q)}`,
   },
   {
+    id: "jiomart",
     name: "JioMart",
     icon: "🏬",
     color: "#0A3D62",
     bg: "#E0F7FA",
     buildUrl: (q: string) =>
       `https://www.jiomart.com/search/${encodeURIComponent(q)}`,
+  },
+  {
+    id: "meesho",
+    name: "Meesho",
+    icon: "🛍️",
+    color: "#0A3D62",
+    bg: "#E0F7FA",
+    buildUrl: (q: string) =>
+      `https://www.meesho.com/search?q=${encodeURIComponent(q)}`,
   },
 ];
 
@@ -110,6 +127,7 @@ const VENDOR_TRACKING_URLS: Record<string, string> = {
   Myntra: "https://www.myntra.com/my/orders",
   IndiaMart: "https://my.indiamart.com/buyerledger/",
   JioMart: "https://www.jiomart.com/orders",
+  Meesho: "https://www.meesho.com/my-orders",
 };
 
 export default function OutOfStockItems({
@@ -127,6 +145,8 @@ export default function OutOfStockItems({
   const [editingTrackingId, setEditingTrackingId] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState("");
   const [trackingUrlInput, setTrackingUrlInput] = useState("");
+  const [autoDetectingId, setAutoDetectingId] = useState<string | null>(null);
+  const autoDetectInFlight = useRef<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
@@ -150,7 +170,8 @@ export default function OutOfStockItems({
     onUpdateItem(itemId, {
       orderStatus: "not_ordered",
       orderedFrom: vendorName,
-      orderedAt: new Date().toISOString(),
+      orderedAt: undefined,
+      trackingUrl: VENDOR_TRACKING_URLS[vendorName] || "",
     });
     setOpenOrderMenuId(null);
   };
@@ -182,14 +203,86 @@ export default function OutOfStockItems({
   };
 
   const handleTrackOrder = (item: OutOfStockItem) => {
-    if (item.trackingUrl) {
-      let url = item.trackingUrl;
+    const effectiveTrackingUrl = item.trackingUrl || (item.orderedFrom ? VENDOR_TRACKING_URLS[item.orderedFrom] : "");
+    if (effectiveTrackingUrl) {
+      let url = effectiveTrackingUrl;
       if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
       window.open(url, "_blank");
-    } else if (item.orderedFrom && VENDOR_TRACKING_URLS[item.orderedFrom]) {
-      window.open(VENDOR_TRACKING_URLS[item.orderedFrom], "_blank");
     }
   };
+
+  const detectOrderStatus = useCallback(
+    async (item: OutOfStockItem, silent = false) => {
+      const effectiveTrackingUrl = item.trackingUrl || (item.orderedFrom ? VENDOR_TRACKING_URLS[item.orderedFrom] : "");
+      if (!effectiveTrackingUrl) return;
+      if (autoDetectInFlight.current.has(item.id)) return;
+
+      autoDetectInFlight.current.add(item.id);
+      if (!silent) setAutoDetectingId(item.id);
+
+      try {
+        const res = await axios.post("/api/order-status/detect", {
+            trackingUrl: effectiveTrackingUrl,
+            orderedFrom: item.orderedFrom,
+        });
+
+        const data = res.data;
+        const detectedStatus = data?.status as OrderStatus | undefined;
+        const syncedAt = new Date().toISOString();
+        const syncSource: "auto" | "manual" = silent ? "auto" : "manual";
+
+        if (!detectedStatus || detectedStatus === (item.orderStatus || "not_ordered")) {
+          if (!silent) {
+            onUpdateItem(item.id, {
+              lastStatusSyncAt: syncedAt,
+              lastStatusSyncSource: syncSource,
+            });
+          }
+          return;
+        }
+
+        onUpdateItem(item.id, {
+          orderStatus: detectedStatus,
+          lastStatusSyncAt: syncedAt,
+          lastStatusSyncSource: syncSource,
+          orderedAt:
+            detectedStatus === "ordered" && !item.orderedAt
+              ? new Date().toISOString()
+              : item.orderedAt,
+        });
+      } catch {
+        // best-effort detection; keep UI stable on failures
+      } finally {
+        autoDetectInFlight.current.delete(item.id);
+        if (!silent) {
+          setAutoDetectingId((prev) => (prev === item.id ? null : prev));
+        }
+      }
+    },
+    [onUpdateItem]
+  );
+
+  useEffect(() => {
+    const candidates = items.filter(
+      (item) =>
+        Boolean(item.trackingUrl || (item.orderedFrom ? VENDOR_TRACKING_URLS[item.orderedFrom] : "")) &&
+        (item.orderStatus || "not_ordered") !== "delivered"
+    );
+
+    if (candidates.length === 0) return;
+
+    candidates.forEach((item) => {
+      void detectOrderStatus(item, true);
+    });
+
+    const timer = window.setInterval(() => {
+      candidates.forEach((item) => {
+        void detectOrderStatus(item, true);
+      });
+    }, 180000);
+
+    return () => window.clearInterval(timer);
+  }, [items, detectOrderStatus]);
 
   const getStatusIndex = (status?: OrderStatus) => {
     if (!status) return 0;
@@ -266,9 +359,11 @@ export default function OutOfStockItems({
         ) : (
           <div className="max-w-3xl mx-auto space-y-3">
             {items.map((item) => {
-              const currentStatusIdx = getStatusIndex(item.orderStatus);
-              const statusColor = STATUS_COLORS[item.orderStatus || "not_ordered"];
-              const isOrdered = item.orderStatus && item.orderStatus !== "not_ordered";
+              const status = item.orderStatus || "not_ordered";
+              const currentStatusIdx = getStatusIndex(status);
+              const statusColor = STATUS_COLORS[status];
+              const isOrdered = status !== "not_ordered";
+              const hasOrderFlowStarted = Boolean(item.orderedFrom || item.orderedAt || item.orderStatus);
 
               return (
               <Card
@@ -392,7 +487,7 @@ export default function OutOfStockItems({
                           <div className="p-2 space-y-1">
                             {ORDER_VENDORS.map((vendor) => (
                               <button
-                                key={vendor.name}
+                                key={vendor.id}
                                 onClick={() => handleOrderFromVendor(item.id, item.productName, vendor.name, vendor.buildUrl)}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                                 style={{ backgroundColor: vendor.bg }}
@@ -472,7 +567,7 @@ export default function OutOfStockItems({
                 </div>
 
                 {/* ── Order Status Tracking Section ── */}
-                {isOrdered && (
+                {hasOrderFlowStarted && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
@@ -543,6 +638,30 @@ export default function OutOfStockItems({
                         </span>
                       )}
 
+                      {item.lastStatusSyncAt && (
+                        <span
+                          className="text-xs px-2 py-1 rounded-md inline-flex items-center gap-1"
+                          style={{ backgroundColor: `${currentTheme.textSecondary}10`, color: currentTheme.textSecondary }}
+                        >
+                          Last Synced: {new Date(item.lastStatusSyncAt).toLocaleString()}
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
+                            style={{
+                              backgroundColor:
+                                item.lastStatusSyncSource === "manual"
+                                  ? `${currentTheme.primary}20`
+                                  : `${currentTheme.textSecondary}20`,
+                              color:
+                                item.lastStatusSyncSource === "manual"
+                                  ? currentTheme.primary
+                                  : currentTheme.textSecondary,
+                            }}
+                          >
+                            {item.lastStatusSyncSource === "manual" ? "Manual" : "Auto"}
+                          </span>
+                        </span>
+                      )}
+
                       {/* Tracking ID badge */}
                       {item.trackingId && (
                         <span
@@ -557,7 +676,7 @@ export default function OutOfStockItems({
                       <div className="flex-1" />
 
                       {/* Track Order button */}
-                      {(item.trackingUrl || (item.orderedFrom && VENDOR_TRACKING_URLS[item.orderedFrom])) && (
+                      {isOrdered && (item.trackingUrl || (item.orderedFrom && VENDOR_TRACKING_URLS[item.orderedFrom])) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -569,6 +688,17 @@ export default function OutOfStockItems({
                           Track Order
                         </Button>
                       )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void detectOrderStatus(item)}
+                        disabled={!(item.trackingUrl || (item.orderedFrom ? VENDOR_TRACKING_URLS[item.orderedFrom] : "")) || autoDetectingId === item.id}
+                        className="h-7 text-xs"
+                        style={{ borderColor: currentTheme.border, color: currentTheme.textSecondary }}
+                      >
+                        {autoDetectingId === item.id ? "Detecting..." : "Auto Detect"}
+                      </Button>
 
                       {/* Add/Edit Tracking Info */}
                       <Button
@@ -617,15 +747,21 @@ export default function OutOfStockItems({
                               }}
                             >
                               <div className="p-1.5 space-y-0.5">
-                                {ORDER_STATUS_STEPS.filter((s) => s.key !== "not_ordered").map((step) => {
+                                {ORDER_STATUS_STEPS.map((step) => {
                                   const StepIcon = step.icon;
-                                  const isCurrentStatus = item.orderStatus === step.key;
+                                  const isCurrentStatus = (item.orderStatus || "not_ordered") === step.key;
                                   const stepColor = STATUS_COLORS[step.key];
                                   return (
                                     <button
                                       key={step.key}
                                       onClick={() => {
-                                        onUpdateItem(item.id, { orderStatus: step.key });
+                                        onUpdateItem(item.id, {
+                                          orderStatus: step.key,
+                                          orderedAt:
+                                            step.key === "ordered" && !item.orderedAt
+                                              ? new Date().toISOString()
+                                              : item.orderedAt,
+                                        });
                                         setOpenStatusMenuId(null);
                                       }}
                                       className="w-full flex items-center gap-2 px-3 py-2 rounded-md transition-all text-sm"

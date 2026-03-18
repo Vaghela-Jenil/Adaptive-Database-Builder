@@ -81,6 +81,8 @@ const OutOfStockItemSchema = new Schema(
     orderedAt: { type: String, default: "" },
     trackingUrl: { type: String, default: "" },
     trackingId: { type: String, default: "" },
+    lastStatusSyncAt: { type: String, default: "" },
+    lastStatusSyncSource: { type: String, enum: ["auto", "manual"], default: "" },
   },
   { _id: false }
 );
