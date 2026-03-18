@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '../ui/button';
 import { useTheme } from '@/context/ThemeContext';
 import { Upload, FileJson } from 'lucide-react';
+import { showToast } from '@/lib/toast';
 
 type ImportJSONModalProps = {
   open: boolean;
@@ -24,7 +25,7 @@ export default function ImportJSONModal({ open, onClose, onImport }: ImportJSONM
         const content = event.target?.result as string;
         setJsonInput(content);
       } catch (err) {
-        alert("Error reading file");
+        showToast.error("Error reading file");
       }
     };
     reader.readAsText(file);
@@ -33,9 +34,22 @@ export default function ImportJSONModal({ open, onClose, onImport }: ImportJSONM
   const handleSubmit = () => {
     try {
       const parsed = JSON.parse(jsonInput);
+      
+      // Validate that parsed is an array
+      if (!Array.isArray(parsed)) {
+        showToast.error("Invalid format. Schema must be an array of fields.");
+        return;
+      }
+
+      // Check if the number of fields exceeds 1000
+      if (parsed.length > 1000) {
+        showToast.error(`Maximum 1000 fields allowed. You have ${parsed.length} fields.`);
+        return;
+      }
+
       onImport(parsed);
     } catch (err) {
-      alert("Invalid JSON format. Please check your syntax.");
+      showToast.error("Invalid JSON format. Please check your syntax.");
     }
   };
 

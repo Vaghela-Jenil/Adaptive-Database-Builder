@@ -23,7 +23,7 @@ import CreateDatabaseModal from './CreateDatabaseModal';
 import { DatabaseFolder, FieldAttributes } from "./types";
 import { fieldTemplates } from './fieldTemplates';
 import { useTheme } from '@/context/ThemeContext';
-import { Eye, Code, Trash2, ArrowLeft, Database as DatabaseIcon } from 'lucide-react';
+import { Eye, Code, Trash2, ArrowLeft, Database as DatabaseIcon, AlertCircle, CheckCircle, Trash } from 'lucide-react';
 import axios from 'axios';
 
 
@@ -32,6 +32,8 @@ type FormBuilderPageProps = {
   editingDatabase: DatabaseFolder | null;
   SelectTemplate?: FieldAttributes[] | null;
 };
+
+const SCHEMA_STORAGE_KEY = 'formBuilder_savedSchema';
 
 export default function FormBuilderPage({
   onBack,
@@ -46,6 +48,81 @@ export default function FormBuilderPage({
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBackConfirmation, setShowBackConfirmation] = useState(false);
+  const [showSaveSchemaModal, setShowSaveSchemaModal] = useState(false);
+  const [showSavedSchemaPrompt, setShowSavedSchemaPrompt] = useState(false);
+  const [hasSavedSchema, setHasSavedSchema] = useState(false);
+
+  // Check for saved schema on mount
+  useEffect(() => {
+    if (!editingDatabase) {
+      const savedSchema = localStorage.getItem(SCHEMA_STORAGE_KEY);
+      setHasSavedSchema(!!savedSchema);
+      
+      // Show saved schema prompt if schema exists and no fields are loaded
+      if (savedSchema && canvasFields.length === 0) {
+        setShowSavedSchemaPrompt(true);
+      }
+    }
+  }, []);
+
+  // Save schema to localStorage
+  const saveSchemaLocally = () => {
+    if (canvasFields.length === 0) {
+      alert('No fields to save');
+      return;
+    }
+    try {
+      localStorage.setItem(SCHEMA_STORAGE_KEY, JSON.stringify(canvasFields));
+      setHasSavedSchema(true);
+      setShowSaveSchemaModal(false);
+      alert('Schema saved successfully!');
+      onBack("database");
+    } catch (err) {
+      alert('Failed to save schema');
+    }
+  };
+
+  // Load saved schema
+  const loadSavedSchema = () => {
+    const savedSchema = localStorage.getItem(SCHEMA_STORAGE_KEY);
+    if (savedSchema) {
+      try {
+        const parsed = JSON.parse(savedSchema);
+        setCanvasFields(parsed);
+        setShowSavedSchemaPrompt(false);
+      } catch (err) {
+        alert('Failed to load saved schema');
+      }
+    }
+  };
+
+  // Delete saved schema
+  const deleteSavedSchema = () => {
+    if (confirm('Are you sure you want to delete the saved schema?')) {
+      localStorage.removeItem(SCHEMA_STORAGE_KEY);
+      setHasSavedSchema(false);
+    }
+  };
+
+  // Handle back with confirmation
+  const handleBackClick = () => {
+    if (canvasFields.length > 0) {
+      setShowBackConfirmation(true);
+    } else {
+      onBack('database');
+    }
+  };
+
+  const confirmBackWithoutSaving = () => {
+    setShowBackConfirmation(false);
+    onBack('database');
+  };
+
+  const confirmBackAndSave = () => {
+    setShowBackConfirmation(false);
+    setShowSaveSchemaModal(true);
+  };
 
   const handleImportJSON = (importedSchema: FieldAttributes[]) => {
     if (Array.isArray(importedSchema)) {
@@ -193,10 +270,10 @@ useEffect(() => {
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              onClick={() => onBack("database")}
+              onClick={handleBackClick}
               className="flex items-center gap-2"
               style={{
-                color: currentTheme.text,
+                color: "#ffffff",
                 backgroundColor: currentTheme.primary
               }}
             >
@@ -207,9 +284,20 @@ useEffect(() => {
               <h1 className="text-xl font-bold" style={{ color: currentTheme.text }}>
                 {editingDatabase ? `Edit: ${editingDatabase.DatabaseName}` : 'Form Builder'}
               </h1>
-              <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                {canvasFields.length} fields added
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                  {canvasFields.length} fields added
+                </p>
+                {hasSavedSchema && !editingDatabase && (
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                    style={{ backgroundColor: '#10b98120', color: '#10b981' }}
+                  >
+                    <CheckCircle size={12} />
+                    Schema Saved
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -253,6 +341,39 @@ useEffect(() => {
               <Code className="w-4 h-4 mr-2" />
               Export JSON
             </Button>
+
+            {!editingDatabase && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSaveSchemaModal(true)}
+                  disabled={canvasFields.length === 0}
+                  style={{
+                    backgroundColor: currentTheme.surface,
+                    border: `1px solid ${currentTheme.border}`,
+                    color: currentTheme.text,
+                  }}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Save Schema
+                </Button>
+
+                {hasSavedSchema && (
+                  <Button
+                    variant="outline"
+                    onClick={deleteSavedSchema}
+                    style={{
+                      backgroundColor: currentTheme.surface,
+                      border: `1px solid ${currentTheme.border}`,
+                      color: '#ef4444',
+                    }}
+                  >
+                    <Trash className="w-4 h-4 mr-2" />
+                    Delete Saved
+                  </Button>
+                )}
+              </>
+            )}
 
             <Button
               variant="outline"
@@ -434,6 +555,180 @@ useEffect(() => {
             onClose={() => setShowImportModal(false)}
             onImport={handleImportJSON}
           />
+        )}
+
+        {/* SAVED SCHEMA PROMPT */}
+        {showSavedSchemaPrompt && (
+          <div
+            className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => setShowSavedSchemaPrompt(false)}
+          >
+            <Card
+              className="w-96 p-6"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <CheckCircle size={24} style={{ color: '#10b981' }} />
+                <h3 className="text-lg font-semibold" style={{ color: currentTheme.text }}>
+                  Saved Schema Found
+                </h3>
+              </div>
+              <p style={{ color: currentTheme.textSecondary }} className="mb-6">
+                You have a previously saved schema. Do you want to continue with it?
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSavedSchemaPrompt(false);
+                    deleteSavedSchema();
+                  }}
+                  className="flex-1"
+                  style={{
+                    borderColor: '#ef4444',
+                    color: '#ef4444',
+                  }}
+                >
+                  <Trash size={16} className="mr-2" />
+                  Delete
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSavedSchemaPrompt(false);
+                    deleteSavedSchema();
+                  }}
+                  className="flex-1"
+                  style={{
+                    borderColor: currentTheme.border,
+                    color: currentTheme.text,
+                  }}
+                >
+                  Start Fresh
+                </Button>
+                <Button
+                  onClick={loadSavedSchema}
+                  className="flex-1"
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                  }}
+                >
+                  <CheckCircle size={16} className="mr-2" />
+                  Continue
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* BACK CONFIRMATION */}
+        {showBackConfirmation && (
+          <div
+            className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => setShowBackConfirmation(false)}
+          >
+            <Card
+              className="w-96 p-6"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <AlertCircle size={24} style={{ color: '#f59e0b' }} />
+                <h3 className="text-lg font-semibold" style={{ color: currentTheme.text }}>
+                  Unsaved Fields
+                </h3>
+              </div>
+              <p style={{ color: currentTheme.textSecondary }} className="mb-6">
+                You have {canvasFields.length} fields added. Would you like to save this schema before leaving?
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={confirmBackWithoutSaving}
+                  className="flex-1"
+                  style={{
+                    borderColor: '#ef4444',
+                    color: '#ef4444',
+                  }}
+                >
+                  Leave Without Saving
+                </Button>
+                <Button
+                  onClick={confirmBackAndSave}
+                  className="flex-1"
+                  style={{
+                    backgroundColor: currentTheme.primary,
+                    color: '#ffffff',
+                  }}
+                >
+                  Save & Continue
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* SAVE SCHEMA MODAL */}
+        {showSaveSchemaModal && (
+          <div
+            className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => setShowSaveSchemaModal(false)}
+          >
+            <Card
+              className="w-96 p-6"
+              style={{
+                backgroundColor: currentTheme.surface,
+                border: `1px solid ${currentTheme.border}`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <DatabaseIcon size={24} style={{ color: currentTheme.primary }} />
+                <h3 className="text-lg font-semibold" style={{ color: currentTheme.text }}>
+                  Save Schema
+                </h3>
+              </div>
+              <p style={{ color: currentTheme.textSecondary }} className="mb-6">
+                Save your current schema ({canvasFields.length} fields) so you can continue with it later?
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSaveSchemaModal(false);
+                    confirmBackWithoutSaving();
+                  }}
+                  className="flex-1"
+                  style={{
+                    borderColor: currentTheme.border,
+                    color: currentTheme.text,
+                  }}
+                >
+                  Don't Save
+                </Button>
+                <Button
+                  onClick={() => {
+                    saveSchemaLocally();
+                  }}
+                  className="flex-1"
+                  style={{
+                    backgroundColor: currentTheme.primary,
+                    color: '#ffffff',
+                  }}
+                >
+                  Save Schema
+                </Button>
+              </div>
+            </Card>
+          </div>
         )}
       </DndContext>
     </div>
