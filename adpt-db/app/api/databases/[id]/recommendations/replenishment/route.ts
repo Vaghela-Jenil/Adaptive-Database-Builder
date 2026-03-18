@@ -10,7 +10,8 @@ import {
 
 type RecommenderRequestBody = {
   stockFieldId: string;
-  salesHistoryFieldId: string;
+  salesHistoryFieldId?: string;
+  salesHistoryOverrides?: Record<string, number[] | string | number>;
   skuFieldId?: string;
   nameFieldId?: string;
   reorderPointFieldId?: string;
@@ -101,6 +102,39 @@ const parseIncomingReplenishments = (
   return [];
 };
 
+const getOverrideSalesHistory = (
+  body: RecommenderRequestBody,
+  data: Record<string, unknown>,
+  recordId: string
+): number[] => {
+  if (!body.salesHistoryOverrides) return [];
+
+  const keys: string[] = [];
+  if (recordId) keys.push(recordId);
+
+  if (body.skuFieldId && typeof data[body.skuFieldId] === "string") {
+    const sku = (data[body.skuFieldId] as string).trim();
+    if (sku) keys.push(sku);
+  }
+
+  if (body.nameFieldId && typeof data[body.nameFieldId] === "string") {
+    const name = (data[body.nameFieldId] as string).trim();
+    if (name) keys.push(name, name.toLowerCase());
+  }
+
+  for (const key of keys) {
+    const overrideValue = body.salesHistoryOverrides[key];
+    if (overrideValue === undefined) continue;
+
+    const parsed = parseSalesHistory(overrideValue);
+    if (parsed.length) {
+      return parsed;
+    }
+  }
+
+  return [];
+};
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -114,11 +148,15 @@ export async function POST(
     }
 
     const body = (await req.json()) as RecommenderRequestBody;
-    if (!body.stockFieldId || !body.salesHistoryFieldId) {
+    const hasOverrides =
+      !!body.salesHistoryOverrides &&
+      Object.keys(body.salesHistoryOverrides).length > 0;
+
+    if (!body.stockFieldId || (!body.salesHistoryFieldId && !hasOverrides)) {
       return NextResponse.json(
         {
           error:
-            "stockFieldId and salesHistoryFieldId are required to generate recommendations.",
+            "stockFieldId and either salesHistoryFieldId or salesHistoryOverrides are required to generate recommendations.",
         },
         { status: 400 }
       );
@@ -203,25 +241,48 @@ export async function POST(
           return;
         }
 
-        const salesHistory = parseSalesHistory(data[body.salesHistoryFieldId]);
+        const directSalesHistory = body.salesHistoryFieldId
+          ? parseSalesHistory(data[body.salesHistoryFieldId])
+          : [];
+        const overrideSalesHistory = getOverrideSalesHistory(
+          body,
+          data,
+          record.id || ""
+        );
+        const salesHistory = directSalesHistory.length
+          ? directSalesHistory
+          : overrideSalesHistory;
+
         if (!salesHistory.length) {
+          const salesSource = body.salesHistoryFieldId
+            ? `"${body.salesHistoryFieldId}"`
+            : "salesHistoryOverrides";
           warnings.push(
-            `Record ${index + 1} skipped: "${body.salesHistoryFieldId}" has no usable sales history.`
+            `Record ${index + 1} skipped: ${salesSource} has no usable sales history.`
           );
           return;
         }
 
+        const skuFromField: string | null =
+          body.skuFieldId && typeof data[body.skuFieldId] === "string"
+            ? (data[body.skuFieldId] as string)
+            : null;
+        const nameFromField: string | undefined =
+          body.nameFieldId && typeof data[body.nameFieldId] === "string"
+            ? (data[body.nameFieldId] as string)
+            : undefined;
+        const sku =
+          typeof skuFromField === "string" && skuFromField
+            ? skuFromField
+            : typeof record.id === "string" && record.id
+              ? record.id
+              : `SKU-${index + 1}`;
+        const name =
+          typeof nameFromField === "string" ? nameFromField : undefined;
+
         const item: ReplenishmentItem = {
-          sku:
-            (body.skuFieldId &&
-              typeof data[body.skuFieldId] === "string" &&
-              data[body.skuFieldId]) ||
-            record.id ||
-            `SKU-${index + 1}`,
-          name:
-            body.nameFieldId && typeof data[body.nameFieldId] === "string"
-              ? data[body.nameFieldId]
-              : undefined,
+          sku,
+          name,
           currentStock,
           salesHistory,
         };

@@ -152,6 +152,20 @@ export const dashboardTourSteps: DashboardTour[] = [
         pointerRadius: 14,
       },
       {
+        icon: <HelpCircle className="h-4 w-4" />,
+        title: "Message",
+        content: (
+          <div className={tourContentClassName}>
+            <p>This consist of the alert regarding the message</p>
+            <p>It opens up when there are important notifications or updates to share.</p>
+          </div>
+        ),
+        selector: "#onborda-navbar-chat",
+        side: "bottom",
+        pointerPadding: 10,
+        pointerRadius: 14,
+      },
+      {
         icon: <Calendar className="h-4 w-4" />,
         title: "Task Manager",
         content: (

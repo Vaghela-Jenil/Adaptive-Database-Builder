@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   PackageX,
   FileText,
+  History,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -43,6 +44,7 @@ import { computeColumnValue, validateComputedColumn } from "@/lib/computedColumn
 import SellStocks, { InvoiceData } from "./SellStocks";
 import OutOfStockItems, { OutOfStockItem } from "./OutOfStockItems";
 import GeneratedInvoices from "./GeneratedInvoices";
+import SalesHistoryTracker from "./SalesHistoryTracker";
 import {
   extractTemporaryUploadedFileAssets,
   extractUploadedFileAssets,
@@ -125,6 +127,8 @@ const suggestFieldId = (fields: FieldAttributes[], keywords: string[]) => {
   });
   return match?.id || "";
 };
+
+const AUTO_SALES_HISTORY_OPTION = "__auto_invoice_sales_history__";
 
 type AnalyticsVisual = "bar" | "line" | "pie";
 
@@ -232,11 +236,55 @@ export default function DatabaseRecordsView({
   const [importData, setImportData] = useState<Record<string, unknown>[]>([]);
   // Stock management sidebar & subpages
   const [showStockSidebar, setShowStockSidebar] = useState(false);
-  type StockSubPage = 'sell' | 'out-of-stock' | 'invoices' | null;
+  type StockSubPage = 'sell' | 'out-of-stock' | 'invoices' | 'sales-history' | null;
   const [stockSubPage, setStockSubPage] = useState<StockSubPage>(null);
   const [outOfStockItems, setOutOfStockItems] = useState<OutOfStockItem[]>([]);
   const [generatedInvoices, setGeneratedInvoices] = useState<InvoiceData[]>([]);
   const [stockDataLoaded, setStockDataLoaded] = useState(false);
+
+  const salesHistoryOverrides = useMemo<Record<string, number[]>>(() => {
+    const salesByItem = new Map<string, Map<string, number>>();
+
+    generatedInvoices.forEach((invoice) => {
+      const dateKey = new Date(invoice.date).toISOString().slice(0, 10);
+
+      invoice.items.forEach((item) => {
+        const qty = Number(item.qty);
+        if (!Number.isFinite(qty) || qty <= 0) return;
+
+        const normalizedName = String(item.productName || "").trim().toLowerCase();
+        const keys = [item.recordId, normalizedName].filter(Boolean);
+
+        keys.forEach((key) => {
+          if (!salesByItem.has(key)) {
+            salesByItem.set(key, new Map<string, number>());
+          }
+
+          const perDayMap = salesByItem.get(key)!;
+          perDayMap.set(dateKey, (perDayMap.get(dateKey) || 0) + qty);
+        });
+      });
+    });
+
+    const overrides: Record<string, number[]> = {};
+
+    salesByItem.forEach((perDayMap, key) => {
+      const series = Array.from(perDayMap.entries())
+        .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+        .map(([, quantity]) => quantity);
+
+      if (series.length > 0) {
+        overrides[key] = series;
+      }
+    });
+
+    return overrides;
+  }, [generatedInvoices]);
+
+  const hasSalesHistoryOverrides = useMemo(
+    () => Object.keys(salesHistoryOverrides).length > 0,
+    [salesHistoryOverrides]
+  );
 
   // Load persisted stock management data on mount
   useEffect(() => {
@@ -297,6 +345,8 @@ export default function DatabaseRecordsView({
     safetyStockDaysFieldId: "",
     incomingReplenishmentFieldId: "",
   });
+  const isAutoSalesHistorySelected =
+    recommenderFieldMap.salesHistoryFieldId === AUTO_SALES_HISTORY_OPTION;
 
 
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -1220,8 +1270,17 @@ export default function DatabaseRecordsView({
   const fetchRecommendations = useCallback(async () => {
     if (!currentDatabase) return;
 
-    if (!recommenderFieldMap.stockFieldId || !recommenderFieldMap.salesHistoryFieldId) {
-      setRecommendationError("Please select Stock field and Sales History field.");
+    if (!recommenderFieldMap.stockFieldId) {
+      setRecommendationError("Please select Stock field.");
+      return;
+    }
+
+    const resolvedSalesHistoryFieldId = isAutoSalesHistorySelected
+      ? ""
+      : recommenderFieldMap.salesHistoryFieldId;
+
+    if (!resolvedSalesHistoryFieldId && !hasSalesHistoryOverrides) {
+      setRecommendationError("Please select Sales History field or generate invoice sales history.");
       return;
     }
 
@@ -1233,7 +1292,11 @@ export default function DatabaseRecordsView({
         `/api/databases/${currentDatabase._id}/recommendations/replenishment`,
         {
           stockFieldId: recommenderFieldMap.stockFieldId,
-          salesHistoryFieldId: recommenderFieldMap.salesHistoryFieldId,
+          salesHistoryFieldId: resolvedSalesHistoryFieldId || undefined,
+          salesHistoryOverrides:
+            hasSalesHistoryOverrides
+              ? salesHistoryOverrides
+              : undefined,
           skuFieldId: recommenderFieldMap.skuFieldId || undefined,
           nameFieldId: recommenderFieldMap.nameFieldId || undefined,
           reorderPointFieldId: recommenderFieldMap.reorderPointFieldId || undefined,
@@ -1257,7 +1320,17 @@ export default function DatabaseRecordsView({
     } finally {
       setIsLoadingRecommendations(false);
     }
-  }, [currentDatabase, recommenderFieldMap, forecastDays, topNRecommendations, searchQuery, dateFilter]);
+  }, [
+    currentDatabase,
+    recommenderFieldMap,
+    forecastDays,
+    topNRecommendations,
+    searchQuery,
+    dateFilter,
+    salesHistoryOverrides,
+    hasSalesHistoryOverrides,
+    isAutoSalesHistorySelected,
+  ]);
 
   useEffect(() => {
     if (!showRecommender || !autoRefreshRecommendations || !currentDatabase) return;
@@ -1271,7 +1344,11 @@ export default function DatabaseRecordsView({
 
   useEffect(() => {
     if (!showAnalytics || recommendationResult || isLoadingRecommendations) return;
-    if (!recommenderFieldMap.stockFieldId || !recommenderFieldMap.salesHistoryFieldId) return;
+    if (!recommenderFieldMap.stockFieldId) return;
+    const resolvedSalesHistoryFieldId = isAutoSalesHistorySelected
+      ? ""
+      : recommenderFieldMap.salesHistoryFieldId;
+    if (!resolvedSalesHistoryFieldId && !hasSalesHistoryOverrides) return;
     fetchRecommendations();
   }, [
     showAnalytics,
@@ -1279,6 +1356,8 @@ export default function DatabaseRecordsView({
     isLoadingRecommendations,
     recommenderFieldMap.stockFieldId,
     recommenderFieldMap.salesHistoryFieldId,
+    hasSalesHistoryOverrides,
+    isAutoSalesHistorySelected,
     fetchRecommendations,
   ]);
 
@@ -2285,12 +2364,20 @@ export default function DatabaseRecordsView({
                   }}
                 >
                   <option value="">Select field</option>
+                  <option value={AUTO_SALES_HISTORY_OPTION}>
+                    Auto Sales History (from sold items)
+                  </option>
                   {dataFields.map((field) => (
                     <option key={field.id} value={field.id}>
                       {field.label}
                     </option>
                   ))}
                 </select>
+                {isAutoSalesHistorySelected && (
+                  <p className="text-[11px] mt-1" style={{ color: currentTheme.textSecondary }}>
+                    Uses auto-generated sold quantity list from generated invoices.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -3220,6 +3307,22 @@ export default function DatabaseRecordsView({
                     <p className="text-xs" style={{ color: currentTheme.textSecondary }}>{generatedInvoices.length} invoices generated</p>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => { setStockSubPage('sales-history'); setShowStockSidebar(false); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  style={{ backgroundColor: currentTheme.background, borderColor: currentTheme.border }}
+                >
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${currentTheme.primary}20` }}>
+                    <History className="w-5 h-5" style={{ color: currentTheme.primary }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold" style={{ color: currentTheme.text }}>Sales History</p>
+                    <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
+                      Daily sales + auto sold quantity list
+                    </p>
+                  </div>
+                </button>
               </div>
             </motion.div>
           </>
@@ -3302,6 +3405,26 @@ export default function DatabaseRecordsView({
               invoices={generatedInvoices}
               onBack={() => setStockSubPage(null)}
               onRemoveInvoice={(id) => setGeneratedInvoices((prev) => prev.filter((i) => i.id !== id))}
+            />
+          </motion.div>
+        )}
+
+        {stockSubPage === 'sales-history' && (
+          <motion.div
+            key="sales-history"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50 }}
+            className="fixed inset-0 z-50"
+            style={{ backgroundColor: currentTheme.background }}
+          >
+            <SalesHistoryTracker
+              invoices={generatedInvoices}
+              onBack={() => setStockSubPage(null)}
+              onOpenRecommender={() => {
+                setStockSubPage(null);
+                setShowRecommender(true);
+              }}
             />
           </motion.div>
         )}

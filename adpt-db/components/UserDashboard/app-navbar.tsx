@@ -252,6 +252,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => onChangePage("chat")}
+            id="onborda-navbar-chat"
             className="relative w-10 h-10 flex items-center justify-center rounded-xl transition-all"
             style={{
               backgroundColor: currentTheme.background,
