@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { computeColumnValue } from "@/lib/computedColumns";
 import { deleteCloudinaryAssets } from "@/lib/cloudinary";
 import { extractUploadedFileAssetsFromRecordData, sanitizeRecordFileData } from "@/lib/uploadedFiles";
+import { checkDatabaseAccess } from "@/lib/auth";
 
 export async function POST(
     req: NextRequest,
@@ -28,18 +29,12 @@ export async function POST(
             );
         }
 
-        // Get the database to access computed columns and formSchema
-        const db = await DatabaseModel.findOne({
-            _id: id,
-            clerkId: userId
-        });
-
-        if (!db) {
-            return NextResponse.json(
-                { error: "Database not found." },
-                { status: 404 }
-            );
-        }
+        // Check database access with Editor or Admin role required for importing
+        const { database: db } = await checkDatabaseAccess(
+            id,
+            userId,
+            "Editor"
+        );
 
         const recordsToInsert = records.map((data) => {
             // Calculate computed columns if they exist
@@ -62,8 +57,7 @@ export async function POST(
         });
 
         const updatedDatabase = await DatabaseModel.findByIdAndUpdate(
-            {_id : id,
-            clerkId: userId},
+            id,
             {
                 $push: { records: { $each: recordsToInsert } },
             },
@@ -89,6 +83,18 @@ export async function POST(
         );
     } catch (error: any) {
         console.error("Bulk Import Error:", error);
+        if (error.message === "Insufficient permissions") {
+            return NextResponse.json(
+                { error: "You don't have permission to import records" },
+                { status: 403 }
+            );
+        }
+        if (error.message === "Access denied" || error.message === "Database not found") {
+            return NextResponse.json(
+                { error: "Database not found." },
+                { status: 404 }
+            );
+        }
         return NextResponse.json(
             { error: "Internal Server Error", details: error.message },
             { status: 500 }
@@ -111,18 +117,12 @@ export async function DELETE(
 
     const databaseId = (await params).id;
 
-    // We use findOneAndUpdate to ensure the user owns this database
-    const db = await DatabaseModel.findOne({
-      _id: databaseId,
-      clerkId: userId,
-    });
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "Database not found or unauthorized" },
-        { status: 404 }
-      );
-    }
+    // Check database access with Admin role required for clearing all records
+    const { database: db } = await checkDatabaseAccess(
+      databaseId,
+      userId,
+      "Admin"
+    );
 
     const fileAssets = db.records.flatMap((record: any) =>
       extractUploadedFileAssetsFromRecordData(record.data || {}, db.formSchema)
@@ -144,10 +144,26 @@ export async function DELETE(
       records: [],
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Clear All Error:", error);
+    if (error.message === "Insufficient permissions") {
+      return NextResponse.json(
+        { error: "Only admins can clear all records" },
+        { status: 403 }
+      );
+    }
+    if (error.message === "Access denied" || error.message === "Database not found") {
+      return NextResponse.json(
+        { error: "Database not found or unauthorized" },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to clear database" },
+      { status: 500 }
+    );
+  }
+}
       { status: 500 }
     );
   }

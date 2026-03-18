@@ -174,18 +174,63 @@ export default function ThemedNetwork() {
 
     const handleSearch = async (val: string) => {
         setSearchQuery(val);
-        if (val.length > 1) {
-            const { data } = await axios.post("/api/network", { action: "SEARCH", query: val });
-            setSearchResults(data.users || []);
-        } else setSearchResults([]);
+        // Clear search results immediately if input is empty
+        if (val.trim().length === 0) {
+            setSearchResults([]);
+            return;
+        }
+        // Only search if query is longer than 1 character
+        if (val.trim().length > 1) {
+            try {
+                const { data } = await axios.post("/api/network", { action: "SEARCH", query: val });
+                // Filter out already connected friends and pending requests
+                const filteredUsers = (data.users || []).filter((user: any) => {
+                    // Check if user is already connected
+                    const isConnected = connections.some(c => 
+                        (c.requesterId === user.clerkId || c.recipientId === user.clerkId) && 
+                        c.status === "Accepted"
+                    );
+                    // Check if request is already pending
+                    const hasPending = connections.some(c => 
+                        (c.requesterId === user.clerkId || c.recipientId === user.clerkId) && 
+                        c.status === "Pending"
+                    );
+                    return !isConnected && !hasPending;
+                });
+                setSearchResults(filteredUsers);
+            } catch (error) {
+                console.error('Search error:', error);
+                setSearchResults([]);
+            }
+        } else {
+            // Clear results if query is 1 character or less
+            setSearchResults([]);
+        }
     };
 
     const sendRequest = async (targetId: string, targetUsername: string) => {
-        await axios.post("/api/network", { action: "SEND_REQUEST", targetId, targetUsername });
-        setSearchQuery("");
-        setSearchResults([]);
-        toast.success("Request sent!");
-        loadNetwork();
+        try {
+            // Check if request already exists
+            const hasExistingRequest = connections.some(c => 
+                (c.requesterId === targetId || c.recipientId === targetId)
+            );
+            if (hasExistingRequest) {
+                toast.info("Request already sent or connection exists with this user");
+                return;
+            }
+            await axios.post("/api/network", { action: "SEND_REQUEST", targetId, targetUsername });
+            setSearchQuery("");
+            setSearchResults([]);
+            toast.success("Request sent!");
+            loadNetwork();
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.error || error.message;
+            if (errorMsg?.includes("already") || errorMsg?.includes("pending")) {
+                toast.info("Request already sent or connection exists");
+            } else {
+                toast.error("Failed to send request");
+            }
+        }
     };
 
     const respondRequest = async (id: string, response: "Accept" | "Reject") => {

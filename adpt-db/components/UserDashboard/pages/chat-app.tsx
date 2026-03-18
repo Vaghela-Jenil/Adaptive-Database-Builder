@@ -843,14 +843,31 @@ export default function ChatPage() {
   }, [messages, groupMessages]);
 
   const handleSearch = async (query: string) => {
-    if (query.trim().length > 0) {
+    setSearchQuery(query);
+    // Clear search results immediately if input is empty
+    if (query.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+    // Only search if query is longer than 1 character
+    if (query.trim().length > 1) {
       try {
         const response = await axios.get(`/api/chat/search-friends?q=${query}`);
-        setSearchResults(response.data);
+        // Filter out already connected friends and pending requests
+        const filteredResults = (response.data || []).filter((user: any) => {
+          // Check if already in conversations
+          const isConnected = conversations.some(c => c.friend.id === user.clerkId || c.friend.id === user.id);
+          // Check if request is pending
+          const hasPending = pendingRequests.some(req => req.senderId === user.clerkId || req.senderId === user.id);
+          return !isConnected && !hasPending;
+        });
+        setSearchResults(filteredResults);
       } catch (error) {
         console.error('Error searching friends:', error);
+        setSearchResults([]);
       }
     } else {
+      // Clear results if query is 1 character or less
       setSearchResults([]);
     }
   };
@@ -1194,6 +1211,20 @@ export default function ChatPage() {
     try {
       console.log(`📤 Sending friend request to user: ${userId}`);
 
+      // Check if already in conversations
+      const isConnected = conversations.some(c => c.friend.id === userId);
+      if (isConnected) {
+        alert('✅ Already connected with this user');
+        return;
+      }
+
+      // Check if request already pending
+      const hasPending = pendingRequests.some(req => req.senderId === userId || req.receiverId === userId);
+      if (hasPending) {
+        alert('✅ Request already sent to this user');
+        return;
+      }
+
       await axios.post('/api/chat/friend-requests', {
         receiverId: userId
       });
@@ -1206,7 +1237,12 @@ export default function ChatPage() {
       console.error('❌ Error sending friend request:', error);
 
       const errorMessage = error.response?.data?.error || error.message || 'Failed to send friend request';
-      alert(`❌ ${errorMessage}`);
+      // Check if error is due to existing request
+      if (errorMessage?.includes('already') || errorMessage?.includes('pending')) {
+        alert('✅ Request already sent to this user');
+      } else {
+        alert(`❌ ${errorMessage}`);
+      }
     }
   };
 

@@ -5,6 +5,7 @@ import { DatabaseModel } from "@/lib/models/Database";
 import { computeColumnValue } from "@/lib/computedColumns";
 import { FieldAttributes } from "@/components/DatabaseBuilder/types";
 import { ComputedColumnField } from "@/components/DatabaseBuilder/ComputedColumnPanel";
+import { checkDatabaseAccess } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
@@ -29,18 +30,12 @@ export async function POST(
       );
     }
 
-    // Find the database
-    const db = await DatabaseModel.findOne({
-      _id: databaseId,
-      clerkId: userId,
-    });
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "Database not found" },
-        { status: 404 }
-      );
-    }
+    // Check database access with Editor or Admin role required
+    const { database: db } = await checkDatabaseAccess(
+      databaseId,
+      userId,
+      "Editor"
+    );
 
     // Check if field already exists
     const fieldExists = db.formSchema.some(
@@ -125,6 +120,18 @@ export async function POST(
     );
   } catch (error: any) {
     console.error("Error creating computed column:", error);
+    if (error.message === "Insufficient permissions") {
+      return NextResponse.json(
+        { error: "You don't have permission to create computed columns" },
+        { status: 403 }
+      );
+    }
+    if (error.message === "Access denied" || error.message === "Database not found") {
+      return NextResponse.json(
+        { error: "Database not found" },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to create computed column", details: error.message },
       { status: 500 }
@@ -147,17 +154,12 @@ export async function GET(
 
     const databaseId = (await params).id;
 
-    const db = await DatabaseModel.findOne({
-      _id: databaseId,
-      clerkId: userId,
-    });
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "Database not found" },
-        { status: 404 }
-      );
-    }
+    // Check database access with Viewer role (read-only for viewers)
+    const { database: db } = await checkDatabaseAccess(
+      databaseId,
+      userId,
+      "Viewer"
+    );
 
     const computedColumns = db.computedColumns || [];
 
@@ -170,6 +172,12 @@ export async function GET(
     );
   } catch (error: any) {
     console.error("Error fetching computed columns:", error);
+    if (error.message === "Access denied" || error.message === "Database not found") {
+      return NextResponse.json(
+        { error: "Database not found" },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to fetch computed columns", details: error.message },
       { status: 500 }

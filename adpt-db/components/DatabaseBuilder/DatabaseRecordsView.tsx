@@ -190,7 +190,9 @@ export default function DatabaseRecordsView({
 }: DatabaseRecordsViewProps) {
   const { currentTheme } = useTheme();
   const isViewer = userRole === "Viewer";
+  const isAdmin = userRole === "Admin";
   const canEdit = !isViewer;
+  const canDelete = isAdmin;
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<DatabaseRecord | null>(null);
   const [formData, setFormData] = useState<Record<string, unknown>>({});
@@ -1655,7 +1657,7 @@ export default function DatabaseRecordsView({
           )}
 
           {/* Stock Management Menu Button */}
-          {canEdit && (
+          {isAdmin && (
           <Button
             variant="outline"
             onClick={() => setShowStockSidebar(true)}
@@ -1849,7 +1851,7 @@ export default function DatabaseRecordsView({
           </Button>
         )}
 
-        {canEdit && (records.length !== 0 ? bulkDelete ?
+        {canDelete && (records.length !== 0 ? bulkDelete ?
           <Button className="rounded-md"
             onClick={() => {
               handleSelectDelete();
@@ -1876,7 +1878,7 @@ export default function DatabaseRecordsView({
         )}
 
         {
-          bulkDelete &&
+          canDelete && bulkDelete &&
           <Button
             onClick={() => {
               setBulkDelete(false);
@@ -1892,7 +1894,7 @@ export default function DatabaseRecordsView({
         }
 
         {
-          bulkDelete &&
+          canDelete && bulkDelete &&
           <Button
             onClick={() => handleClearAllRecords()}
             style={{
@@ -2303,12 +2305,12 @@ export default function DatabaseRecordsView({
                 title="Add computed column"
                 style={{
                   borderColor: currentTheme.border,
-                  color: currentTheme.primary,
-                  backgroundColor: currentTheme.surface,
+                  color: '#ffffff',
+                  backgroundColor: currentTheme.primary,
                 }}
               >
                 <Plus className="w-4 h-4 mr-1" />
-                custom Column
+                Custom Column
               </Button>
             </div> 
           <Button
@@ -2930,7 +2932,7 @@ export default function DatabaseRecordsView({
                               borderColor: currentTheme.border,
                             }}
                           >
-                            {canEdit && (
+                            {canDelete && (
                             <Button
                               variant="ghost"
                               size="sm"

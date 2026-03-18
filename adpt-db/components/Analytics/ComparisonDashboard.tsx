@@ -796,7 +796,7 @@ export default function ComparisonDashboard({
               size="sm"
               onClick={() => router.back()}
               className="rounded-lg"
-              style={{backgroundColor:currentTheme.primary, color: currentTheme.text }}
+              style={{backgroundColor:currentTheme.primary, color: "#ffffff"}}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>

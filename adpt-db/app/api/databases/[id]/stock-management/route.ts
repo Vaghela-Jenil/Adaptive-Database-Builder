@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
+import { checkDatabaseAccess } from "@/lib/auth";
 
 /* GET stock management data (out-of-stock items + invoices) */
 export async function GET(
@@ -16,21 +17,23 @@ export async function GET(
     }
 
     const id = (await params).id;
-    const db = await DatabaseModel.findOne(
-      { _id: id, clerkId: userId },
-      { outOfStockItems: 1, generatedInvoices: 1 }
-    );
 
-    if (!db) {
-      return NextResponse.json({ error: "Database not found" }, { status: 404 });
-    }
+    // Check database access with Viewer role (read-only)
+    const { database: db } = await checkDatabaseAccess(
+      id,
+      userId,
+      "Viewer"
+    );
 
     return NextResponse.json({
       outOfStockItems: db.outOfStockItems || [],
       generatedInvoices: db.generatedInvoices || [],
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.message === "Access denied" || err.message === "Database not found") {
+      return NextResponse.json({ error: "Database not found" }, { status: 404 });
+    }
     return NextResponse.json({ error: "Failed to fetch stock data" }, { status: 500 });
   }
 }
@@ -51,10 +54,12 @@ export async function PUT(
     const body = await req.json();
     const { outOfStockItems, generatedInvoices } = body;
 
-    const db = await DatabaseModel.findOne({ _id: id, clerkId: userId });
-    if (!db) {
-      return NextResponse.json({ error: "Database not found" }, { status: 404 });
-    }
+    // Check database access with Editor or Admin role required for updating
+    const { database: db } = await checkDatabaseAccess(
+      id,
+      userId,
+      "Editor"
+    );
 
     if (outOfStockItems !== undefined) {
       db.outOfStockItems = outOfStockItems;
@@ -66,8 +71,17 @@ export async function PUT(
     await db.save();
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.message === "Insufficient permissions") {
+      return NextResponse.json(
+        { error: "You don't have permission to save stock data" },
+        { status: 403 }
+      );
+    }
+    if (err.message === "Access denied" || err.message === "Database not found") {
+      return NextResponse.json({ error: "Database not found" }, { status: 404 });
+    }
     return NextResponse.json({ error: "Failed to save stock data" }, { status: 500 });
   }
 }

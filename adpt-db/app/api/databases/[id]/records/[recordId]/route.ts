@@ -9,6 +9,7 @@ import {
   extractUploadedFileAssetsFromRecordData,
   sanitizeRecordFileData,
 } from "@/lib/uploadedFiles";
+import { checkDatabaseAccess } from "@/lib/auth";
 
 
 export async function PUT(req: NextRequest, { params}: { params: Promise<{ id: string; recordId: string }> }) {
@@ -24,17 +25,12 @@ export async function PUT(req: NextRequest, { params}: { params: Promise<{ id: s
     const recordId = (await params).recordId;
     const { data } = await req.json();
 
-    const db = await DatabaseModel.findOne({
-      _id: id,
-      clerkId: userId,
-    });
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "Database not found" },
-        { status: 404 }
-      );
-    }
+    // Check database access with Editor or Admin role required for updating
+    const { database: db } = await checkDatabaseAccess(
+      id,
+      userId,
+      "Editor"
+    );
 
     const record = db.records.find(
       (r: any) => r.id === recordId
@@ -75,8 +71,20 @@ export async function PUT(req: NextRequest, { params}: { params: Promise<{ id: s
     }
 
     return NextResponse.json(record);
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.message === "Insufficient permissions") {
+      return NextResponse.json(
+        { error: "You don't have permission to update this record" },
+        { status: 403 }
+      );
+    }
+    if (err.message === "Access denied" || err.message === "Database not found") {
+      return NextResponse.json(
+        { error: "Database not found" },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
       { error: "Update failed" },
       { status: 500 }
@@ -96,17 +104,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const id = (await params).id;
     const recordId = (await params).recordId;
 
-    const db = await DatabaseModel.findOne({
-      _id: id,
-      clerkId: userId,
-    });
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "Database not found" },
-        { status: 404 }
-      );
-    }
+    // Check database access with Admin role required for deletion
+    const { database: db } = await checkDatabaseAccess(
+      id,
+      userId,
+      "Admin"
+    );
 
     const recordToDelete = db.records.find((r: any) => r.id === recordId);
     const fileAssets = recordToDelete
@@ -126,11 +129,24 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.message === "Insufficient permissions") {
+      return NextResponse.json(
+        { error: "Only admins can delete records" },
+        { status: 403 }
+      );
+    }
+    if (err.message === "Access denied" || err.message === "Database not found") {
+      return NextResponse.json(
+        { error: "Database not found" },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
       { error: "Delete failed" },
       { status: 500 }
     );
   }
 }
+   
