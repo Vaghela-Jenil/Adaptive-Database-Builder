@@ -188,10 +188,18 @@ export default function Database({
   };
 
   const getSharedRole = (id: string): "Admin" | "Editor" | "Viewer" | undefined => {
+    // Check if it's a shared database
     const sharedIndex = sharedDatabases.findIndex((db) => db._id === id);
     if (sharedIndex >= 0 && sharedMeta[sharedIndex]) {
       return sharedMeta[sharedIndex].userRole;
     }
+    
+    // Check if it's the user's own database (creator is Admin)
+    const ownDatabase = databases.findIndex((db) => db._id === id);
+    if (ownDatabase >= 0) {
+      return "Admin";  // User is Admin on their own databases
+    }
+    
     return undefined;
   };
 
