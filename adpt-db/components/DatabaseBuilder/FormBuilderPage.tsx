@@ -25,6 +25,7 @@ import { fieldTemplates } from './fieldTemplates';
 import { useTheme } from '@/context/ThemeContext';
 import { Eye, Code, Trash2, ArrowLeft, Database as DatabaseIcon, AlertCircle, CheckCircle, Trash } from 'lucide-react';
 import axios from 'axios';
+import { logSchemaEdit } from '@/lib/activityLogger';
 
 
 type FormBuilderPageProps = {
@@ -154,12 +155,15 @@ export default function FormBuilderPage({
 
   const handleUpdateDatabase = async (name: string) => { 
      try {
-      const res = await axios.put(`/api/databases`, {
+      const res = await axios.put("/api/databases", {
+        id: editingDatabase?._id,
         name,
         formSchema: canvasFields,
       });
 
       console.log("Updated:", res.data);
+      // Log the schema update activity
+      await logSchemaEdit(name, editingDatabase?._id);
       setCanvasFields([]);
       onBack("database");
     } catch (err: any) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import axios from "axios";
 
 type OrderStatus = "not_ordered" | "ordered" | "shipped" | "out_for_delivery" | "delivered";
 
@@ -133,33 +134,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Blocked tracking host" }, { status: 400 });
     }
 
-    const response = await fetch(normalizedUrl.toString(), {
-      method: "GET",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; AdaptiveDBStatusBot/1.0)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      cache: "no-store",
-      redirect: "follow",
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ status: null, reason: "tracking_page_unavailable" });
+    let response;
+    try {
+      response = await axios.get(normalizedUrl.toString(), {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; AdaptiveDBStatusBot/1.0)",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        maxRedirects: 5,
+      });
+    } catch (error: any) {
+      if (error.response?.status >= 400) {
+        return NextResponse.json({ status: null, reason: "tracking_page_unavailable" });
+      }
+      throw error;
     }
 
-    const finalUrl = new URL(response.url);
-    if (isBlockedHost(finalUrl.hostname)) {
+    const finalUrl = new URL(response.request.path || normalizedUrl.toString());
+    const finalHostname = typeof finalUrl === 'string' ? new URL(finalUrl).hostname : finalUrl.hostname;
+    if (isBlockedHost(finalHostname)) {
       return NextResponse.json({ error: "Blocked redirect host" }, { status: 400 });
     }
 
-    const html = await response.text();
+    const html = response.data;
     const extracted = extractText(html);
     const { status, matchedBy } = detectStatusFromText(extracted);
 
     return NextResponse.json({
       status,
       matchedBy: matchedBy || null,
-      sourceHost: finalUrl.hostname,
+      sourceHost: typeof finalUrl === 'string' ? new URL(finalUrl).hostname : finalUrl.hostname,
     });
   } catch {
     return NextResponse.json({ status: null, reason: "detection_failed" }, { status: 500 });

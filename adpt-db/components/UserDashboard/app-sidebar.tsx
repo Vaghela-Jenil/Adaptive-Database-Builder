@@ -13,10 +13,14 @@ import {
   LogOut,
   Settings,
   MessageCircle,
+  History,
+  Shield,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { logLogout } from "@/lib/activityLogger";
+import { useRouter } from "next/navigation";
 import { UserContext } from "@/context/userContext";
 import Image from "next/image";
 import logo from '../../public/logo.png'
@@ -26,6 +30,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
   const { user } = useContext<any>(UserContext);
   const { openUserProfile, signOut } = useClerk();
   const { user: clerkUser } = useUser();
+  const router = useRouter();
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const settingsMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -100,6 +105,11 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       id: 'nearby-stores',
       label: 'Nearby Stores',
       icon: MapPinned,
+    },
+     {
+      id: 'history',
+      label: 'History',
+      icon: History,
     }
   ];
 
@@ -133,7 +143,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
   };
 
   return (
-    <div suppressHydrationWarning className="relative"
+   <div suppressHydrationWarning className="relative h-full" // Ensure height is 100%
       style={{
         backgroundColor: currentTheme.surface,
         borderRight: `1px solid ${currentTheme.border}`,
@@ -141,26 +151,29 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
       <motion.aside
         initial={false}
         animate={{ width: isSidebarOpen ? 280 : 0 }}
-        className="overflow-hidden shrink-0"
+        className="overflow-hidden shrink-0 h-full" // Ensure height is 100%
       >
-        <div className="w-70 h-full flex flex-col">
+        {/* Main Flex Container: h-screen or h-full depending on parent */}
+        <div className="w-70 h-screen flex flex-col">
+          
+          {/* 1. FIXED HEADER */}
           <div
-            className="p-6"
+            className="p-6 shrink-0" // shrink-0 prevents the header from collapsing
             style={{ borderBottom: `1px solid ${currentTheme.border}` }}
           >
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-                  style={{ backgroundColor: `${currentTheme.primary}10` }} // Subtle brand-colored background
+                  style={{ backgroundColor: `${currentTheme.primary}10` }}
                 >
                   <Image
                     src={logo}
                     alt="Sysnera Logo"
                     width={40}
                     height={40}
-                    className="object-contain p-1" // Ensures logo doesn't touch the edges
-                    priority // Loads logo immediately for better LCP
+                    className="object-contain p-1"
+                    priority
                   />
                 </div>
               </div>
@@ -169,69 +182,67 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                   Sysnera
                 </h2>
                 <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                 Data Intelligence
+                  Data Intelligence
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="flex-1 p-4 overflow-y-auto">
+          {/* 2. SCROLLABLE NAVIGATION AREA */}
+          <nav 
+          className="flex-1 overflow-y-auto p-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-lg transition-all"
+  style={{
+    scrollbarWidth: 'thin',
+    scrollbarColor: `${currentTheme.primary}60 transparent`,
+  }}
+          
+          >
+            {/* Primary Navigation */}
             <div className="space-y-1">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
-
                 return (
-                  <div key={item.id}>
-                    <motion.button
-                      key={item.id}
-                      id={tourTargetIds[item.id]}
-                      onClick={() => setActivePage(item.id)}
-                      whileHover={{ x: 4 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
-                      style={{
-                        backgroundColor: isActive
-                          ? currentTheme.primary
-                          : "transparent",
-                        color: isActive ? "#ffffff" : currentTheme.text,
-                      }}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{item.label}</span>
-                      {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                    </motion.button>
-                  </div>
+                  <motion.button
+                    key={item.id}
+                    id={tourTargetIds[item.id]}
+                    onClick={() => setActivePage(item.id)}
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                    style={{
+                      backgroundColor: isActive ? currentTheme.primary : "transparent",
+                      color: isActive ? "#ffffff" : currentTheme.text,
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                  </motion.button>
                 );
               })}
             </div>
 
-            {/* Quick Access */}
-            <div className="mt-8">
-              <p
-                className="text-xs font-semibold uppercase tracking-wider px-4 mb-3"
-                style={{ color: currentTheme.textSecondary }}
-              >
+            {/* Quick Access Section */}
+            <div className="mt-8 mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wider px-4 mb-3"
+                 style={{ color: currentTheme.textSecondary }}>
                 Quick Access
               </p>
-            <div className="space-y-1">
-              {secureItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activePage === item.id;
-                return (
-                  <div key={item.id}>
+              <div className="space-y-1">
+                {secureItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activePage === item.id;
+                  return (
                     <motion.button
                       key={item.id}
                       id={tourTargetIds[item.id]}
                       onClick={() => setActivePage(item.id)}
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
                       style={{
-                        backgroundColor: isActive
-                          ? currentTheme.primary
-                          : "transparent",
+                        backgroundColor: isActive ? currentTheme.primary : "transparent",
                         color: isActive ? "#ffffff" : currentTheme.text,
                       }}
                     >
@@ -239,16 +250,15 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                       <span className="font-medium">{item.label}</span>
                       {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
                     </motion.button>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
             </div>
           </nav>
 
-          {/* Bottom Items - Settings */}
+          {/* 3. FIXED BOTTOM SETTINGS */}
           <div
-            className="w-full absolute bottom-0 p-4"
+            className="w-full shrink-0 p-4" // shrink-0 ensures this stays visible
             style={{
               borderTop: `1px solid ${currentTheme.border}`,
               backgroundColor: currentTheme.surface
@@ -263,13 +273,14 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                 border: `1px solid ${currentTheme.border}`,
               }}
             >
+              {/* Profile Button */}
               <button
                 type="button"
                 className="flex w-full items-center gap-3 rounded-xl text-left"
                 onClick={openClerkSettings}
               >
                 <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full"
                   style={{
                     backgroundColor: `${currentTheme.primary}18`,
                     color: currentTheme.primary,
@@ -290,10 +301,10 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                     Hover for settings
                   </p>
                 </div>
-
                 <ChevronRight className="h-4 w-4 shrink-0" style={{ color: currentTheme.textSecondary }} />
               </button>
 
+              {/* Settings Dropup Menu */}
               {isSettingsMenuOpen && (
                 <div
                   className="absolute inset-x-0 bottom-full z-20 pb-2"
@@ -302,14 +313,13 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                 >
                   <div
                     className="rounded-2xl p-2 shadow-2xl"
-                  style={{
-                    backgroundColor: currentTheme.surface,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
+                    style={{
+                      backgroundColor: currentTheme.surface,
+                      border: `1px solid ${currentTheme.border}`,
+                    }}
                   >
                     <button
                       type="button"
-                      title="Setting"
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all"
                       style={{ color: currentTheme.text }}
                       onClick={openClerkSettings}
@@ -318,13 +328,28 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                       <span>Settings</span>
                     </button>
 
+                    {user?.role === 'admin' && (
+                      <button
+                        type="button"
+                        className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all"
+                        style={{ color: currentTheme.primary }}
+                        onClick={() => {
+                          setIsSettingsMenuOpen(false);
+                          router.push('/admin/dashboard');
+                        }}
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      title="Logout"
                       className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all"
                       style={{ color: "#ef4444" }}
                       onClick={async () => {
                         setIsSettingsMenuOpen(false);
+                        await logLogout();
                         await signOut();
                       }}
                     >

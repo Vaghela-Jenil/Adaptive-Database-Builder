@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "../../../../lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
 import { Friendship } from "@/lib/models/Network";
+import { logActivityServer } from "@/lib/activity";
 
 /* ---------------- GET ONE ---------------- */
 
@@ -85,6 +86,18 @@ export async function DELETE(
       }
     );
 
+    // Log activity
+    await logActivityServer({
+      clerkId: userId,
+      type: "delete",
+      title: "Deleted Database",
+      description: `Deleted database '${deleted.DatabaseName}'`,
+      metadata: {
+        databaseId: deleted._id?.toString(),
+        databaseName: deleted.DatabaseName,
+      },
+    });
+
     return NextResponse.json({ success: true, message: "Database and shared permissions removed" });
   } catch (err: any) {
     console.error("Delete Error:", err);
@@ -127,6 +140,18 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    // Log activity for schema update
+    await logActivityServer({
+      clerkId: userId,
+      type: "schema",
+      title: "Edited Form Schema",
+      description: `Modified schema for '${name}' database`,
+      metadata: {
+        databaseId: updated._id?.toString(),
+        databaseName: name,
+      },
+    });
 
     return NextResponse.json(updated);
   } catch (err) {

@@ -1,25 +1,19 @@
 import { motion } from "motion/react";
 import {
-  Search,
   Calendar,
-  Plus,
   HelpCircle,
   PanelLeftClose,
-  PanelLeftOpen,
   PanelLeft,
   RefreshCcw,
-  MessageSquare,
   MessageCircle,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useContext, useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import NavbarThemeSwitcher from "../NavbarThemeSwitcher";
-import { UserButton, useUser } from "@clerk/nextjs";
 import { UserContext } from "@/context/userContext";
 import TaskManager from "../TaskManager/TaskManager";
 import axios from "axios";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -46,8 +40,6 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
   const [loadingMessageCount, setLoadingMessageCount] = useState(false);
   const { currentTheme } = useTheme();
   const { user } = useContext<any>(UserContext);
-  const { user: clerkUser } = useUser();
-  const router = useRouter();
   const { startOnborda } = useOnborda();
 
   const handleStartTour = () => {
@@ -60,7 +52,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
   };
 
   const fetchTodayTaskCount = async () => {
-    if (!clerkUser?.id) return;
+    if (!user) return;
     setLoadingTaskCount(true);
     try {
       const response = await axios.get("/api/tasks");
@@ -78,7 +70,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
   };
 
   const fetchUnreadMessageCount = async () => {
-    if (!clerkUser?.id) return;
+    if (!user) return;
     setLoadingMessageCount(true);
     try {
       // Fetch conversations with unread count
@@ -103,14 +95,14 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
   // Fetch task count on component mount
   useEffect(() => {
     fetchTodayTaskCount();
-  }, [clerkUser?.id]);
+  }, [user]);
 
   // Fetch task count when task manager opens/closes
   useEffect(() => {
     if (isTaskManagerOpen) {
       fetchTodayTaskCount();
     }
-  }, [isTaskManagerOpen, clerkUser?.id]);
+  }, [isTaskManagerOpen, user]);
 
   // Fetch unread message count on component mount
   useEffect(() => {
@@ -118,7 +110,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
     // Refetch every 5 seconds to keep it updated
     const refreshInterval = setInterval(fetchUnreadMessageCount, 5000);
     return () => clearInterval(refreshInterval);
-  }, [clerkUser?.id]);
+  }, [user]);
 
   const handleTaskManagerClose = () => {
     setIsTaskManagerOpen(false);
@@ -312,13 +304,31 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               border: `1px solid ${currentTheme.border}`,
             }}
           >
-            <UserButton />
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden"
+              style={{
+                backgroundColor: `${currentTheme.primary}18`,
+                color: currentTheme.primary,
+              }}
+            >
+              {user?.userImage ? (
+                <img src={user.userImage} alt={user?.userName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-semibold">
+                  {(user?.userName || "A")
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((n: string) => n[0]?.toUpperCase())
+                    .join("")}
+                </span>
+              )}
+            </div>
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium" style={{ color: currentTheme.text }}>
-                {user && user?.userName}
+                {user?.userName}
               </p>
               <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                {user && user.role}
+                {user?.role}
               </p>
             </div>
           </motion.button>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import axios from "axios";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { computeColumnValue } from "@/lib/computedColumns";
@@ -250,11 +251,7 @@ export async function DELETE(
 
     // Invalidate stale synonym cache (best-effort, non-blocking)
     if (oldLabels.length > 0) {
-      fetch("http://localhost:5001/api/invalidate-synonym-cache", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ old_labels: oldLabels }),
-      }).catch(() => {});
+      axios.post("http://localhost:5001/api/invalidate-synonym-cache", { old_labels: oldLabels }).catch(() => {});
     }
 
     return NextResponse.json(

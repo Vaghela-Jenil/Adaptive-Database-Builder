@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,20 +15,8 @@ export async function POST(req: NextRequest) {
 
    const payloadForPython = { message: body.payload };
 
-const flaskRes = await fetch("http://localhost:5001/api/chat", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payloadForPython),
-});
-
-    const data = await flaskRes.json();
-
-    if (!flaskRes.ok) {
-      return NextResponse.json(
-        { error: data.error },
-        { status: flaskRes.status }
-      );
-    }
+    const flaskRes = await axios.post("http://localhost:5001/api/chat", payloadForPython);
+    const data = flaskRes.data;
 
     return NextResponse.json({
       response: data.response,

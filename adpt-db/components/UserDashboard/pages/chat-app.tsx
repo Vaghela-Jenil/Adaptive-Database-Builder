@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@clerk/nextjs';
-import { Send, Plus, Smile, Paperclip, Search, User, X, Users, UserPlus, LogOut, Trash2, Download, Loader2, Circle } from 'lucide-react';
+import { Send, Plus, Smile, Paperclip, Search, User, X, Users, UserPlus, LogOut, Trash2, Download, Loader2, Circle, UserX } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import axios from 'axios';
 import { encryptMessage, decryptMessage, generateSharedKey, isEncrypted } from '@/lib/encryption';
@@ -470,6 +470,29 @@ export default function ChatPage() {
           console.error('Socket error:', error);
         });
 
+        // ============ FRIEND REMOVAL EVENTS ============
+        // When a friend removes us
+        newSocket.on('friend_removed', (data: any) => {
+          console.log(`🚫 Friend ${data.removedBy} removed us`);
+          const removedByUserId = data.removedBy;
+          
+          // Remove from conversations immediately
+          setConversations((prev) => prev.filter((c) => c.friend.id !== removedByUserId));
+          
+          // Clear selected conversation if it's the friend who removed us
+          if (selectedConversationRef.current?.friend.id === removedByUserId) {
+            setSelectedConversation(null);
+            setMessages([]);
+          }
+          
+          // Remove any pending requests with this user
+          setPendingRequests((prev) => 
+            prev.filter(req => req.senderId !== removedByUserId && req.receiverId !== removedByUserId)
+          );
+          
+          console.log(`✅ Removed ${removedByUserId} from conversations (we were unfriended)`);
+        });
+
         // ============ MESSAGE DELETION EVENTS - SET UP DURING SOCKET INIT ============
         newSocket.on('message_deleted', (data: any) => {
           const { messageId, type } = data;
@@ -847,27 +870,26 @@ export default function ChatPage() {
     // Clear search results immediately if input is empty
     if (query.trim().length === 0) {
       setSearchResults([]);
+      setShowSearch(false);
       return;
     }
-    // Only search if query is longer than 1 character
-    if (query.trim().length > 1) {
-      try {
-        const response = await axios.get(`/api/chat/search-friends?q=${query}`);
-        // Filter out already connected friends and pending requests
-        const filteredResults = (response.data || []).filter((user: any) => {
-          // Check if already in conversations
-          const isConnected = conversations.some(c => c.friend.id === user.clerkId || c.friend.id === user.id);
-          // Check if request is pending
-          const hasPending = pendingRequests.some(req => req.senderId === user.clerkId || req.senderId === user.id);
-          return !isConnected && !hasPending;
-        });
-        setSearchResults(filteredResults);
-      } catch (error) {
-        console.error('Error searching friends:', error);
-        setSearchResults([]);
-      }
-    } else {
-      // Clear results if query is 1 character or less
+    
+    setShowSearch(true);
+    
+    // Search on every keystroke for real-time results
+    try {
+      const response = await axios.get(`/api/chat/search-friends?q=${query}`);
+      // Filter out already connected friends and pending requests
+      const filteredResults = (response.data || []).filter((user: any) => {
+        // Check if already in conversations
+        const isConnected = conversations.some(c => c.friend.id === user.clerkId || c.friend.id === user.id);
+        // Check if request is pending
+        const hasPending = pendingRequests.some(req => req.senderId === user.clerkId || req.senderId === user.id);
+        return !isConnected && !hasPending;
+      });
+      setSearchResults(filteredResults);
+    } catch (error) {
+      console.error('Error searching friends:', error);
       setSearchResults([]);
     }
   };
@@ -1210,10 +1232,21 @@ export default function ChatPage() {
   const handleSendFriendRequest = async (userId: string) => {
     try {
       console.log(`📤 Sending friend request to user: ${userId}`);
+      console.log(`  - Current user ID: ${currentUserId}`);
+      console.log(`  - User ID type: ${typeof userId}`);
+      console.log(`  - User ID length: ${userId?.length}`);
+
+      // Validate userId
+      if (!userId || userId.trim().length === 0) {
+        console.error('❌ Invalid user ID (empty)');
+        alert('❌ Invalid user ID');
+        return;
+      }
 
       // Check if already in conversations
       const isConnected = conversations.some(c => c.friend.id === userId);
       if (isConnected) {
+        console.log(`⚠️  Already connected with user: ${userId}`);
         alert('✅ Already connected with this user');
         return;
       }
@@ -1221,25 +1254,45 @@ export default function ChatPage() {
       // Check if request already pending
       const hasPending = pendingRequests.some(req => req.senderId === userId || req.receiverId === userId);
       if (hasPending) {
+        console.log(`⚠️  Pending request already exists for user: ${userId}`);
         alert('✅ Request already sent to this user');
         return;
       }
 
-      await axios.post('/api/chat/friend-requests', {
+      console.log(`📤 Making POST request to /api/chat/friend-requests with receiverId: ${userId}`);
+      
+      const response = await axios.post('/api/chat/friend-requests', {
         receiverId: userId
       });
+      
+      console.log(`✅ Friend request sent successfully`, response.data);
 
       setSearchQuery('');
       setSearchResults([]);
       alert('✅ Friend request sent!');
-      console.log(`✅ Friend request sent successfully`);
     } catch (error: any) {
       console.error('❌ Error sending friend request:', error);
 
       const errorMessage = error.response?.data?.error || error.message || 'Failed to send friend request';
-      // Check if error is due to existing request
-      if (errorMessage?.includes('already') || errorMessage?.includes('pending')) {
-        alert('✅ Request already sent to this user');
+      const statusCode = error.response?.status;
+      
+      console.error(`  - Status Code: ${statusCode}`);
+      console.error(`  - Error Message: ${errorMessage}`);
+      console.error(`  - Full Response:`, error.response?.data);
+
+      // Handle 400 errors (bad request - validation errors)
+      if (statusCode === 400) {
+        if (errorMessage?.includes('already') || errorMessage?.includes('pending') || errorMessage?.includes('yourself')) {
+          alert(`⚠️ ${errorMessage}`);
+        } else {
+          alert(`❌ Invalid request: ${errorMessage}`);
+        }
+      } else if (statusCode === 401) {
+        alert('❌ You must be logged in to send friend requests');
+      } else if (statusCode === 404) {
+        alert('❌ User not found');
+      } else if (statusCode === 500) {
+        alert('❌ Server error. Please try again later');
       } else {
         alert(`❌ ${errorMessage}`);
       }
@@ -1605,6 +1658,81 @@ export default function ChatPage() {
     }
   };
 
+  const handleDeleteAllMessages = async () => {
+    if (!selectedConversation) return;
+
+    if (confirm('Delete all messages in this conversation? This action cannot be undone.')) {
+      try {
+        const friendId = selectedConversation.friend.id;
+        await axios.delete(`/api/chat/messages/delete-all?friendId=${friendId}`);
+        setMessages([]);
+        
+        // Update the conversation's lastMessage to empty, but keep the conversation
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === friendId
+              ? { ...c, lastMessage: '', lastMessageTime: undefined }
+              : c
+          )
+        );
+        
+        alert('✅ All messages deleted!');
+      } catch (error: any) {
+        console.error('Error deleting messages:', error);
+        alert(error.response?.data?.error || 'Failed to delete messages');
+      }
+    }
+  };
+
+  const handleDeleteFriend = async () => {
+    if (!selectedConversation || !socket) return;
+
+    if (confirm(`Remove ${selectedConversation.friend.name} from your friends? This will also delete all messages in this conversation.`)) {
+      try {
+        const friendId = selectedConversation.friend.id;
+        const friendName = selectedConversation.friend.name;
+        
+        // Remove from conversations immediately for instant UI feedback
+        setConversations((prev) => prev.filter((c) => c.id !== friendId && c.friend.id !== friendId));
+        setSelectedConversation(null);
+        setMessages([]);
+        
+        // Also remove any pending friend requests with this user
+        setPendingRequests((prev) => 
+          prev.filter(req => req.senderId !== friendId && req.receiverId !== friendId)
+        );
+        
+        // Call the API to delete the friend (this will also delete all messages)
+        const response = await axios.delete(`/api/chat/friends`, {
+          data: { friendId }
+        });
+        
+        console.log(`✅ Friend ${friendId} deleted successfully. Messages deleted: ${response.data.deletedMessages}`);
+        
+        // Emit Socket.io event to notify the other user in real-time
+        socket.emit('friend_removed', {
+          friendId: friendId
+        });
+        console.log(`📡 Socket event sent to notify ${friendName} about removal`);
+        
+        alert('✅ Friend removed successfully! All messages deleted.');
+      } catch (error: any) {
+        console.error('Error removing friend:', error);
+        
+        // If deletion fails, refresh the list to ensure consistency with backend
+        try {
+          const conversationResponse = await axios.get('/api/chat/conversations').catch(() => ({ data: [] }));
+          setConversations(conversationResponse.data || []);
+          console.log('✅ Refreshed conversations after deletion failed');
+        } catch (err) {
+          console.error('Error refreshing conversations:', err);
+        }
+        
+        alert(error.response?.data?.error || 'Failed to remove friend');
+      }
+    }
+  };
+
   return (
     <div
       className="flex h-screen min-h-0 overflow-hidden"
@@ -1801,9 +1929,9 @@ export default function ChatPage() {
                 <p className="text-sm mt-2">Search and add friends to start chatting</p>
               </div>
             ) : (
-              conversations.map((conversation) => (
+              conversations.map((conversation, index) => (
                 <div
-                  key={conversation.id}
+                  key={index}
                   className="p-3 border-b cursor-pointer hover:bg-opacity-50 transition"
                   style={{
                     backgroundColor:
@@ -2018,6 +2146,29 @@ export default function ChatPage() {
                         <Trash2 size={14} />
                         All
                       </span>
+                    </button>
+                  </>
+                )}
+                {selectedConversation && (
+                  <>
+                    <button
+                      onClick={handleDeleteAllMessages}
+                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                      style={{ color: '#f97316' }}
+                      title="Delete all messages in conversation"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Trash2 size={14} />
+                        Clear
+                      </span>
+                    </button>
+                    <button
+                      onClick={handleDeleteFriend}
+                      className="px-2 py-1 text-xs rounded opacity-70 hover:opacity-100"
+                      style={{ color: '#ef4444' }}
+                      title={`Remove ${selectedConversation.friend.name} from friends`}
+                    >
+                      <UserX size={16} />
                     </button>
                   </>
                 )}
@@ -2307,7 +2458,8 @@ export default function ChatPage() {
           onClick={() => setShowCreateGroup(false)}>
           <div
             className="bg-white rounded-lg shadow-xl w-96 p-6 max-h-96 overflow-y-auto"
-            style={{ backgroundColor: currentTheme.surface }}
+            style={{ backgroundColor: currentTheme.surface || currentTheme.background || '#ffffff' }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold" style={{ color: currentTheme.text }}>
@@ -2414,12 +2566,18 @@ export default function ChatPage() {
 
       {/* Add Member to Group Modal */}
       {showAddMember && selectedGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-white/70   flex items-center justify-center z-50">
           <div
             className="bg-white rounded-lg shadow-xl w-96 p-6 max-h-96 overflow-y-auto"
-            style={{ backgroundColor: currentTheme.surface }}
+            style={{ backgroundColor: currentTheme.surface || currentTheme.background || '#ffffff' }}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div 
+              className="flex items-center justify-between mb-4 pb-4 border-b"
+              style={{ 
+                backgroundColor: currentTheme.surface || currentTheme.background || '#ffffff',
+                borderColor: currentTheme.border 
+              }}
+            >
               <h2 className="text-xl font-bold" style={{ color: currentTheme.text }}>
                 Manage Members in {selectedGroup.name}
               </h2>

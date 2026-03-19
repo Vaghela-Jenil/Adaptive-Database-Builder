@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { useClerk } from '@clerk/nextjs';
+import { logLogout } from '@/lib/activityLogger';
 
 export default function DarkNavigation({activePanel, setActivePanel} : {activePanel : string; setActivePanel: (page: string) => void}) {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -109,7 +110,10 @@ export default function DarkNavigation({activePanel, setActivePanel} : {activePa
                 <Button
                   variant="ghost"
                   className="text-slate-300 cursor-pointer hover:text-white hover:bg-slate-800/50 transition-all"
-                  onClick={async() => await signOut()}
+                  onClick={async() => {
+                    await logLogout();
+                    await signOut();
+                  }}
                 >
                   Sign Out
                 </Button>
@@ -184,8 +188,11 @@ export default function DarkNavigation({activePanel, setActivePanel} : {activePa
             {
               isSignedIn ?
              <Button variant="ghost" className="w-full text-slate-300 hover:text-white hover:bg-slate-800/50"
-              onClick={async() => await signOut()
-             }>
+              onClick={async() => {
+                await logLogout();
+                await signOut();
+              }}
+             >
                 Sign Out
               </Button>
               :

@@ -2,8 +2,9 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect, useMemo } from "react";
-import { Search, Clock, CheckCircle, AlertCircle, Send, X } from "lucide-react";
+import { Search, Clock, CheckCircle, AlertCircle, Send, X, Loader } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { sendQueryResolutionEmail } from "@/app/actions/queryEmail";
 import axios from "axios";
 
 // Define the structure for TypeScript
@@ -29,6 +30,7 @@ export default function QueryManagement() {
   const [reply, setReply] = useState<string>("");
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(true);
+  const [isSending, setIsSending] = useState<boolean>(false);
 
   // --- API WORKING ---
   const fetchQueries = async () => {
@@ -61,16 +63,39 @@ useEffect(() => {
   const handleSendReply = async () => {
     if (!selectedQuery || !reply.trim()) return;
 
+    setIsSending(true);
     try {
       const res = await axios.patch(`/api/queries/${selectedQuery._id}`, { adminReply: reply, status: "resolved" });
 
       if (res.data.success) {
+        // Send email notification to user using server action
+        try {
+          const emailResult = await sendQueryResolutionEmail({
+            toEmail: selectedQuery.email,
+            userName: selectedQuery.user,
+            querySubject: selectedQuery.subject,
+            queryMessage: selectedQuery.message,
+            adminReply: reply,
+          });
+
+          if (emailResult.success) {
+            console.log("Email sent successfully");
+          } else {
+            console.error("Error sending email:", emailResult.error);
+          }
+        } catch (emailErr) {
+          console.error("Error sending email:", emailErr);
+          // Continue even if email fails
+        }
+
         setReply("");
         setSelectedQuery(null);
         fetchQueries(); // Refresh list
       }
     } catch (err) {
       console.error("Reply error:", err);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -222,11 +247,21 @@ useEffect(() => {
                 }
                 <button
                   onClick={handleSendReply}
-                  className="px-6 py-3 rounded-xl font-medium text-white flex items-center gap-2"
+                  disabled={isSending}
+                  className="px-6 py-3 rounded-xl font-medium text-white flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                   style={{ backgroundColor: currentTheme.primary }}
                 >
-                  <Send className="w-4 h-4" />
-                  {selectedQuery?.adminReply ? "Update Reply" : "Send Reply"}
+                  {isSending ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      {selectedQuery?.adminReply ? "Update Reply" : "Send Reply"}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

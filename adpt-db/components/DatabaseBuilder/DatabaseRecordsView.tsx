@@ -448,7 +448,7 @@ export default function DatabaseRecordsView({
       const res = await axios.get(`/api/databases/${currentDatabase._id}/records`, {
         params: {
           page: pageToFetch,
-          limit: 10,
+          limit: 100,
           search: searchQuery || "",
           date: dateFilter || "",
           dateFrom: dateFrom || "",

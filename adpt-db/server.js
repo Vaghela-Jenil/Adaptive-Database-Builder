@@ -416,6 +416,37 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('friend_removed', (data) => {
+    try {
+      if (!allowEvent(socket, 'friend_removed')) return;
+
+      const removerId = normalizeId(socket.data.userId);
+      const removedFriendId = normalizeId(data.friendId);
+      
+      if (!removedFriendId) {
+        socket.emit('error', { message: 'Invalid friend ID' });
+        return;
+      }
+
+      console.log(`[UNFRIEND] ${removerId} removed friend ${removedFriendId}`);
+
+      // Notify the removed friend in real-time
+      if (userSockets.has(removedFriendId)) {
+        io.to(getUserRoom(removedFriendId)).emit('friend_removed', {
+          removedBy: removerId,
+          friendId: removedFriendId,
+          timestamp: new Date(),
+        });
+        console.log(`[NOTIFICATION] ${removedFriendId} notified about friend removal`);
+      }
+
+      socket.emit('friend_removed_success', { friendId: removedFriendId });
+    } catch (error) {
+      console.error('Error in friend_removed:', error);
+      socket.emit('error', { message: 'Failed to remove friend' });
+    }
+  });
+
   socket.on('disconnect', () => {
     rateLimitBySocket.delete(socket.id);
     const disconnectedUserId = removeSocketForUser(socket.id);

@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Send, CheckCircle, Clock, X, MessageSquare, ShieldCheck, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { useUserContext } from "@/context/userContext";
 import axios from "axios";
+import { logQueryAsked } from "@/lib/activityLogger";
 
 // 1. Define the Query Type
 interface SupportQuery {
@@ -15,10 +17,12 @@ interface SupportQuery {
   adminReply?: string; // Optional because it's empty until resolved
   isReadByUser: boolean;
   createdAt: string;
+  userEmail?: string; // User's email address for notifications
 }
 
 export default function UserSupport() {
   const { currentTheme } = useTheme();
+  const { user } = useUserContext();
   const [queries, setQueries] = useState<SupportQuery[]>([]);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -44,8 +48,18 @@ export default function UserSupport() {
 
     setIsSubmitting(true);
     try {
-      const res = await axios.post("/api/queries", { subject, message });
+      // Get user email from userContext
+      const userEmail = user?.email;
+      
+      const res = await axios.post("/api/queries", { 
+        subject, 
+        message,
+        userEmail 
+      });
       if (res.data.success) {
+        // Log the query activity
+        await logQueryAsked(subject);
+        
         setSubject("");
         setMessage("");
         fetchQueries();
@@ -62,7 +76,7 @@ export default function UserSupport() {
     // If the admin replied and user hasn't seen it yet, mark as read
     if (query.status === "resolved" && !query.isReadByUser) {
       try {
-        await fetch(`/api/queries/${query._id}/read`, { method: "PATCH" });
+        await axios.patch(`/api/queries/${query._id}/read`);
         fetchQueries(); // Update list to clear notification badges
       } catch (err) {
         console.error("Could not mark as read", err);

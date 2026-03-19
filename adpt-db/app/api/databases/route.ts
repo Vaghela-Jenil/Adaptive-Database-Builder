@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "../../../lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
+import axios from "axios";
+import { logActivityServer } from "@/lib/activity";
 
 
 export async function GET() {
@@ -65,6 +67,18 @@ export async function POST(req: NextRequest) {
       records: [],
     });
 
+    // Log activity
+    await logActivityServer({
+      clerkId: userId,
+      type: "create",
+      title: "Created Database",
+      description: `Created new database '${name}'`,
+      metadata: {
+        databaseId: db._id?.toString(),
+        databaseName: name,
+      },
+    });
+
     return NextResponse.json(db, { status: 201 });
   } catch (err) {
     console.error(err);
@@ -85,11 +99,18 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, formSchema } = body;
+    const { id, name, formSchema } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Database ID is required" },
+        { status: 400 }
+      );
+    }
 
     const oldDoc = await DatabaseModel.findOne({
+      _id: id,
       clerkId: userId,
-      DatabaseName: name,
     });
 
     if (!oldDoc) {
@@ -130,11 +151,7 @@ export async function PUT(req: NextRequest) {
 
     // Invalidate stale synonym cache (best-effort, non-blocking)
     if (oldLabels.length > 0) {
-      fetch("http://localhost:5001/api/invalidate-synonym-cache", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ old_labels: oldLabels }),
-      }).catch(() => {});
+      axios.post("http://localhost:5001/api/invalidate-synonym-cache", { old_labels: oldLabels }).catch(() => {});
     }
 
     return NextResponse.json(oldDoc, { status: 201 });

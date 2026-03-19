@@ -5,8 +5,8 @@ const isPublicRoute = createRouteMatcher(['/', '/synsnera', '/login(.*)', '/sign
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
-    if (!(await auth()).userId) {
-      auth.protect()
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import axios from "axios";
 
 const API_URL = "https://places-api.foursquare.com/places/search";
 const API_VERSION = "2025-06-17";
@@ -44,29 +45,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(url, {
+    const res = await axios.get(url, {
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${process.env.BEARER_TOKEN}`,
         "X-Places-Api-Version": API_VERSION
-      },
-      cache: "no-store"
+      }
     });
 
-    const text = await res.text();
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `API Error ${res.status}`, details: text },
-        { status: res.status }
-      );
-    }
-
-    const data = JSON.parse(text);
-    return NextResponse.json({ results: data?.results ?? [] });
+    return NextResponse.json({ results: res.data?.results ?? [] });
   } catch (err: any) {
+    const status = err.response?.status || 500;
+    const details = err.response?.data || err?.message || String(err);
     return NextResponse.json(
-      { error: "Request failed", details: err?.message ?? String(err) },
-      { status: 500 }
+      { error: "Request failed", details },
+      { status }
     );
   }
 }

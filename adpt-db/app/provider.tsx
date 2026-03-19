@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { UserProvider } from "@/context/userContext";
+import { AuthLogger } from "@/components/AuthLogger";
 
 type Theme = "light" | "dark";
 
@@ -64,6 +65,7 @@ export default function Providers({
         }}
       >
         <UserProvider>
+          <AuthLogger />
           {children}
         </UserProvider>
       </ClerkProvider>

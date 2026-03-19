@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
 import { auth } from "@clerk/nextjs/server";
 import bcrypt from "bcrypt";
+import { logActivityServer } from "@/lib/activity";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -34,6 +35,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!db) {
       return NextResponse.json({ error: "Database not found" }, { status: 404 });
     }
+
+    // Log activity
+    await logActivityServer({
+      clerkId: userId,
+      type: "password",
+      title: "Set Password",
+      description: `Set password protection for '${db.DatabaseName}' database`,
+      metadata: {
+        databaseId: db._id?.toString(),
+        databaseName: db.DatabaseName,
+      },
+    });
 
     return NextResponse.json(db, { status: 201 });
   } catch (err) {

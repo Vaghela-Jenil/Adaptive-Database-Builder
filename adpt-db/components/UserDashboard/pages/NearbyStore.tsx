@@ -10,6 +10,7 @@ import ResultsList from "@/components/Nearby-store/ResultList";
 import ExportButtons from "@/components/Nearby-store/ExportButton";
 import { Place } from "@/components/Nearby-store/types";
 import { Button } from "@/components/ui/button";
+import axios from "axios";
 
 // Load Map only on client with a matching fancy placeholder
 const MapView = dynamic(() => import("../../../components/Nearby-store/MapView"), {
@@ -80,14 +81,11 @@ export default function NearByStorePage() {
         params.set("open_now", open_now);
       }
 
-      const res = await fetch(`/api/search?${params.toString()}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "API request failed");
-
-      setResults(data?.results?.length ? (data.results as Place[]) : []);
+      const res = await axios.get(`/api/search?${params.toString()}`);
+      setResults(res.data?.results?.length ? (res.data.results as Place[]) : []);
       setLastSearch({ query, latitude, longitude, radius, limit, sort, open_now });
     } catch (err: any) {
-      setError(err?.message ?? "Unexpected error");
+      setError(err?.response?.data?.error || err?.message || "Unexpected error");
     } finally {
       setLoading(false);
     }

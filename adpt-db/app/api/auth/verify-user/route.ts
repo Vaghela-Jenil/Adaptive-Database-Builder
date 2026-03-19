@@ -31,13 +31,21 @@ export async function POST() {
       const email = clerkUser.emailAddresses[0]?.emailAddress;
       const firstName = clerkUser.firstName || "";
       const lastName = clerkUser.lastName || "";
+      
+      // Use username from manual signup if available, otherwise use firstName + lastName
+      let userName = clerkUser.username;
+      if (!userName || userName.trim() === "") {
+        // For OAuth users (Google, GitHub, etc.) or if username not provided
+        userName = `${firstName} ${lastName}`.trim();
+      }
+      
       const salt = await bcrypt.genSalt(10);
       const placeholderPassword = await bcrypt.hash(Math.random().toString(36), salt);
 
       user = await User.create({
         clerkId: userId,
         email: email,
-        userName: `${firstName} ${lastName}`.trim(),
+        userName: userName,
         userImage: clerkUser.imageUrl,
         role: clerkUser.publicMetadata.role || "user",
         password: placeholderPassword,

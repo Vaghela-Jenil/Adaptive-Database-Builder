@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import axios from 'axios';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,39 +30,27 @@ Provide:
 Keep the summary concise and professional (2-3 paragraphs).`;
 
     // Call LLM API (using OpenAI as example, update with your provider)
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert data analyst. Provide clear, actionable insights.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    }, {
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: 'gpt-4-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert data analyst. Provide clear, actionable insights.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
-      }),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('LLM API error:', error);
-      return NextResponse.json(
-        { error: 'Failed to generate summary' },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
+    const data = response.data;
     const summary = data.choices[0]?.message?.content || 'Unable to generate summary';
 
     return NextResponse.json({ summary });

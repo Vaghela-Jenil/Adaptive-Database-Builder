@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { toast, ToastContainer } from "react-toastify";
+import { logDatabaseShared, logSharedConnectionRemoved, logDatabaseAccessUpdated } from "@/lib/activityLogger";
 
 interface ShareDatabase {
     dbname: string;
@@ -43,6 +44,7 @@ export default function ThemedNetwork() {
     const [dbForm, setDbForm] = useState({ name: "", db_id: "", role: "Viewer" });
     const [loading, setLoading] = useState(false);
     const [dbSearchQuery, setDbSearchQuery] = useState("");
+      const [showSearch, setShowSearch] = useState(false);
     const [showDbDropdown, setShowDbDropdown] = useState(false);
     const [databases, setDatabases] = useState<ShareDatabase[]>([]);
     const [editRoleModal, setEditRoleModal] = useState<EditRoleModalState | null>(null);
@@ -71,7 +73,7 @@ export default function ThemedNetwork() {
     );
 
     const filteredDBs: ShareDatabase[] = databases.filter(db => {
-        const matchesQuery = db.dbname.toLowerCase().includes(dbSearchQuery.toLowerCase());
+        const matchesQuery = dbSearchQuery.trim().length > 0 && db.dbname.toLowerCase().includes(dbSearchQuery.toLowerCase());
         const alreadyShared = alreadySharedById.has(db.db_Id) || alreadySharedByName.has(db.dbname.toLowerCase());
         return matchesQuery && !alreadyShared;
     });
@@ -164,6 +166,15 @@ export default function ThemedNetwork() {
         try {
             const res = await axios.post("/api/network", { action: "REVOKE_DB", friendshipId, databaseName: db.databaseName });
             if (res.data.success) {
+                // Log the removal activity
+                const friendship = connections.find(c => c._id === friendshipId);
+                if (friendship) {
+                    const friendId = friendship.requesterId === myId ? friendship.recipientId : friendship.requesterId;
+                    const friendProfile = profiles.find(p => p.clerkId === friendId);
+                    const friendName = friendProfile?.userName || "Unknown";
+                    await logSharedConnectionRemoved(db.databaseName, friendName, db._id || "");
+                }
+                
                 toast.success("Access removed");
                 loadNetwork();
             }
@@ -179,32 +190,30 @@ export default function ThemedNetwork() {
             setSearchResults([]);
             return;
         }
-        // Only search if query is longer than 1 character
-        if (val.trim().length > 1) {
-            try {
-                const { data } = await axios.post("/api/network", { action: "SEARCH", query: val });
-                // Filter out already connected friends and pending requests
-                const filteredUsers = (data.users || []).filter((user: any) => {
-                    // Check if user is already connected
-                    const isConnected = connections.some(c => 
-                        (c.requesterId === user.clerkId || c.recipientId === user.clerkId) && 
-                        c.status === "Accepted"
-                    );
-                    // Check if request is already pending
-                    const hasPending = connections.some(c => 
-                        (c.requesterId === user.clerkId || c.recipientId === user.clerkId) && 
-                        c.status === "Pending"
-                    );
-                    return !isConnected && !hasPending;
-                });
-                setSearchResults(filteredUsers);
-            } catch (error) {
-                console.error('Search error:', error);
-                setSearchResults([]);
-            }
-        } else {
-            // Clear results if query is 1 character or less
+        
+        // Search on every keystroke for real-time results
+        try {
+            const { data } = await axios.post("/api/network", { action: "SEARCH", query: val });
+            // Filter out already connected friends and pending requests
+            const filteredUsers = (data.users || []).filter((user: any) => {
+                // Check if user is already connected
+                const isConnected = connections.some(c => 
+                    (c.requesterId === user.clerkId || c.recipientId === user.clerkId) && 
+                    c.status === "Accepted"
+                );
+                // Check if request is already pending
+                const hasPending = connections.some(c => 
+                    (c.requesterId === user.clerkId || c.recipientId === user.clerkId) && 
+                    c.status === "Pending"
+                );
+                return !isConnected && !hasPending;
+            });
+            setSearchResults(filteredUsers);
+             setShowSearch(false);
+        } catch (error) {
+            console.error('Search error:', error);
             setSearchResults([]);
+             setShowSearch(false);
         }
     };
 
@@ -259,6 +268,12 @@ export default function ThemedNetwork() {
                 role: dbForm.role,
                 databaseId: dbForm.db_id
             });
+            
+            // Log the sharing activity
+            const friendProfile = profiles.find(p => p.clerkId === (shareModalFriend.requesterId === myId ? shareModalFriend.recipientId : shareModalFriend.requesterId));
+            const friendName = friendProfile?.userName || "Unknown";
+            await logDatabaseShared(dbForm.name, friendName, dbForm.role, dbForm.db_id);
+            
             setDbForm({ name: "", role: "Viewer", db_id: "" });
             setDbSearchQuery("");
             loadNetwork();
@@ -280,6 +295,16 @@ export default function ThemedNetwork() {
                 databaseId: editRoleModal.databaseId,
                 role: editRoleModal.role,
             });
+            
+            // Log the access update activity
+            const friendship = connections.find(c => c._id === editRoleModal.friendshipId);
+            if (friendship) {
+                const friendId = friendship.requesterId === myId ? friendship.recipientId : friendship.requesterId;
+                const friendProfile = profiles.find(p => p.clerkId === friendId);
+                const friendName = friendProfile?.userName || "Unknown";
+                await logDatabaseAccessUpdated(editRoleModal.databaseName, friendName, editRoleModal.role, editRoleModal.databaseId);
+            }
+            
             toast.success("Role updated");
             setEditRoleModal(null);
             loadNetwork();
@@ -345,7 +370,7 @@ export default function ThemedNetwork() {
                         onChange={(e) => handleSearch(e.target.value)}
                     />
                     <AnimatePresence>
-                        {searchResults.length > 0 && (
+                        {searchResults.length > 0 && searchQuery.trim().length > 0 && (
                             <motion.div
                                 initial={{ opacity: 0, y: -4, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -689,10 +714,18 @@ export default function ThemedNetwork() {
                                             style={{ backgroundColor: `${currentTheme.text}05`, borderColor: currentTheme.border, color: currentTheme.text }}
                                             value={dbSearchQuery}
                                             onFocus={() => setShowDbDropdown(true)}
-                                            onChange={e => { setDbSearchQuery(e.target.value); setDbForm({ ...dbForm, name: e.target.value }); }}
+                                            onChange={e => { 
+                                                const val = e.target.value;
+                                                setDbSearchQuery(val); 
+                                                setDbForm({ ...dbForm, name: val });
+                                                // Close dropdown if search is empty
+                                                if (val.trim().length === 0) {
+                                                    setShowDbDropdown(false);
+                                                }
+                                            }}
                                         />
                                         <AnimatePresence>
-                                            {showDbDropdown && dbSearchQuery && (
+                                            {showDbDropdown && dbSearchQuery.trim().length > 0 && (
                                                 <motion.div
                                                     initial={{ opacity: 0, y: -4 }}
                                                     animate={{ opacity: 1, y: 0 }}

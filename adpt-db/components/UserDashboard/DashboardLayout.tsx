@@ -19,6 +19,7 @@ import UserSupport from "./pages/Query";
 import ChatPage from "./pages/chat-app";
 import { DashboardTourCard } from "./DashboardTourCard";
 import { dashboardTourSteps, dashboardTourName } from "./dashboard-tour-steps";
+import HistoryPage from "./pages/History";
 
 function TourAutoLaunch({ setIsSidebarOpen }: { setIsSidebarOpen: (v: boolean) => void }) {
   const { startOnborda } = useOnborda();
@@ -90,6 +91,7 @@ export default function DashboardLayout() {
       case "analytics": return <Analytics />;
       case "chatbot": return <Chatbot />;
       case "nearby-stores": return <NearByStorePage />;
+       case "history": return <HistoryPage/>
       case "share-folder": return <SharedDatabases />;
       case "query" : return <UserSupport/>
       case "chat" : return <ChatPage />

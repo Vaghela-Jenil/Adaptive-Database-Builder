@@ -23,6 +23,7 @@ import Image from "next/image";
 import logo from '../../public/logo.png'
 import VisitTracker from "../VisitTracker";
 import Link from "next/link";
+import { logLogout } from "@/lib/activityLogger";
 
 export default function AdminLayout() {
   const [activePage, setActivePage] = useState("users");
@@ -157,7 +158,10 @@ export default function AdminLayout() {
               </Link>
             </button>
             <button
-              onClick={async () => await signOut()}
+              onClick={async () => {
+                await logLogout();
+                await signOut();
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"
               style={{
                 backgroundColor: currentTheme.surface,
@@ -228,7 +232,25 @@ export default function AdminLayout() {
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
             >
-              <UserButton />
+               <div
+              className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden"
+              style={{
+                backgroundColor: `${currentTheme.primary}18`,
+                color: currentTheme.primary,
+              }}
+            >
+              {user?.userImage ? (
+                <img src={user.userImage} alt={user?.userName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-semibold">
+                  {(user?.userName || "A")
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((n: string) => n[0]?.toUpperCase())
+                    .join("")}
+                </span>
+              )}
+            </div>
             </div>
           </div>
         </header>

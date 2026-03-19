@@ -25,6 +25,7 @@ import { DatabaseFolder, FieldAttributes, SharedDatabaseFolder } from "../../Dat
 import axios from "axios";
 import { DatabaseCardSkeleton } from "@/components/Loaders";
 import { FORM_TEMPLATES } from "@/components/DatabaseBuilder/DefaultDatabaseTemplate";
+import { logDatabaseOpened } from "@/lib/activityLogger";
 
 type DatabasePageProps = {
   onChangePage: (changePage: string) => void;
@@ -63,6 +64,8 @@ export default function Database({
   const [otpInput, setOtpInput] = useState("");
   const [newDbPassword, setNewDbPassword] = useState("");
   const [confirmNewDbPassword, setConfirmNewDbPassword] = useState("");
+  const [showNewDbPassword, setShowNewDbPassword] = useState(false);
+  const [showConfirmNewDbPassword, setShowConfirmNewDbPassword] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isRemovingPassword, setIsRemovingPassword] = useState(false);
@@ -71,6 +74,8 @@ export default function Database({
   const [sharedDatabases, setSharedDatabases] = useState<DatabaseFolder[]>([]);
   const [sharedMeta, setSharedMeta] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<DBType>('all');
+  const [showSetPassword, setShowSetPassword] = useState(false);
+  const [showConfirmSetPassword, setShowConfirmSetPassword] = useState(false);
 
   const filteredDatabases = useMemo(() => {
     let baseList: DatabaseFolder[] = [];
@@ -151,6 +156,8 @@ export default function Database({
     setSetPasswordFormModal(null);
     setNewSetPasswordInput("");
     setConfirmSetPasswordValue("");
+    setShowSetPassword(false);
+    setShowConfirmSetPassword(false);
     setSetPasswordFormErrorMessage("");
     setIsSettingPassword(false);
   };
@@ -211,6 +218,7 @@ export default function Database({
 
       if (verify.data.verified) {
         const db = [...databases, ...sharedDatabases].find((db) => db._id === id)!;
+        await logDatabaseOpened(db.DatabaseName, db._id);
         onViewDatabase(db, getSharedRole(id));
         resetPasswordModalState();
       } else {
@@ -229,6 +237,7 @@ export default function Database({
       if (!res.data.hasPassword) {
         if (func === "view") {
           const db = [...databases, ...sharedDatabases].find((db) => db._id === id)!;
+          await logDatabaseOpened(db.DatabaseName, db._id);
           onViewDatabase(db, getSharedRole(id));
         } else if (func === "edit") {
           onEditDatabase([...databases, ...sharedDatabases].find((db) => db._id === id)!);
@@ -273,6 +282,8 @@ export default function Database({
     setOtpInput("");
     setNewDbPassword("");
     setConfirmNewDbPassword("");
+    setShowNewDbPassword(false);
+    setShowConfirmNewDbPassword(false);
     setResetInfoMessage("");
     setIsSendingOtp(false);
     setIsResettingPassword(false);
@@ -973,29 +984,57 @@ export default function Database({
                   }}
                 />
 
-                <Input
-                  type="password"
-                  value={newDbPassword}
-                  onChange={(e) => setNewDbPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    border: `1px solid ${currentTheme.border}`,
-                    color: currentTheme.text,
-                  }}
-                />
+                <div className="relative">
+                  <Input
+                    type={showNewDbPassword ? "text" : "password"}
+                    value={newDbPassword}
+                    onChange={(e) => setNewDbPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    style={{
+                      backgroundColor: currentTheme.background,
+                      border: `1px solid ${currentTheme.border}`,
+                      color: currentTheme.text,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewDbPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
+                    style={{ color: currentTheme.textSecondary }}
+                  >
+                    {showNewDbPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
 
-                <Input
-                  type="password"
-                  value={confirmNewDbPassword}
-                  onChange={(e) => setConfirmNewDbPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    border: `1px solid ${currentTheme.border}`,
-                    color: currentTheme.text,
-                  }}
-                />
+                <div className="relative">
+                  <Input
+                    type={showConfirmNewDbPassword ? "text" : "password"}
+                    value={confirmNewDbPassword}
+                    onChange={(e) => setConfirmNewDbPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    style={{
+                      backgroundColor: currentTheme.background,
+                      border: `1px solid ${currentTheme.border}`,
+                      color: currentTheme.text,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmNewDbPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
+                    style={{ color: currentTheme.textSecondary }}
+                  >
+                    {showConfirmNewDbPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
 
                 <div className="flex justify-between items-center">
                   <button
@@ -1071,29 +1110,57 @@ export default function Database({
             </h2>
 
             <div className="space-y-3 mb-3">
-              <Input
-                type="password"
-                value={newSetPasswordInput}
-                onChange={(e) => setNewSetPasswordInput(e.target.value)}
-                placeholder="Enter password"
-                style={{
-                  backgroundColor: currentTheme.background,
-                  border: `1px solid ${currentTheme.border}`,
-                  color: currentTheme.text,
-                }}
-              />
+              <div className="relative">
+                <Input
+                  type={showSetPassword ? "text" : "password"}
+                  value={newSetPasswordInput}
+                  onChange={(e) => setNewSetPasswordInput(e.target.value)}
+                  placeholder="Enter password"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    border: `1px solid ${currentTheme.border}`,
+                    color: currentTheme.text,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSetPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
+                  style={{ color: currentTheme.textSecondary }}
+                >
+                  {showSetPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
 
-              <Input
-                type="password"
-                value={confirmSetPasswordValue}
-                onChange={(e) => setConfirmSetPasswordValue(e.target.value)}
-                placeholder="Confirm password"
-                style={{
-                  backgroundColor: currentTheme.background,
-                  border: `1px solid ${currentTheme.border}`,
-                  color: currentTheme.text,
-                }}
-              />
+              <div className="relative">
+                <Input
+                  type={showConfirmSetPassword ? "text" : "password"}
+                  value={confirmSetPasswordValue}
+                  onChange={(e) => setConfirmSetPasswordValue(e.target.value)}
+                  placeholder="Confirm password"
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    border: `1px solid ${currentTheme.border}`,
+                    color: currentTheme.text,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmSetPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition"
+                  style={{ color: currentTheme.textSecondary }}
+                >
+                  {showConfirmSetPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {setPasswordFormErrorMessage && (

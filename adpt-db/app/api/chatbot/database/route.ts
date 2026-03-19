@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import axios from "axios";
 
 const FASTAPI_BASE_URL = process.env.FASTAPI_URL || "http://localhost:5001";
 
@@ -30,23 +31,18 @@ export async function GET(req: NextRequest) {
     const encodedQuery = encodeURIComponent(query);
 
     const url = `${FASTAPI_BASE_URL}/api/chatbot/${encodedClerkId}/${encodedFormName}/${encodedQuery}`;
-    const fastApiRes = await fetch(url, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-
-    const data = await fastApiRes.json();
-
-    if (!fastApiRes.ok) {
-      console.error("[database-chatbot] FastAPI error:", data);
-      return NextResponse.json(
-        { error: data.detail || data.error || "FastAPI request failed" },
-        { status: fastApiRes.status }
-      );
-    }
+    const fastApiRes = await axios.get(url);
+    const data = fastApiRes.data;
 
     return NextResponse.json(data);
   } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response) {
+      console.error("[database-chatbot] FastAPI error:", error.response.data);
+      return NextResponse.json(
+        { error: error.response.data?.detail || error.response.data?.error || "FastAPI request failed" },
+        { status: error.response.status }
+      );
+    }
     const message = error instanceof Error ? error.message : String(error);
     console.error("[database-chatbot] Error:", message);
     return NextResponse.json(
