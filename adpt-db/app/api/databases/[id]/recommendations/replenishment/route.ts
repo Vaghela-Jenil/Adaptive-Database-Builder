@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/mongodb";
 import { DatabaseModel } from "@/lib/models/Database";
+import { checkDatabaseAccess } from "@/lib/auth";
 import {
   generateReplenishmentRecommendations,
   IncomingReplenishment,
@@ -163,13 +164,18 @@ export async function POST(
     }
 
     const databaseId = (await params).id;
-    const database = await DatabaseModel.findOne({
-      _id: databaseId,
-      clerkId: userId,
-    });
 
-    if (!database) {
-      return NextResponse.json({ error: "Database not found." }, { status: 404 });
+    // Use checkDatabaseAccess to support both owned and shared databases
+    let database;
+    try {
+      const result = await checkDatabaseAccess(databaseId, userId, "Viewer");
+      database = result.database;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Access denied";
+      if (message === "Database not found") {
+        return NextResponse.json({ error: "Database not found." }, { status: 404 });
+      }
+      return NextResponse.json({ error: message }, { status: 403 });
     }
 
     const warnings: string[] = [];

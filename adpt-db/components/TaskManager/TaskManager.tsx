@@ -157,12 +157,32 @@ export default function TaskManager({
     );
   };
 
-  const isValidLastDate = (lastDate: string, lastTime?: string): boolean => {
+  const isValidLastDate = (lastDate: string, lastTime?: string, dueDate?: string, dueTime?: string): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const lastDateObj = new Date(lastDate);
     lastDateObj.setHours(0, 0, 0, 0);
+    
+    // Check if due date and last date are the same
+    if (dueDate) {
+      const dueDateObj = new Date(dueDate);
+      dueDateObj.setHours(0, 0, 0, 0);
+      
+      if (lastDateObj.getTime() === dueDateObj.getTime()) {
+        // Same date - check if times are different
+        if (!dueTime || !lastTime) {
+          // If either time is not set, times are considered different
+          return true;
+        }
+        const [dueHours, dueMinutes] = dueTime.split(":").map(Number);
+        const [lastHours, lastMinutes] = lastTime.split(":").map(Number);
+        const dueTimeInMinutes = dueHours * 60 + dueMinutes;
+        const lastTimeInMinutes = lastHours * 60 + lastMinutes;
+        // Return true only if times are different
+        return dueTimeInMinutes !== lastTimeInMinutes;
+      }
+    }
     
     if (lastDateObj > today) return true;
     if (lastDateObj.getTime() === today.getTime()) {
@@ -243,7 +263,7 @@ export default function TaskManager({
 
   const addNewTask = async (listId: string) => {
     if (!newTaskData.title?.trim()) return;
-    if (!isValidLastDate(newTaskData.lastDate || new Date().toISOString().split("T")[0], newTaskData.lastTime)) {
+    if (!isValidLastDate(newTaskData.lastDate || new Date().toISOString().split("T")[0], newTaskData.lastTime, newTaskData.dueDate, newTaskData.dueTime)) {
       return;
     }
     try {
@@ -1305,7 +1325,7 @@ export default function TaskManager({
                               />
                             </div>
 
-                            {!isValidLastDate(newTaskData.lastDate || selectedDate, newTaskData.lastTime) && (
+                            {!isValidLastDate(newTaskData.lastDate || selectedDate, newTaskData.lastTime, newTaskData.dueDate, newTaskData.dueTime) && (
                               <div
                                 className="text-sm p-3 rounded flex items-center gap-2"
                                 style={{
@@ -1323,7 +1343,7 @@ export default function TaskManager({
                                 onClick={() =>
                                   addNewTask(showNewTaskForm as string)
                                 }
-                                disabled={!newTaskData.title?.trim() || !isValidLastDate(newTaskData.lastDate || selectedDate, newTaskData.lastTime)}
+                                disabled={!newTaskData.title?.trim() || !isValidLastDate(newTaskData.lastDate || selectedDate, newTaskData.lastTime, newTaskData.dueDate, newTaskData.dueTime)}
                                 className="flex-1 px-3 py-2 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                                 style={{
                                   backgroundColor: currentTheme.primary,

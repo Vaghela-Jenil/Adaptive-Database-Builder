@@ -45,6 +45,7 @@ import SellStocks, { InvoiceData } from "./SellStocks";
 import OutOfStockItems, { OutOfStockItem } from "./OutOfStockItems";
 import GeneratedInvoices from "./GeneratedInvoices";
 import SalesHistoryTracker from "./SalesHistoryTracker";
+import RecommendationsPage from "./RecommendationsPage";
 import {
   extractTemporaryUploadedFileAssets,
   extractUploadedFileAssets,
@@ -330,7 +331,7 @@ export default function DatabaseRecordsView({
     saveStockData();
   }, [outOfStockItems, generatedInvoices, currentDatabase?._id, stockDataLoaded]);
 
-  const [showRecommender, setShowRecommender] = useState(false);
+  const [showRecommendationsPage, setShowRecommendationsPage] = useState(false);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [recommendationError, setRecommendationError] = useState("");
   const [recommendationResult, setRecommendationResult] = useState<ReplenishmentResponse | null>(null);
@@ -1120,10 +1121,6 @@ export default function DatabaseRecordsView({
         oldRecords: recordsToDelete,
       });
 
-      const response = await axios.get(
-        `/api/databases/${databaseId}/records`
-      );
-      // setRecords(response.data);
       setDeleteRecords([]);
       setSearchQuery("");
       setDateFilter("");
@@ -1149,9 +1146,20 @@ export default function DatabaseRecordsView({
 
     if (confirm("Are you absolutely sure? This will wipe ALL records in this database.")) {
       try {
+        // Store all records for undo
+        const recordsToDelete = records;
+
         // 2. Use the local constant 'allIds' instead of the state 'deleteRecords'
         await axios.delete(`/api/databases/${currentDatabase._id}/records/bulk`, {
           data: { ids: allIds },
+        });
+
+        // Add to undo history
+        addToHistory({
+          type: 'bulkDelete',
+          timestamp: Date.now(),
+          recordIds: allIds,
+          oldRecords: recordsToDelete,
         });
 
         // 3. Clear UI state
@@ -1198,8 +1206,6 @@ export default function DatabaseRecordsView({
         newData: data,
       });
 
-      const response = await axios.get(`/api/databases/${databaseId}/records`);
-      // setRecords(response.data);
       setPage(1);
       setHasMore(true);
       await loadMoreRecords(1, true);
@@ -1335,14 +1341,14 @@ export default function DatabaseRecordsView({
   ]);
 
   useEffect(() => {
-    if (!showRecommender || !autoRefreshRecommendations || !currentDatabase) return;
+    if (!showRecommendationsPage || !autoRefreshRecommendations || !currentDatabase) return;
 
     const interval = setInterval(() => {
       fetchRecommendations();
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [showRecommender, autoRefreshRecommendations, currentDatabase, fetchRecommendations]);
+  }, [showRecommendationsPage, autoRefreshRecommendations, currentDatabase, fetchRecommendations]);
 
   useEffect(() => {
     if (!showAnalytics || recommendationResult || isLoadingRecommendations) return;
@@ -1575,7 +1581,7 @@ export default function DatabaseRecordsView({
             }}
           >
             <RotateCcw className="w-4 h-4 mr-1" />
-            Undo {undoHistory.length > 0 && `(${undoHistory.length})`}
+            Undo
           </Button>
           )}
 
@@ -1675,7 +1681,7 @@ export default function DatabaseRecordsView({
 
       {/* Filters Bar */}
       <div
-        className="border-b px-6 py-3 flex items-center gap-4"
+        className="border-b px-6 py-3 flex items-center gap-4 relative"
         style={{
           backgroundColor: currentTheme.surface,
           borderColor: currentTheme.border,
@@ -1906,28 +1912,62 @@ export default function DatabaseRecordsView({
           </Button>
         }
 
-        <div className="absolute right-6 flex gap-2">
+        {/* Action Buttons - Right Corner */}
+        <div className="absolute right-6 flex items-center gap-2">
+          {/* Custom Column Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowRecommender((prev) => !prev)}
+            onClick={() => setShowComputedColumnPanel(true)}
+            title="Add computed column"
             style={{
+              borderColor: currentTheme.border,
+              color: '#ffffff',
               backgroundColor: currentTheme.primary,
-              color: currentTheme.text
             }}
           >
-            {showRecommender ? "Hide Panel" : "Show Panel"}
+            <Plus className="w-4 h-4 mr-1" />
+            Custom Column
           </Button>
+
+          {/* Query with AI Button */}
           <Button
             size="sm"
-            onClick={fetchRecommendations}
-            disabled={isLoadingRecommendations}
+            onClick={onOpenChatbot}
+            style={{
+              backgroundColor: currentTheme.primary,
+              color: '#ffffff',
+            }}
+          >
+            <Sparkles className="w-4 h-4 mr-1" />
+            Query with AI
+          </Button>
+
+          {/* Recommendations Button */}
+          <Button
+            size="sm"
+            onClick={() => setShowRecommendationsPage(true)}
             style={{ backgroundColor: currentTheme.primary, color: currentTheme.text }}
           >
-            {isLoadingRecommendations ? "Refreshing..." : "Recommendations"}
+            Recommendations
           </Button>
         </div>
+
       </div>
+
+      {showRecommendationsPage && (
+        <div className="fixed inset-0 z-50" style={{ backgroundColor: currentTheme.background }}>
+          <RecommendationsPage
+            currentDatabase={currentDatabase}
+            userRole={userRole}
+            onBack={() => setShowRecommendationsPage(false)}
+            searchQuery={searchQuery}
+            dateFilter={dateFilter}
+            generatedInvoices={generatedInvoices}
+            records={sortedRecords}
+          />
+        </div>
+      )}
 
       {showAnalytics && (
         <div
@@ -2276,339 +2316,7 @@ export default function DatabaseRecordsView({
         </div>
       )}
 
-      {/* Recommender Panel */}
-      <div
-        className="border-b px-6 py-4"
-        style={{
-          backgroundColor: currentTheme.surface,
-          borderColor: currentTheme.border,
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-semibold" style={{ color: currentTheme.text }}>
-              Dynamic Replenishment Recommender
-            </h3>
-            <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-              Real-time stock guidance using future sales prediction.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
 
-            {/* Add Computed Column Button - Above Table */}
-            <div
-              onClick={() => setShowComputedColumnPanel(true)}
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                title="Add computed column"
-                style={{
-                  borderColor: currentTheme.border,
-                  color: '#ffffff',
-                  backgroundColor: currentTheme.primary,
-                }}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Custom Column
-              </Button>
-            </div> 
-          <Button
-            onClick={onOpenChatbot}
-            className="rounded-lg shadow-xl flex items-center justify-center cursor-pointer hover:scale-103 transition-transform z-30"
-            style={{
-              backgroundColor: currentTheme.primary,
-            }}
-          >
-            <Sparkles className=" text-white" /><span>Query with AI</span>
-          </Button>
-          </div>
-        </div>
-
-        {showRecommender && (
-          <div className="mt-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Stock Field *</p>
-                <select
-                  value={recommenderFieldMap.stockFieldId}
-                  onChange={(e) =>
-                    setRecommenderFieldMap((prev) => ({ ...prev, stockFieldId: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                >
-                  <option value="">Select field</option>
-                  {dataFields.map((field) => (
-                    <option key={field.id} value={field.id}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Sales History Field *</p>
-                <select
-                  value={recommenderFieldMap.salesHistoryFieldId}
-                  onChange={(e) =>
-                    setRecommenderFieldMap((prev) => ({ ...prev, salesHistoryFieldId: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                >
-                  <option value="">Select field</option>
-                  <option value={AUTO_SALES_HISTORY_OPTION}>
-                    Auto Sales History (from sold items)
-                  </option>
-                  {dataFields.map((field) => (
-                    <option key={field.id} value={field.id}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
-                {isAutoSalesHistorySelected && (
-                  <p className="text-[11px] mt-1" style={{ color: currentTheme.textSecondary }}>
-                    Uses auto-generated sold quantity list from generated invoices.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>SKU Field</p>
-                <select
-                  value={recommenderFieldMap.skuFieldId}
-                  onChange={(e) =>
-                    setRecommenderFieldMap((prev) => ({ ...prev, skuFieldId: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                >
-                  <option value="">(Optional)</option>
-                  {dataFields.map((field) => (
-                    <option key={field.id} value={field.id}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Product Name Field</p>
-                <select
-                  value={recommenderFieldMap.nameFieldId}
-                  onChange={(e) =>
-                    setRecommenderFieldMap((prev) => ({ ...prev, nameFieldId: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                >
-                  <option value="">(Optional)</option>
-                  {dataFields.map((field) => (
-                    <option key={field.id} value={field.id}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Forecast Days</p>
-                <Input
-                  type="number"
-                  min={1}
-                  max={90}
-                  value={forecastDays}
-                  onChange={(e) => setForecastDays(Math.max(1, Number(e.target.value) || 14))}
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                />
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Top Recommendations</p>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={topNRecommendations}
-                  onChange={(e) => setTopNRecommendations(Math.max(1, Number(e.target.value) || 20))}
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                />
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Lead Time Field</p>
-                <select
-                  value={recommenderFieldMap.leadTimeDaysFieldId}
-                  onChange={(e) =>
-                    setRecommenderFieldMap((prev) => ({ ...prev, leadTimeDaysFieldId: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: currentTheme.background,
-                    color: currentTheme.text,
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                >
-                  <option value="">(Optional)</option>
-                  {dataFields.map((field) => (
-                    <option key={field.id} value={field.id}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="text-xs mb-1" style={{ color: currentTheme.textSecondary }}>Auto Refresh (60s)</p>
-                <div className="h-10 rounded-md px-3 flex items-center" style={{ border: `1px solid ${currentTheme.border}` }}>
-                  <Checkbox
-                    checked={autoRefreshRecommendations}
-                    onCheckedChange={(checked) => setAutoRefreshRecommendations(Boolean(checked))}
-                  />
-                  <span className="text-xs ml-2" style={{ color: currentTheme.textSecondary }}>
-                    Keep recommendations live
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {recommendationError && (
-              <p className="text-sm" style={{ color: "#ef4444" }}>
-                {recommendationError}
-              </p>
-            )}
-
-            {recommendationResult && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ border: `1px solid #ef4444`, backgroundColor: currentTheme.background, alignItems: "center" }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Order Now</p>
-                    <p className="text-xl font-bold" style={{ color: "#ef4444" }}>
-                      {recommendationResult.summary.orderNowCount}
-                    </p>
-                  </Card>
-                  <Card className=" p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ border: `1px solid #f59e0b`, backgroundColor: currentTheme.background, alignItems: "center" }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Order Soon</p>
-                    <p className="text-xl font-bold" style={{ color: "#f59e0b" }}>
-                      {recommendationResult.summary.orderSoonCount}
-                    </p>
-                  </Card>
-                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer p-3" style={{ border: `1px solid #10b981`, backgroundColor: currentTheme.background, alignItems: "center" }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Healthy</p>
-                    <p className="text-xl font-bold" style={{ color: "#10b981" }}>
-                      {recommendationResult.summary.healthyCount}
-                    </p>
-                  </Card>
-                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer p-3" style={{ border: `1px solid #0ea5e9`, backgroundColor: currentTheme.background, alignItems: "center" }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Overstock</p>
-                    <p className="text-xl font-bold" style={{ color: "#0ea5e9" }}>
-                      {recommendationResult.summary.overstockCount}
-                    </p>
-                  </Card>
-                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer p-3" style={{ border: `1px solid #8b5cf6`, backgroundColor: currentTheme.background, alignItems: "center" }}>
-                    <p className="text-xs" style={{ color: currentTheme.textSecondary, fontSize: "1.05rem" }}>Recommended Units</p>
-                    <p className="text-xl font-bold" style={{ color: currentTheme.text }}>
-                      {recommendationResult.summary.totalRecommendedUnits}
-                    </p>
-                  </Card>
-                </div>
-
-                <div className="max-h-72 overflow-auto grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {recommendationResult.recommendations.map((recommendation) => {
-                    const badge = getActionBadgeStyles(recommendation.action);
-                    return (
-                      <Card
-                        key={`${recommendation.sku}-${recommendation.urgencyScore}`}
-                        className="p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer"
-                        style={{ border: `1px solid ${badge.background}`, backgroundColor: currentTheme.background }}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div>
-                            <p className="font-semibold" style={{ color: currentTheme.text }}>
-                              {recommendation.name || recommendation.sku}
-                            </p>
-                            <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                              SKU: {recommendation.sku}
-                            </p>
-                          </div>
-                          <span
-                            className="text-xs px-2 py-1 rounded-full"
-                            style={{
-                              backgroundColor: badge.background,
-                              color: badge.color,
-                            }}
-                          >
-                            {badge.label}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                          <p style={{ color: currentTheme.textSecondary }}>
-                            Urgency Score: <span style={{ color: currentTheme.text }}>{recommendation.urgencyScore}</span>
-                          </p>
-                          <p style={{ color: currentTheme.textSecondary }}>
-                            Order Qty: <span style={{ color: currentTheme.text }}>{recommendation.recommendedOrderQty}</span>
-                          </p>
-                          <p style={{ color: currentTheme.textSecondary }}>
-                            Daily Sales: <span style={{ color: currentTheme.text }}>{recommendation.predictedDailySales}</span>
-                          </p>
-                          <p style={{ color: currentTheme.textSecondary }}>
-                            Stockout (days): <span style={{ color: currentTheme.text }}>{recommendation.daysUntilStockout}</span>
-                          </p>
-                        </div>
-
-                        <p className="text-xs" style={{ color: currentTheme.text, backgroundColor: badge.background, padding: '4px', borderRadius: '4px' }}>
-                          {recommendation.explanation}
-                        </p>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {recommendationResult.warnings.length > 0 && (
-                  <Card className="p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:bg-[var(--color-background)] hover:border-[var(--color-primary)] cursor-pointer" style={{ border: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.background }}>
-                    <p className="text-sm font-semibold mb-1" style={{ color: currentTheme.text }}>
-                      Data Warnings
-                    </p>
-                    <div className="max-h-24 overflow-auto space-y-1">
-                      {recommendationResult.warnings.map((warning) => (
-                        <p key={warning} className="text-xs" style={{ color: currentTheme.textSecondary }}>
-                          {warning}
-                        </p>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden flex flex-col relative">
@@ -3425,7 +3133,7 @@ export default function DatabaseRecordsView({
               onBack={() => setStockSubPage(null)}
               onOpenRecommender={() => {
                 setStockSubPage(null);
-                setShowRecommender(true);
+                setShowRecommendationsPage(true);
               }}
             />
           </motion.div>

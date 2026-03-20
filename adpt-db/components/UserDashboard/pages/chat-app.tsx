@@ -1983,7 +1983,12 @@ export default function ChatPage() {
                     {conversation.unreadCount > 0 && (
                       <div
                         className="shrink-0 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap"
-                        style={{ backgroundColor: currentTheme.primary, color: 'white' }}
+                        style={{
+                          backgroundColor: selectedConversation?.id === conversation.id
+                            ? 'rgba(255,255,255,0.25)'
+                            : currentTheme.primary,
+                          color: 'white'
+                        }}
                       >
                         {conversation.unreadCount}
                       </div>
@@ -2036,7 +2041,12 @@ export default function ChatPage() {
                       </div>
                       {group.unreadCount > 0 && (
                         <div className="shrink-0 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap"
-                          style={{ backgroundColor: currentTheme.primary, color: 'white' }}>
+                          style={{
+                            backgroundColor: isSelectedGroup
+                              ? 'rgba(255,255,255,0.25)'
+                              : currentTheme.primary,
+                            color: 'white'
+                          }}>
                           {group.unreadCount}
                         </div>
                       )}
