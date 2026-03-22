@@ -7,6 +7,7 @@ import { Send, Plus, Smile, Paperclip, Search, User, X, Users, UserPlus, LogOut,
 import { useTheme } from '@/context/ThemeContext';
 import axios from 'axios';
 import { encryptMessage, decryptMessage, generateSharedKey, isEncrypted } from '@/lib/encryption';
+import { showToast } from '@/lib/toast';
 
 interface Message {
   _id: string;
@@ -22,6 +23,7 @@ interface Message {
     name?: string;
     url: string;
     size?: number;
+    type?: string;
   };
 }
 
@@ -865,6 +867,21 @@ export default function ChatPage() {
     }
   }, [messages, groupMessages]);
 
+  // Handle keyboard shortcuts (ESC to close modals)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (expandedImage) setExpandedImage(null);
+        if (expandedFile) setExpandedFile(null);
+        if (showCreateGroup) setShowCreateGroup(false);
+        if (showAddMember) setShowAddMember(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [expandedImage, expandedFile, showCreateGroup, showAddMember]);
+
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     // Clear search results immediately if input is empty
@@ -976,10 +993,29 @@ export default function ChatPage() {
   };
 
   const handleFileSelection = async (file: File) => {
+    // Block video uploads entirely
+    if (file.type.startsWith('video/')) {
+      showToast.error('Video uploads are not supported. Please use image files instead.');
+      return;
+    }
+
     if (chatTab === 'groups') {
-      if (!selectedGroup || !currentUserId || !currentUser) return;
+      if (!selectedGroup || !currentUserId || !currentUser) {
+        showToast.error('Please select a group first');
+        return;
+      }
     } else {
-      if (!selectedConversation || !currentUserId || !currentUser) return;
+      if (!selectedConversation || !currentUserId || !currentUser) {
+        showToast.error('Please select a conversation first');
+        return;
+      }
+    }
+
+    // Validate file size (50MB max)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      showToast.error(`File too large (Max 50MB). Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
     }
 
     try {
@@ -1009,9 +1045,25 @@ export default function ChatPage() {
       });
 
       setSelectedFile(file);
+      showToast.success(`File ready to send: ${file.name}`);
     } catch (error: any) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file: ' + (error.response?.data?.error || error.message));
+      console.error('Error response data:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      let errorMsg = 'Failed to upload file';
+      
+      if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.response?.status === 500) {
+        errorMsg = 'Server error during upload. Please try again or contact support.';
+      } else if (error.response?.status === 413) {
+        errorMsg = 'File is too large to upload. Please use a smaller file.';
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      showToast.error(errorMsg);
       setSelectedFile(null);
       setFilePreview(null);
     } finally {
@@ -1020,17 +1072,23 @@ export default function ChatPage() {
   };
 
   const handleSendFile = async () => {
-    if (!filePreview || !selectedFile) return;
+    if (!filePreview || !selectedFile) {
+      showToast.error('No file selected');
+      return;
+    }
 
     if (chatTab === 'groups') {
-      if (!selectedGroup || !socket || !currentUserId || !currentUser) return;
+      if (!selectedGroup || !socket || !currentUserId || !currentUser) {
+        showToast.error('Group not selected or connection lost');
+        return;
+      }
 
       setIsSendingMessage(true);
 
       try {
         const groupId = getGroupId(selectedGroup);
         if (!groupId) {
-          alert('Invalid group selected');
+          showToast.error('Invalid group selected');
           setSelectedFile(null);
           setFilePreview(null);
           return;
@@ -1048,6 +1106,7 @@ export default function ChatPage() {
             name: filename,
             url: filePreview.url,
             size: filePreview.size,
+            type: filePreview.type,
           },
         };
 
@@ -1075,6 +1134,7 @@ export default function ChatPage() {
           fileUrl: filePreview.url,
           fileName: filename,
           fileSize: filePreview.size,
+          fileType: filePreview.type,
         });
 
         // Update local message with real MongoDB _id
@@ -1110,20 +1170,24 @@ export default function ChatPage() {
           fileUrl: filePreview.url,
           fileName: encryptedFileName,
           fileSize: filePreview.size,
+          fileType: filePreview.type,
           timestamp: new Date(),
         });
 
         console.log(`📤 Sent file to group ${groupId}`);
       } catch (error) {
         console.error('Error sending file to group:', error);
-        alert('Failed to send file');
+        showToast.error('Failed to send file');
         setSelectedFile(null);
         setFilePreview(null);
       } finally {
         setIsSendingMessage(false);
       }
     } else {
-      if (!selectedConversation || !socket || !currentUserId || !currentUser) return;
+      if (!selectedConversation || !socket || !currentUserId || !currentUser) {
+        showToast.error('Conversation not found or connection lost');
+        return;
+      }
 
       setIsSendingMessage(true);
 
@@ -1143,6 +1207,7 @@ export default function ChatPage() {
             name: filename,
             url: filePreview.url,
             size: filePreview.size,
+            type: filePreview.type,
           },
         };
 
@@ -1158,6 +1223,7 @@ export default function ChatPage() {
           fileUrl: filePreview.url,
           fileName: filename,
           fileSize: filePreview.size,
+          fileType: filePreview.type,
         });
 
         // Update local message with real MongoDB _id
@@ -1205,13 +1271,14 @@ export default function ChatPage() {
           fileUrl: filePreview.url,
           fileName: encryptedFileName,
           fileSize: filePreview.size,
+          fileType: filePreview.type,
           timestamp: new Date(),
         });
 
         console.log(`📤 Sent file to ${selectedConversation.friend.id}`);
       } catch (error) {
         console.error('Error sending file:', error);
-        alert('Failed to send file');
+        showToast.error('Failed to send file');
         setSelectedFile(null);
         setFilePreview(null);
       } finally {
@@ -2311,6 +2378,27 @@ export default function ChatPage() {
                   borderColor: currentTheme.border,
                 }}
               >
+                {/* Upload File Loader */}
+                {isUploadingFile && !filePreview && (
+                  <div
+                    className="p-4 rounded-lg border-2 flex items-center gap-3"
+                    style={{
+                      backgroundColor: currentTheme.input,
+                      borderColor: currentTheme.primary,
+                    }}
+                  >
+                    <Loader2 size={20} className="animate-spin" style={{ color: currentTheme.primary }} />
+                    <div className="flex-1">
+                      <p style={{ color: currentTheme.text }} className="text-sm font-semibold">
+                        Uploading file...
+                      </p>
+                      <p style={{ color: currentTheme.textSecondary }} className="text-xs">
+                        Please wait while your file is being uploaded
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* File Preview */}
                 {filePreview && (
                   <div
@@ -2748,88 +2836,208 @@ export default function ChatPage() {
       {/* Expanded Image Modal */}
       {expandedImage && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
           onClick={() => setExpandedImage(null)}
         >
           <div
-            className="relative bg-black rounded-lg shadow-2xl max-w-4xl max-h-96 flex items-center justify-center"
+            className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: currentTheme.surface }}
           >
-            <img
-              src={expandedImage.url}
-              alt={expandedImage.name}
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
+            {/* Close Button */}
             <button
               onClick={() => setExpandedImage(null)}
-              className="absolute top-4 right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition font-bold text-lg"
+              className="absolute top-4 right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition font-bold text-xl z-10"
+              title="Close (Esc)"
             >
               ✕
             </button>
-            <a
-              href={expandedImage.url}
-              download={expandedImage.name}
-              className="absolute bottom-4 left-4 bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition text-sm font-semibold"
+
+            {/* Image Display */}
+            <div className="flex items-center justify-center flex-1 p-4 w-full">
+              <img
+                src={expandedImage.url}
+                alt={expandedImage.name}
+                className="max-w-full max-h-full object-contain rounded-lg"
+                onError={(e) => {
+                  e.currentTarget.src = '';
+                  if (e.currentTarget.parentElement?.querySelector('[data-error-msg]')) {
+                    (e.currentTarget.parentElement.querySelector('[data-error-msg]') as HTMLElement).style.display = 'block';
+                  }
+                }}
+              />
+              <div
+                data-error-msg
+                className="hidden text-center"
+                style={{ color: currentTheme.textSecondary }}
+              >
+                <p>Failed to load image</p>
+              </div>
+            </div>
+
+            {/* Image Info and Actions Footer */}
+            <div
+              className="w-full border-t p-4 flex flex-col sm:flex-row items-center justify-between gap-3"
+              style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.input }}
             >
-              <Download size={16} /> Download
-            </a>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: currentTheme.text }}>
+                  {expandedImage.name}
+                </p>
+              </div>
+
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => {
+                    // Get proper filename with extension
+                    let filename = expandedImage.name || 'image.jpg';
+                    
+                    // Ensure filename has image extension
+                    if (!filename.includes('.')) {
+                      filename = `${filename}.jpg`;
+                    }
+                    
+                    // Download using fetch
+                    fetch(expandedImage.url)
+                      .then(response => response.blob())
+                      .then(blob => {
+                        const link = document.createElement('a');
+                        const url = window.URL.createObjectURL(blob);
+                        link.href = url;
+                        link.download = filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(link);
+                        showToast.success(`Downloaded: ${filename}`);
+                      })
+                      .catch(err => {
+                        console.error('Download error:', err);
+                        showToast.error('Failed to download image');
+                      });
+                  }}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold text-sm"
+                  title="Download image"
+                >
+                  <Download size={16} /> Download
+                </button>
+                <a
+                  href={expandedImage.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition font-semibold text-sm"
+                  style={{ backgroundColor: currentTheme.primary, color: 'white' }}
+                  title="Open in new tab"
+                >
+                  <Search size={16} /> View
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {expandedFile && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
           onClick={() => setExpandedFile(null)}
         >
           <div
-            className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-96 p-6"
+            className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6"
             onClick={(e) => e.stopPropagation()}
             style={{ backgroundColor: currentTheme.surface }}
           >
+            {/* Close Button */}
             <button
               onClick={() => setExpandedFile(null)}
-              className="absolute top-4 right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition font-bold text-lg"
+              className="absolute top-4 right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition font-bold text-xl"
+              title="Close (Esc)"
             >
               ✕
             </button>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-center p-8 rounded-lg" style={{ backgroundColor: currentTheme.input }}>
-                <Paperclip size={48} style={{ color: currentTheme.textSecondary }} />
-              </div>
+            {/* File Icon */}
+            <div className="flex items-center justify-center p-8 rounded-xl mb-4" style={{ backgroundColor: currentTheme.input }}>
+              <Paperclip size={56} style={{ color: currentTheme.primary }} />
+            </div>
 
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold" style={{ color: currentTheme.text }}>
+            {/* File Details */}
+            <div className="space-y-3 mb-6">
+              <div>
+                <h3 className="text-lg font-bold overflow-hidden text-ellipsis" style={{ color: currentTheme.text }}>
                   {expandedFile.name}
                 </h3>
-                <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                  Size: {(expandedFile.size / 1024).toFixed(2)} KB
-                </p>
-                <p className="text-sm" style={{ color: currentTheme.textSecondary }}>
-                  Type: {expandedFile.type || 'File'}
-                </p>
               </div>
 
-              <div className="flex gap-3">
-                <a
-                  href={expandedFile.url}
-                  download={expandedFile.name}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold"
-                >
-                  <Download size={18} /> Download
-                </a>
-                <a
-                  href={expandedFile.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition font-semibold"
-                  style={{ backgroundColor: currentTheme.input, color: currentTheme.text }}
-                >
-                  Open
-                </a>
+              <div className="grid grid-cols-2 gap-4 text-sm" style={{ color: currentTheme.textSecondary }}>
+                <div>
+                  <p className="text-xs uppercase font-semibold opacity-75">File Size</p>
+                  <p style={{ color: currentTheme.text }} className="font-medium">
+                    {(expandedFile.size / 1024).toFixed(2)} KB
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase font-semibold opacity-75">File Type</p>
+                  <p style={{ color: currentTheme.text }} className="font-medium">
+                    {expandedFile.type || 'Unknown'}
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  // Get proper filename with extension
+                  let filename = expandedFile.name || 'file';
+                  
+                  // Ensure filename has proper extension
+                  if (!filename.includes('.') && expandedFile.type) {
+                    const ext = expandedFile.type.split('/').pop()?.split(';')[0] || 'bin';
+                    filename = `${filename.split('.')[0]}.${ext}`;
+                  }
+                  
+                  // Download using fetch to ensure proper file handling
+                  fetch(expandedFile.url)
+                    .then(response => response.blob())
+                    .then(blob => {
+                      const link = document.createElement('a');
+                      const url = window.URL.createObjectURL(blob);
+                      link.href = url;
+                      link.download = filename;
+                      document.body.appendChild(link);
+                      link.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(link);
+                      showToast.success(`Downloaded: ${filename}`);
+                    })
+                    .catch(err => {
+                      console.error('Download error:', err);
+                      showToast.error('Failed to download file');
+                    });
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold text-sm"
+                title="Download file"
+              >
+                <Download size={18} /> Download
+              </button>
+              <a
+                href={expandedFile.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition font-semibold text-sm"
+                style={{ backgroundColor: currentTheme.primary, color: 'white' }}
+                title="Open in new tab"
+              >
+                <Search size={18} /> Open
+              </a>
+            </div>
+
+            {/* Footer Info */}
+            <p className="text-xs mt-4 text-center" style={{ color: currentTheme.textSecondary }}>
+              Click "Download" to save to your device, or "Open" to view in a new tab
+            </p>
           </div>
         </div>
       )}

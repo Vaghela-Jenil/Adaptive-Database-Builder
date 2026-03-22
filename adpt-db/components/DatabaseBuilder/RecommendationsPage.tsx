@@ -182,14 +182,21 @@ export default function RecommendationsPage({
       const dateKey = new Date(invoice.date).toISOString().slice(0, 10);
 
       invoice.items.forEach((item: any) => {
-        if (!salesByItem.has(item.name)) {
-          salesByItem.set(item.name, new Map());
-        }
-        const perDayMap = salesByItem.get(item.name)!;
-        perDayMap.set(
-          dateKey,
-          (perDayMap.get(dateKey) || 0) + (item.qty || 1)
-        );
+        const qty = Number(item.qty);
+        if (!Number.isFinite(qty) || qty <= 0) return;
+
+        // Use both recordId and normalized product name as keys for flexible matching
+        const normalizedName = String(item.productName || "").trim().toLowerCase();
+        const keys = [item.recordId, normalizedName].filter(Boolean);
+
+        keys.forEach((key) => {
+          if (!salesByItem.has(key)) {
+            salesByItem.set(key, new Map<string, number>());
+          }
+
+          const perDayMap = salesByItem.get(key)!;
+          perDayMap.set(dateKey, (perDayMap.get(dateKey) || 0) + qty);
+        });
       });
     });
 
@@ -285,6 +292,12 @@ export default function RecommendationsPage({
             `${f.id} ${f.label}`.toLowerCase().includes(keyword)
           )?.id || "";
         }, ""),
+        nameFieldId: ["name", "product", "item", "title"].reduce((match, keyword) => {
+          if (match) return match;
+          return dataFields.find((f) =>
+            `${f.id} ${f.label}`.toLowerCase().includes(keyword)
+          )?.id || "";
+        }, ""),
       };
 
       return {
@@ -292,6 +305,7 @@ export default function RecommendationsPage({
         stockFieldId: prev.stockFieldId || suggestions.stockFieldId,
         salesHistoryFieldId: prev.salesHistoryFieldId || AUTO_SALES_HISTORY_OPTION,
         skuFieldId: prev.skuFieldId || suggestions.skuFieldId,
+        nameFieldId: prev.nameFieldId || suggestions.nameFieldId,
       };
     });
   }, [dataFields]);
@@ -317,29 +331,77 @@ export default function RecommendationsPage({
     setRecommendationError("");
 
     try {
+      // Build request body with only non-empty values
+      const requestBody: Record<string, any> = {
+        stockFieldId: recommenderFieldMap.stockFieldId,
+        forecastDays,
+        topN: topNRecommendations,
+      };
+
+      // Only include salesHistoryFieldId if it's non-empty
+      if (resolvedSalesHistoryFieldId) {
+        requestBody.salesHistoryFieldId = resolvedSalesHistoryFieldId;
+      }
+
+      // Only include salesHistoryOverrides if they exist
+      if (hasSalesHistoryOverrides) {
+        requestBody.salesHistoryOverrides = salesHistoryOverrides;
+      }
+
+      // Add optional field mappings only if they're non-empty
+      if (recommenderFieldMap.skuFieldId) {
+        requestBody.skuFieldId = recommenderFieldMap.skuFieldId;
+      }
+      if (recommenderFieldMap.nameFieldId) {
+        requestBody.nameFieldId = recommenderFieldMap.nameFieldId;
+      }
+      if (recommenderFieldMap.reorderPointFieldId) {
+        requestBody.reorderPointFieldId = recommenderFieldMap.reorderPointFieldId;
+      }
+      if (recommenderFieldMap.leadTimeDaysFieldId) {
+        requestBody.leadTimeDaysFieldId = recommenderFieldMap.leadTimeDaysFieldId;
+      }
+      if (recommenderFieldMap.safetyStockDaysFieldId) {
+        requestBody.safetyStockDaysFieldId = recommenderFieldMap.safetyStockDaysFieldId;
+      }
+      if (recommenderFieldMap.incomingReplenishmentFieldId) {
+        requestBody.incomingReplenishmentFieldId = recommenderFieldMap.incomingReplenishmentFieldId;
+      }
+
+      // Add search and date filters if provided
+      if (searchQuery) {
+        requestBody.search = searchQuery;
+      }
+      if (dateFilter) {
+        requestBody.date = dateFilter;
+      }
+
       const response = await axios.post<ReplenishmentResponse>(
         `/api/databases/${currentDatabase._id}/recommendations/replenishment`,
-        {
-          stockFieldId: recommenderFieldMap.stockFieldId,
-          salesHistoryFieldId: resolvedSalesHistoryFieldId || undefined,
-          salesHistoryOverrides: hasSalesHistoryOverrides ? salesHistoryOverrides : undefined,
-          skuFieldId: recommenderFieldMap.skuFieldId || undefined,
-          nameFieldId: recommenderFieldMap.nameFieldId || undefined,
-          reorderPointFieldId: recommenderFieldMap.reorderPointFieldId || undefined,
-          leadTimeDaysFieldId: recommenderFieldMap.leadTimeDaysFieldId || undefined,
-          safetyStockDaysFieldId: recommenderFieldMap.safetyStockDaysFieldId || undefined,
-          incomingReplenishmentFieldId: recommenderFieldMap.incomingReplenishmentFieldId || undefined,
-          forecastDays,
-          topN: topNRecommendations,
-          search: searchQuery || undefined,
-          date: dateFilter || undefined,
-        }
+        requestBody
       );
       setRecommendationResult(response.data);
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } };
-      const message = axiosError?.response?.data?.error || "Failed to load recommendations.";
-      setRecommendationError(message);
+      const axiosError = error as { 
+        response?: { 
+          data?: { 
+            error?: string;
+            warnings?: string[];
+          } 
+        } 
+      };
+      const errorMessage = axiosError?.response?.data?.error || "Failed to load recommendations.";
+      const warnings = axiosError?.response?.data?.warnings || [];
+      
+      let fullMessage = errorMessage;
+      if (warnings.length > 0) {
+        fullMessage += "\n\nDetails:\n" + warnings.slice(0, 5).join("\n");
+        if (warnings.length > 5) {
+          fullMessage += `\n... and ${warnings.length - 5} more issues`;
+        }
+      }
+      
+      setRecommendationError(fullMessage);
       setRecommendationResult(null);
     } finally {
       setIsLoadingRecommendations(false);

@@ -9,6 +9,7 @@ const MessageSchema = new Schema(
     fileUrl: { type: String, default: null },
     fileName: { type: String, default: null },
     fileSize: { type: Number, default: null },
+    fileType: { type: String, default: null },
     read: { type: Boolean, default: false },
   },
   { timestamps: true }

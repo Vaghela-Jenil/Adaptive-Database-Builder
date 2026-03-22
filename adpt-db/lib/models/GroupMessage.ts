@@ -10,6 +10,7 @@ interface IGroupMessage extends Document {
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
+  fileType?: string;
   readBy: mongoose.Types.ObjectId[];
   createdAt: Date;
 }
@@ -25,6 +26,7 @@ const GroupMessageSchema = new Schema<IGroupMessage>(
     fileUrl: { type: String, default: null },
     fileName: { type: String, default: null },
     fileSize: { type: Number, default: null },
+    fileType: { type: String, default: null },
     readBy: [{ type: Schema.Types.ObjectId, ref: 'User', default: [] }],
   },
   { timestamps: true }

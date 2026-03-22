@@ -123,6 +123,7 @@ const getOverrideSalesHistory = (
     if (name) keys.push(name, name.toLowerCase());
   }
 
+  // Try exact keys first
   for (const key of keys) {
     const overrideValue = body.salesHistoryOverrides[key];
     if (overrideValue === undefined) continue;
@@ -130,6 +131,33 @@ const getOverrideSalesHistory = (
     const parsed = parseSalesHistory(overrideValue);
     if (parsed.length) {
       return parsed;
+    }
+  }
+
+  // Fallback: try to match against all string values if no exact match found
+  // This is useful when the product name isn't in a specific field
+  const recordValues = Object.values(data)
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+
+  for (const value of recordValues) {
+    const overrideValue = body.salesHistoryOverrides[value];
+    if (overrideValue !== undefined) {
+      const parsed = parseSalesHistory(overrideValue);
+      if (parsed.length) {
+        return parsed;
+      }
+    }
+
+    // Also try lowercase match
+    const lowerValue = value.toLowerCase();
+    const lowerOverrideValue = body.salesHistoryOverrides[lowerValue];
+    if (lowerOverrideValue !== undefined) {
+      const parsed = parseSalesHistory(lowerOverrideValue);
+      if (parsed.length) {
+        return parsed;
+      }
     }
   }
 

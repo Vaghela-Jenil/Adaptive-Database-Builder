@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { groupId, content, type, fileUrl, fileName, fileSize } = body;
+    const { groupId, content, type, fileUrl, fileName, fileSize, fileType } = body;
 
     if (!groupId || !content) {
       return NextResponse.json({ error: 'Missing groupId or content' }, { status: 400 });
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       fileUrl: fileUrl || null,
       fileName: fileName || null,
       fileSize: fileSize || null,
+      fileType: fileType || null,
       readBy: [currentUser._id], // Sender automatically marks as read
     });
 
@@ -77,6 +78,10 @@ export async function POST(request: NextRequest) {
         content, // Return decrypted for sender
         type: message.type,
         timestamp: message.createdAt,
+        fileUrl: message.fileUrl,
+        fileName: message.fileName,
+        fileSize: message.fileSize,
+        fileType: message.fileType,
       },
       { status: 201 }
     );

@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
         fileUrl: msg.fileUrl,
         fileName: decryptedFileName,
         fileSize: msg.fileSize,
+        fileType: msg.fileType,
       };
     });
 
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { receiverId, content, type, fileUrl, fileName, fileSize } = body;
+    const { receiverId, content, type, fileUrl, fileName, fileSize, fileType } = body;
 
     if (!receiverId || !content) {
       return NextResponse.json({ error: 'Missing content or receiver' }, { status: 400 });
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
       fileUrl: fileUrl || null,
       fileName: fileName || null,
       fileSize: fileSize || null,
+      fileType: fileType || null,
     });
 
     // Return decrypted message to sender for immediate display
@@ -141,6 +143,7 @@ export async function POST(request: NextRequest) {
         fileUrl: message.fileUrl,
         fileName: message.fileName,
         fileSize: message.fileSize,
+        fileType: message.fileType,
       },
       { status: 201 }
     );
