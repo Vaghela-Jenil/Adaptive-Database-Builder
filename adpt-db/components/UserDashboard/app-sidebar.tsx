@@ -137,6 +137,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
     analytics: "onborda-analytics",
     chatbot: "onborda-chatbot",
     "nearby-stores": "onborda-nearby-store",
+    history: "onborda-history",
     "share-folder": "onborda-shared-database",
     query: "onborda-query",
     chat: "onborda-chat-app",

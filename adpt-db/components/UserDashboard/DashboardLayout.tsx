@@ -91,7 +91,7 @@ export default function DashboardLayout() {
       case "analytics": return <Analytics />;
       case "chatbot": return <Chatbot />;
       case "nearby-stores": return <NearByStorePage />;
-       case "history": return <HistoryPage/>
+      case "history": return <HistoryPage/>
       case "share-folder": return <SharedDatabases />;
       case "query" : return <UserSupport/>
       case "chat" : return <ChatPage />

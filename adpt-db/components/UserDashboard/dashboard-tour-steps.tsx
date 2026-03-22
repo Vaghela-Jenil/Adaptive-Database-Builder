@@ -10,6 +10,7 @@ import {
   MessageSquare,
   MessageSquareMore,
   Sparkles,
+  History,
 } from "lucide-react";
 
 export const dashboardTourName = "dashboard-tour";
@@ -83,7 +84,7 @@ export const dashboardTourSteps: DashboardTour[] = [
       },
       {
         icon: <MapPinned className="h-4 w-4" />,
-        title: "Nearby Store",
+        title: "Nearby Stores",
         content: (
           <div className={tourContentClassName}>
             <p>Find nearby stores with map-based search, export options, and configurable location filters.</p>
@@ -92,7 +93,21 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-nearby-store",
         side: "right",
-        pointerPadding: 12,
+        pointerPadding: 16,
+        pointerRadius: 18,
+      },
+        {
+        icon: <History className="h-4 w-4" />,
+        title: "History",
+        content: (
+          <div className={tourContentClassName}>
+            <p>User can check the history of their actions and the platform's activities.</p>
+            <p>It is useful for tracking changes and understanding the platform's behavior.</p>
+          </div>
+        ),
+        selector: "#onborda-history",
+        side: "right",
+        pointerPadding: 20,
         pointerRadius: 18,
       },
       {
@@ -106,7 +121,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-shared-database",
         side: "right",
-        pointerPadding: 12,
+        pointerPadding: 24,
         pointerRadius: 18,
       },
       {
@@ -120,7 +135,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-query",
         side: "right",
-        pointerPadding: 12,
+        pointerPadding: 16,
         pointerRadius: 18,
       },
       {
@@ -134,7 +149,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-chat-app",
         side: "right",
-        pointerPadding: 12,
+        pointerPadding: 20,
         pointerRadius: 18,
       },
       {
@@ -148,7 +163,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-navbar-info",
         side: "bottom",
-        pointerPadding: 10,
+        pointerPadding: 14,
         pointerRadius: 14,
       },
       {
@@ -162,7 +177,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-navbar-chat",
         side: "bottom",
-        pointerPadding: 10,
+        pointerPadding: 14,
         pointerRadius: 14,
       },
       {
@@ -176,7 +191,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-navbar-task-manager",
         side: "bottom",
-        pointerPadding: 10,
+        pointerPadding: 14,
         pointerRadius: 14,
       },
     ],
