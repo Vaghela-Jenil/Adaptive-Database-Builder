@@ -1011,16 +1011,16 @@ export default function ChatPage() {
       }
     }
 
-    // Validate file size (50MB max)
-    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+    // Validate file size before upload (frontend check)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB max
     if (file.size > MAX_FILE_SIZE) {
       showToast.error(`File too large (Max 50MB). Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
       return;
     }
 
-    try {
-      setIsUploadingFile(true);
+    setIsUploadingFile(true);
 
+    try {
       const formData = new FormData();
       formData.append('file', file);
 
@@ -1031,7 +1031,18 @@ export default function ChatPage() {
         formData.append('receiverId', selectedConversation.friend.id);
       }
 
-      const response = await axios.post('/api/chat/upload', formData);
+      // Upload with extended timeout for large files
+      const response = await axios.post('/api/chat/upload', formData, {
+        timeout: 600000, // 10 minutes timeout for large file uploads
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          // Track upload progress silently, no console spam
+          const progress = progressEvent.total ? (progressEvent.loaded / progressEvent.total) * 100 : 0;
+          console.log(`Upload progress: ${progress.toFixed(2)}%`);
+        },
+      });
 
       // Determine if file is an image
       const isImage = response.data.isImage || file.type.startsWith('image/');
@@ -1047,22 +1058,30 @@ export default function ChatPage() {
       setSelectedFile(file);
       showToast.success(`File ready to send: ${file.name}`);
     } catch (error: any) {
-      console.error('Error uploading file:', error);
-      console.error('Error response data:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      
       let errorMsg = 'Failed to upload file';
-      
-      if (error.response?.data?.error) {
+
+      // Handle different error scenarios
+      if (error.code === 'ECONNABORTED') {
+        errorMsg = 'Upload timeout. The file took too long to upload. Please try a smaller file.';
+      } else if (error.response?.data?.error) {
         errorMsg = error.response.data.error;
-      } else if (error.response?.status === 500) {
-        errorMsg = 'Server error during upload. Please try again or contact support.';
+      } else if (error.response?.status === 400) {
+        errorMsg = error.response.data.error || 'Invalid file type or size';
+      } else if (error.response?.status === 401) {
+        errorMsg = 'Unauthorized. Please log in again.';
+      } else if (error.response?.status === 404) {
+        errorMsg = 'User not found. Please refresh the page.';
       } else if (error.response?.status === 413) {
-        errorMsg = 'File is too large to upload. Please use a smaller file.';
+        errorMsg = 'File is too large. Maximum size is 50MB.';
+      } else if (error.response?.status === 500) {
+        errorMsg = 'Server error. Please try again or contact support.';
+      } else if (error.code === 'ENOTFOUND' || error.message?.includes('Network')) {
+        errorMsg = 'Network error. Please check your connection.';
       } else if (error.message) {
-        errorMsg = error.message;
+        errorMsg = error.message.length > 100 ? 'Upload failed. Please try again.' : error.message;
       }
-      
+
+      // Show error as toast, never let it appear on page
       showToast.error(errorMsg);
       setSelectedFile(null);
       setFilePreview(null);

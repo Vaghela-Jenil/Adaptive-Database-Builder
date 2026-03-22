@@ -52,9 +52,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Convert file to buffer with size tracking
+    let buffer: Buffer;
+    try {
+      const bytes = await file.arrayBuffer();
+      buffer = Buffer.from(bytes);
+      console.log(`File converted to buffer: ${buffer.length} bytes (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`);
+    } catch (bufferError: any) {
+      console.error('Error converting file to buffer:', bufferError);
+      return NextResponse.json(
+        { error: 'Failed to process file. File may be corrupted.' },
+        { status: 400 }
+      );
+    }
 
     try {
       // Configure Cloudinary
@@ -79,27 +89,53 @@ export async function POST(request: NextRequest) {
         public_id: `${Date.now()}-${file.name.split('.')[0]}`,
         overwrite: false,
         timeout: 300000, // 5 minutes timeout for large files
+        max_file_size: 52428800, // 50MB max on Cloudinary side
       };
+
+      // Add image-specific optimizations
+      if (isImage) {
+        uploadOptions.quality = 'auto';
+        uploadOptions.fetch_format = 'auto';
+      }
 
       // Add video-specific optimizations
       if (isVideo) {
         uploadOptions.quality = 'auto';
         uploadOptions.eager_async = true;
+        uploadOptions.media_metadata = true;
       }
 
-      // Upload to Cloudinary using buffer directly (more efficient than base64)
+      // Upload to Cloudinary using stream for efficient memory usage
       const result = await new Promise<any>((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error: any, result: any) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        });
+        try {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            uploadOptions,
+            (error: any, result: any) => {
+              if (error) {
+                console.error('Cloudinary stream callback error:', error);
+                reject(error);
+              } else {
+                console.log('Cloudinary upload successful');
+                resolve(result);
+              }
+            }
+          );
 
-        uploadStream.end(buffer);
+          // Handle stream errors
+          uploadStream.on('error', (streamError: any) => {
+            console.error('Upload stream error:', streamError);
+            reject(streamError);
+          });
+
+          // Write buffer to stream and end
+          uploadStream.end(buffer);
+        } catch (streamSetupError: any) {
+          console.error('Error setting up upload stream:', streamSetupError);
+          reject(streamSetupError);
+        }
       });
 
+      console.log('Upload completed successfully, returning response');
       return NextResponse.json({
         url: result.secure_url,
         publicId: result.public_id,
@@ -113,29 +149,61 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
 
     } catch (cloudinaryError: any) {
-      console.error('Cloudinary upload error:', cloudinaryError);
-      console.error('Error message:', cloudinaryError.message);
-      console.error('Error status:', cloudinaryError.status);
-      console.error('Error http_code:', cloudinaryError.http_code);
+      console.error('=== Cloudinary Upload Error ===');
+      console.error('Error type:', cloudinaryError?.constructor?.name);
+      console.error('Error message:', cloudinaryError?.message);
+      console.error('Error status:', cloudinaryError?.status);
+      console.error('Error http_code:', cloudinaryError?.http_code);
+      console.error('Error full:', JSON.stringify(cloudinaryError, null, 2));
       
       let errorMessage = 'Upload failed';
+      let statusCode = 500;
       
-      if (cloudinaryError.message) {
-        errorMessage = cloudinaryError.message;
-      } else if (cloudinaryError.error?.message) {
-        errorMessage = cloudinaryError.error.message;
+      // Handle specific Cloudinary error types
+      if (cloudinaryError.message?.includes('size')) {
+        errorMessage = 'File size exceeds limit. Please use a smaller file.';
+        statusCode = 400;
+      } else if (cloudinaryError.message?.includes('timeout') || cloudinaryError.message?.includes('ETIMEDOUT')) {
+        errorMessage = 'Upload timeout. The server took too long to process. Please try a smaller file.';
+        statusCode = 408;
+      } else if (cloudinaryError.message?.includes('Network') || cloudinaryError.message?.includes('ECONNREFUSED')) {
+        errorMessage = 'Network error connecting to upload service. Please try again.';
+        statusCode = 503;
+      } else if (cloudinaryError.message?.includes('authenticat')) {
+        errorMessage = 'Upload service authentication failed. Please contact support.';
+        statusCode = 500;
+      } else if (cloudinaryError.message?.includes('format') || cloudinaryError.message?.includes('type')) {
+        errorMessage = 'File format not supported or file is corrupted.';
+        statusCode = 400;
+      } else if (cloudinaryError.message) {
+        errorMessage = cloudinaryError.message.substring(0, 150); // Limit message length
       }
       
       return NextResponse.json(
-        { error: `${errorMessage}` },
-        { status: 500 }
+        { error: errorMessage },
+        { status: statusCode }
       );
     }
 
   } catch (error: any) {
-    console.error('Error uploading file:', error);
+    console.error('=== Outer Catch - File Upload Error ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error?.message);
+    
+    let errorMessage = 'Upload error. Please try again.';
+    
+    if (error.message?.includes('ENOTFOUND') || error.message?.includes('Network')) {
+      errorMessage = 'Network error. Please check your connection.';
+    } else if (error.message?.includes('timeout') || error.code === 'ETIMEDOUT') {
+      errorMessage = 'Request timeout. Please try again.';
+    } else if (error.message?.includes('JSON') || error.message?.includes('parse')) {
+      errorMessage = 'Invalid request format.';
+    } else if (error.message) {
+      errorMessage = error.message.substring(0, 150);
+    }
+    
     return NextResponse.json(
-      { error: `Upload error: ${error.message}` },
+      { error: errorMessage },
       { status: 500 }
     );
   }
