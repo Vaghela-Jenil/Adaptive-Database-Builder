@@ -165,14 +165,13 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-                  style={{ backgroundColor: `${currentTheme.primary}10` }}
+                  className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
                 >
                   <Image
                     src={logo}
                     alt="Sysnera Logo"
-                    width={40}
-                    height={40}
+                    width={50}
+                    height={50}
                     className="object-contain p-1"
                     priority
                   />

@@ -1,8 +1,10 @@
 'use client'
-import { motion } from 'motion/react';
-import { Github, Twitter, Linkedin } from 'lucide-react';
 
-export default function DarkFooter() {
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import { Github, Linkedin, Twitter } from 'lucide-react';
+
+export default function LightFooter() {
   const footerSections = [
     {
       title: 'Product',
@@ -10,7 +12,7 @@ export default function DarkFooter() {
     },
     {
       title: 'Use Cases',
-      links: ['Personal Records', 'Team Collaboration', 'Enterprise', 'Education', 'Healthcare'],
+      links: ['Enterprise', 'Teams', 'Education', 'Healthcare', 'Startup'],
     },
     {
       title: 'Resources',
@@ -29,10 +31,7 @@ export default function DarkFooter() {
   ];
 
   return (
-    <footer className="relative bg-slate-950 border-t border-slate-800/50 overflow-hidden">
-      {/* Subtle gradient */}
-      <div className="absolute inset-0 bg-linear-to-b from-slate-900/50 to-transparent pointer-events-none" />
-
+    <footer className="relative bg-slate-900 border-t border-slate-800/50 overflow-hidden">
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         {/* Main Footer Content */}
         <div className="py-16 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
@@ -46,13 +45,19 @@ export default function DarkFooter() {
               className="mb-6"
             >
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-linear-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white">M</span>
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <Image
+                    src="/logo.png"
+                    alt="Sysnera Logo"
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
-                <span className="text-white tracking-tight">My Digital Records</span>
+                <span className="text-white font-bold text-lg">Sysnera</span>
               </div>
               <p className="text-slate-400 mb-6 max-w-sm">
-                Enterprise-grade data management for teams and individuals who demand flexibility, security, and control.
+                Enterprise-grade data management for teams and professionals who demand elegant design, security, and control.
               </p>
 
               {/* Social Links */}
@@ -60,16 +65,13 @@ export default function DarkFooter() {
                 {socialLinks.map((social) => {
                   const Icon = social.icon;
                   return (
-                    <motion.a
+                    <a
                       key={social.label}
                       href={social.href}
-                      aria-label={social.label}
-                      className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-all"
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
+                      className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
                     >
-                      <Icon className="w-4 h-4" />
-                    </motion.a>
+                      <Icon size={18} />
+                    </a>
                   );
                 })}
               </div>
@@ -85,14 +87,11 @@ export default function DarkFooter() {
               viewport={{ once: true }}
               transition={{ delay: sectionIndex * 0.1, duration: 0.6 }}
             >
-              <h3 className="text-white mb-4">{section.title}</h3>
+              <h3 className="text-white font-semibold mb-4">{section.title}</h3>
               <ul className="space-y-3">
                 {section.links.map((link) => (
                   <li key={link}>
-                    <a
-                      href="#"
-                      className="text-slate-400 hover:text-white transition-colors inline-block"
-                    >
+                    <a href="#" className="text-slate-400 hover:text-white transition-colors text-sm">
                       {link}
                     </a>
                   </li>
@@ -111,17 +110,17 @@ export default function DarkFooter() {
           transition={{ delay: 0.4, duration: 0.6 }}
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-slate-500">
-              © {new Date().getFullYear()} My Digital Records. All rights reserved.
+            <p className="text-slate-500 text-sm">
+              © {new Date().getFullYear()} ADPt. All rights reserved.
             </p>
             <div className="flex gap-6">
-              <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors">
+              <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors text-sm">
                 Privacy Policy
               </a>
-              <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors">
+              <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors text-sm">
                 Terms of Service
               </a>
-              <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors">
+              <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors text-sm">
                 Cookie Policy
               </a>
             </div>
@@ -130,7 +129,7 @@ export default function DarkFooter() {
       </div>
 
       {/* Subtle bottom glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-linear-to-t from-cyan-500/5 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-linear-to-t from-purple-600/10 to-transparent pointer-events-none" />
     </footer>
   );
 }

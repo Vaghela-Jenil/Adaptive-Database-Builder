@@ -19,10 +19,34 @@ export async function GET(
     if (!userId)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const database = await DatabaseModel.findOne({
+    // Check if user owns the database
+    let database = await DatabaseModel.findOne({
       _id: id,
       clerkId: userId,
     });
+
+    // If not owner, check if it's shared with them
+    if (!database) {
+      const friendship = await Friendship.findOne({
+        $or: [
+          {
+            requesterId: { $ne: userId },
+            recipientId: userId,
+            "requesterSharedDBs.databaseId": id,
+          },
+          {
+            recipientId: { $ne: userId },
+            requesterId: userId,
+            "recipientSharedDBs.databaseId": id,
+          },
+        ],
+        status: "Accepted",
+      });
+
+      if (friendship) {
+        database = await DatabaseModel.findById(id);
+      }
+    }
 
     if (!database)
       return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { LucideIcon } from "lucide-react";
+import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
+import { LucideIcon } from 'lucide-react';
 
 interface FloatingCard {
   label: string;
@@ -19,9 +19,8 @@ export default function RotatingGrid({
   floatingCards: FloatingCard[];
 }) {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const [positions, setPositions] = useState<number[]>([0, 1, 2, 3]); // index mapping
+  const [positions, setPositions] = useState<number[]>([0, 1, 2, 3]);
 
-  // Rotate positions every 3s
   useEffect(() => {
     const interval = setInterval(() => {
       setPositions((prev) => [prev[3], prev[0], prev[1], prev[2]]);
@@ -29,12 +28,11 @@ export default function RotatingGrid({
     return () => clearInterval(interval);
   }, []);
 
-  // Map 2x2 grid coordinates
   const gridCoords = [
-    { row: 0, col: 0 }, // 11
-    { row: 0, col: 1 }, // 12
-    { row: 1, col: 1 }, // 22
-    { row: 1, col: 0 }, // 21
+    { row: 0, col: 0 },
+    { row: 0, col: 1 },
+    { row: 1, col: 1 },
+    { row: 1, col: 0 },
   ];
 
   const cardWidth = 220;
@@ -51,7 +49,6 @@ export default function RotatingGrid({
           const Icon = card.icon;
           const isActive = hoveredCard === index;
 
-          // Get position from rotating positions
           const posIndex = positions.indexOf(index);
           const { row, col } = gridCoords[posIndex];
 
@@ -77,25 +74,25 @@ export default function RotatingGrid({
               >
                 {/* Card */}
                 <motion.div
-                  className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 rounded-2xl shadow-2xl overflow-hidden"
+                  className="relative bg-white backdrop-blur-xl border border-slate-200 rounded-2xl shadow-lg hover:shadow-2xl overflow-hidden transition-all"
                   animate={{ width: isActive ? 280 : 220 }}
                   transition={{ duration: 0.3 }}
                 >
                   {/* Hover Glow */}
                   <div
                     className={`absolute inset-0 bg-linear-to-br ${card.color} opacity-0 ${
-                      isActive ? "opacity-10" : ""
+                      isActive ? "opacity-5" : ""
                     } rounded-2xl transition-opacity duration-300 pointer-events-none`}
                   />
 
                   <div className="p-6">
                     <div
-                      className={`w-12 h-12 bg-linear-to-br ${card.color} rounded-xl flex items-center justify-center mb-3`}
+                      className={`w-12 h-12 bg-linear-to-br ${card.color} rounded-xl flex items-center justify-center mb-3 shadow-md`}
                     >
                       <Icon className="w-6 h-6 text-white" />
                     </div>
 
-                    <p className="text-slate-300 font-medium whitespace-nowrap">
+                    <p className="text-slate-800 font-bold whitespace-nowrap text-sm">
                       {card.label}
                     </p>
 
@@ -109,19 +106,14 @@ export default function RotatingGrid({
                       transition={{ duration: 0.3 }}
                       className="overflow-hidden mt-2"
                     >
-                      <p className="text-slate-400 text-sm mb-2">
+                      <p className="text-slate-600 text-xs mb-3 leading-relaxed">
                         {card.description}
                       </p>
 
-                      <div className="space-y-1.5">
-                        {card.features.map((feature, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 text-slate-400 text-xs"
-                          >
-                            <div
-                              className={`w-1.5 h-1.5 rounded-full bg-linear-to-r ${card.color}`}
-                            />
+                      <div className="space-y-2">
+                        {card.features.map((feature) => (
+                          <div key={feature} className="flex items-center gap-2 text-xs text-slate-700">
+                            <div className="w-1.5 h-1.5 bg-linear-to-r from-purple-600 to-blue-600 rounded-full" />
                             {feature}
                           </div>
                         ))}

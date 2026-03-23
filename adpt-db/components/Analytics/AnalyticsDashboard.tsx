@@ -235,7 +235,7 @@ export default function AnalyticsDashboard({
         <div className="max-w-full px-6 py-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => router.back()} style={{backgroundColor: currentTheme.primary, color: currentTheme.text }}>
+              <Button variant="ghost" size="sm" onClick={() => router.back()} style={{backgroundColor: currentTheme.primary, color: "#ffffff" }}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: currentTheme.text }}>

@@ -2,9 +2,9 @@
 import { motion } from 'motion/react';
 import { useInView } from 'motion/react';
 import { useRef, useState } from 'react';
-import { ChevronDown, HelpCircle } from 'lucide-react';
+import { ChevronDown, HelpCircle, ArrowRight } from 'lucide-react';
 
-export default function DarkFAQ() {
+export default function LightFAQ() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.3 });
   const [openIndex, setOpenIndex] = useState(0);
@@ -45,9 +45,26 @@ export default function DarkFAQ() {
   ];
 
   return (
-    <section className="relative py-16 bg-slate-950 overflow-hidden">
-      {/* Background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent" />
+    <section className="relative py-20 bg-linear-to-b from-white via-slate-50 to-blue-50 overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0">
+        <motion.div
+          className="absolute top-1/3 left-1/4 w-80 h-80 bg-linear-to-br from-purple-200/30 to-blue-200/30 rounded-full blur-3xl"
+          animate={{
+            x: [0, 50, 0],
+            y: [0, 30, 0],
+          }}
+          transition={{ duration: 10, repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-linear-to-tl from-blue-200/20 to-purple-200/20 rounded-full blur-3xl"
+          animate={{
+            x: [0, -40, 0],
+            y: [0, -30, 0],
+          }}
+          transition={{ duration: 12, repeat: Infinity, delay: 1 }}
+        />
+      </div>
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <motion.div
@@ -61,16 +78,16 @@ export default function DarkFAQ() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 mb-6"
+            className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-purple-600/10 to-blue-600/10 border border-purple-300/30 mb-6"
           >
-            <span className="text-cyan-400">Got Questions?</span>
+            <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">Got Questions?</span>
           </motion.div>
 
-          <h2 className="text-white mb-4 bg-linear-to-r from-white to-slate-400 bg-clip-text">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-linear-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
             Frequently asked questions
           </h2>
-          <p className="text-slate-400 max-w-2xl mx-auto">
-            Everything you need to know about My Digital Records
+          <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+            Everything you need to know about ADPt database platform
           </p>
         </motion.div>
 
@@ -81,33 +98,41 @@ export default function DarkFAQ() {
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                transition={{ delay: 0.1 * index, duration: 0.6 }}
+                transition={{ delay: 0.05 * index, duration: 0.6 }}
                 className="group"
               >
-                <div
-                  className={`relative bg-slate-900/50 backdrop-blur-xl border rounded-xl overflow-hidden transition-all duration-300 ${
+                <motion.div
+                  className={`relative bg-white/80 backdrop-blur-xl border rounded-2xl overflow-hidden transition-all duration-300 shadow-lg ${
                     openIndex === index
-                      ? 'border-cyan-500/30 bg-slate-900/80'
-                      : 'border-slate-800/50 hover:border-slate-700/50'
+                      ? 'border-purple-300 bg-white/95 shadow-xl'
+                      : 'border-slate-200/50 hover:border-slate-300 hover:shadow-lg'
                   }`}
+                  whileHover={{ y: -2 }}
                 >
                   <button
                     onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
                     className="w-full text-left p-6 flex items-center justify-between gap-4"
                   >
-                    <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-all ${
-                        openIndex === index
-                          ? 'bg-linear-to-br from-cyan-500 to-blue-600'
-                          : 'bg-slate-800'
-                      }`}>
-                        <HelpCircle className={`w-5 h-5 transition-colors ${
-                          openIndex === index ? 'text-white' : 'text-slate-400'
-                        }`} />
-                      </div>
-                      <span className={`transition-colors ${
-                        openIndex === index ? 'text-white' : 'text-slate-300'
-                      }`}>
+                    <div className="flex items-start gap-4 flex-1">
+                      <motion.div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all shadow-md ${
+                          openIndex === index
+                            ? 'bg-linear-to-br from-purple-600 to-blue-600 shadow-lg'
+                            : 'bg-linear-to-br from-slate-100 to-slate-200'
+                        }`}
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <HelpCircle
+                          className={`w-6 h-6 transition-colors ${
+                            openIndex === index ? 'text-white' : 'text-slate-600'
+                          }`}
+                        />
+                      </motion.div>
+                      <span
+                        className={`font-semibold text-lg transition-colors ${
+                          openIndex === index ? 'text-slate-900' : 'text-slate-800'
+                        }`}
+                      >
                         {faq.question}
                       </span>
                     </div>
@@ -116,9 +141,11 @@ export default function DarkFAQ() {
                       transition={{ duration: 0.3 }}
                       className="shrink-0"
                     >
-                      <ChevronDown className={`w-5 h-5 transition-colors ${
-                        openIndex === index ? 'text-cyan-400' : 'text-slate-400'
-                      }`} />
+                      <ChevronDown
+                        className={`w-6 h-6 transition-colors ${
+                          openIndex === index ? 'text-purple-600' : 'text-slate-400'
+                        }`}
+                      />
                     </motion.div>
                   </button>
 
@@ -131,7 +158,7 @@ export default function DarkFAQ() {
                     transition={{ duration: 0.3 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-6 pb-6 pl-20 text-slate-400 leading-relaxed">
+                    <div className="px-6 pb-6 pl-20 text-slate-600 leading-relaxed text-base">
                       {faq.answer}
                     </div>
                   </motion.div>
@@ -141,34 +168,15 @@ export default function DarkFAQ() {
                     <motion.div
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-cyan-500 to-blue-600"
+                      transition={{ duration: 0.4 }}
+                      className="absolute bottom-0 left-0 right-0 h-1 bg-linear-to-r from-purple-600 to-blue-600"
                     />
                   )}
-                </div>
+                </motion.div>
               </motion.div>
             ))}
           </div>
 
-          {/* Still have questions CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-            transition={{ delay: 0.8, duration: 0.8 }}
-            className="mt-12 text-center bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-8"
-          >
-            <h3 className="text-white mb-3">Still have questions?</h3>
-            <p className="text-slate-400 mb-6">
-              Our team is here to help. Get in touch and we'll respond within 24 hours.
-            </p>
-            <a
-              href="#"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
-            >
-              Contact Support
-              <span>→</span>
-            </a>
-          </motion.div>
         </div>
       </div>
     </section>

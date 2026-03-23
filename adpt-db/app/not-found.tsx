@@ -42,12 +42,6 @@ export default function PageNotFound() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-          <Button 
-            className="flex items-center space-x-2 w-full sm:w-auto"
-          >
-            <Home className="w-4 h-4" />
-            <Link href='/user/dashboard'><span>Back to Home</span></Link>
-          </Button>
           
           <Button 
             variant="outline" 

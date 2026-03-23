@@ -1,15 +1,13 @@
 'use client';
 import { useState } from "react";
 import LandingPage from "./synsnera/page";
-import DarkUseCases from "@/components/landingPage/DarkUseCases";
-import DarkTrust from "@/components/landingPage/DarkTrust";
-import DarkIntegrations from "@/components/landingPage/DarkIntegration";
-import DarkTestimonials from "@/components/landingPage/DarkTestimonials";
-import DarkFeatures from "@/components/landingPage/DarkFeature";
-import DarkFAQ from "@/components/landingPage/DarkFAQ";
-import DarkNavigation from "@/components/landingPage/DarkNavigation";
-import DarkFooter from "@/components/landingPage/DarkFooter";
+import LightFeatures from "@/components/landingPage/LightFeatures";
+import LightTrust from "@/components/landingPage/LightTrust";
+import LightFAQ from "@/components/landingPage/LightFAQ";
+import LightNavigation from "@/components/landingPage/LightNavigation";
+import LightFooter from "@/components/landingPage/LightFooter";
 import { Toaster } from "@/components/ui/sonner";
+import LightIntegrations from "@/components/landingPage/LightIntegrations";
 
 export default function Home() {
 
@@ -19,28 +17,24 @@ export default function Home() {
       switch (activePage) {
         case "Home":
           return <LandingPage />;
-        case "Use Cases":
-          return <DarkUseCases />;
         case "Features":
-          return <DarkFeatures />;
+          return <LightFeatures />;
         case "Security":
-          return <DarkTrust />;
+          return <LightTrust />;
         case "Tools":
-          return <DarkIntegrations />;
-          // case "Reviews":
-          // return <DarkTestimonials />;
-          case "Q&A":
-          return <DarkFAQ />;
+          return <LightIntegrations />;
+        case "FAQ":
+          return <LightFAQ />;
         default:
           return <LandingPage/>
       }
     };
 
   return (
-    <div className="w-full min-h-screen bg-slate-950 relative">
-      <DarkNavigation activePanel={activePage} setActivePanel={setActivePage}/>
+    <div className="w-full min-h-screen bg-white relative">
+      <LightNavigation activePanel={activePage} setActivePanel={setActivePage}/>
       {renderPage()}
-      <DarkFooter />
+      <LightFooter />
       <Toaster/>
     </div>
   );

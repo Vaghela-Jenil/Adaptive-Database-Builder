@@ -16,6 +16,8 @@ import {
   Layers,
   Grid3x3,
   RefreshCw,
+  Share2,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -49,6 +51,12 @@ interface FullDatabase {
   formSchema: FormField[];
   records: DatabaseRecord[];
   totalRecords: number;
+}
+
+interface SharedDatabaseInfo extends DatabaseInfo {
+  ownerName: string;
+  userRole: 'Admin' | 'Editor' | 'Viewer';
+  isShared: true;
 }
 
 type ChartType =
@@ -88,7 +96,8 @@ export default function MultiDatabaseAnalytics() {
   const router = useRouter();
 
   /* — selection phase — */
-  const [databases, setDatabases] = useState<DatabaseInfo[]>([]);
+  const [ownDatabases, setOwnDatabases] = useState<DatabaseInfo[]>([]);
+  const [sharedDatabases, setSharedDatabases] = useState<SharedDatabaseInfo[]>([]);
   const [selectedDbIds, setSelectedDbIds] = useState<string[]>([]);
 
   /* — analysis phase — */
@@ -101,8 +110,31 @@ export default function MultiDatabaseAnalytics() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await axios.get('/api/databases');
-        setDatabases(res.data.databases || []);
+        // Fetch own databases
+        const resOwn = await axios.get('/api/databases');
+        setOwnDatabases(resOwn.data.databases || []);
+
+        // Fetch shared databases with Admin or Editor role
+        try {
+          const resShared = await axios.get('/api/network/shared-dbs');
+          if (resShared.data?.databases) {
+            const filteredShared = resShared.data.databases
+              .filter((db: any) => db.network?.userRole === 'Admin' || db.network?.userRole === 'Editor')
+              .map((db: any) => ({
+                _id: db.details._id,
+                DatabaseName: db.details.DatabaseName,
+                recordCount: db.details.recordCount || 0,
+                formSchema: db.details.formSchema || [],
+                ownerName: db.network.ownerName,
+                userRole: db.network.userRole,
+                isShared: true,
+              }));
+            setSharedDatabases(filteredShared);
+          }
+        } catch (err) {
+          // Shared databases fetch is optional
+          console.log('No shared databases or error fetching them');
+        }
       } catch (err) {
         console.error('Failed to fetch databases:', err);
       }
@@ -264,7 +296,7 @@ export default function MultiDatabaseAnalytics() {
               )}
             </div>
 
-            {databases.length === 0 ? (
+            {ownDatabases.length === 0 && sharedDatabases.length === 0 ? (
               <div
                 className="py-20 text-center rounded-2xl"
                 style={{ backgroundColor: currentTheme.background }}
@@ -282,71 +314,191 @@ export default function MultiDatabaseAnalytics() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                  {databases.map((db, idx) => {
-                    const sel = selectedDbIds.includes(db._id);
-                    return (
-                      <motion.button
-                        key={db._id}
-                        onClick={() => toggleDb(db._id)}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.04 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.97 }}
-                        className="p-6 rounded-xl border-2 transition-all text-left relative overflow-hidden group"
-                        style={{
-                          backgroundColor: sel
-                            ? `${currentTheme.primary}12`
-                            : currentTheme.background,
-                          borderColor: sel ? currentTheme.primary : currentTheme.border,
-                        }}
-                      >
-                        <div
-                          className={`absolute top-3 right-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${sel ? 'scale-100' : 'scale-75 opacity-30'
-                            }`}
-                          style={{
-                            borderColor: sel ? currentTheme.primary : currentTheme.border,
-                            backgroundColor: sel ? currentTheme.primary : 'transparent',
-                          }}
-                        >
-                          {sel && <CheckCircle2 className="w-4 h-4 text-white" />}
-                        </div>
-                        <div
-                          className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl transition-all"
-                          style={{
-                            backgroundColor: sel ? currentTheme.primary : 'transparent',
-                          }}
-                        />
-                        <div
-                          className="font-bold text-lg mb-3"
-                          style={{ color: currentTheme.text }}
-                        >
-                          {db.DatabaseName}
-                        </div>
-                        <div
-                          className="space-y-2 text-sm"
-                          style={{ color: currentTheme.textSecondary }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <ChartNoAxesCombined
-                              className="w-4 h-4"
-                              style={{ color: currentTheme.primary }}
+                {/* Shared Databases Section */}
+                {sharedDatabases.length > 0 && (
+                  <div className="mb-10">
+                    <h3
+                      className="text-lg font-semibold mb-4 flex items-center gap-2"
+                      style={{ color: currentTheme.text }}
+                    >
+                      <Share2 className="w-5 h-5" style={{ color: currentTheme.primary }} />
+                      Shared with Me
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      {sharedDatabases.map((db, idx) => {
+                        const sel = selectedDbIds.includes(db._id);
+                        return (
+                          <motion.button
+                            key={db._id}
+                            onClick={() => toggleDb(db._id)}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.04 }}
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.97 }}
+                            className="p-6 rounded-xl border-2 transition-all text-left relative overflow-hidden group"
+                            style={{
+                              backgroundColor: sel
+                                ? `${currentTheme.primary}12`
+                                : currentTheme.background,
+                              borderColor: sel ? currentTheme.primary : currentTheme.border,
+                            }}
+                          >
+                            <div
+                              className={`absolute top-3 right-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${sel ? 'scale-100' : 'scale-75 opacity-30'
+                                }`}
+                              style={{
+                                borderColor: sel ? currentTheme.primary : currentTheme.border,
+                                backgroundColor: sel ? currentTheme.primary : 'transparent',
+                              }}
+                            >
+                              {sel && <CheckCircle2 className="w-4 h-4 text-white" />}
+                            </div>
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl transition-all"
+                              style={{
+                                backgroundColor: sel ? currentTheme.primary : 'transparent',
+                              }}
                             />
-                            <span>{db.recordCount} records</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <NotebookTabs
-                              className="w-4 h-4"
-                              style={{ color: currentTheme.primary }}
+                            <div className="flex items-start justify-between mb-3">
+                              <div
+                                className="font-bold text-lg flex-1"
+                                style={{ color: currentTheme.text }}
+                              >
+                                {db.DatabaseName}
+                              </div>
+                              <div className="flex gap-1.5 ml-2">
+                                <span
+                                  className="px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap"
+                                  style={{
+                                    backgroundColor:
+                                      db.userRole === 'Admin'
+                                        ? `#dc263530`
+                                        : `#2563eb30`,
+                                    color:
+                                      db.userRole === 'Admin'
+                                        ? '#dc2635'
+                                        : '#2563eb',
+                                  }}
+                                >
+                                  {db.userRole}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              className="text-xs font-medium mb-3 flex items-center gap-2"
+                              style={{ color: currentTheme.textSecondary }}
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              {db.ownerName}
+                            </div>
+                            <div
+                              className="space-y-2 text-sm"
+                              style={{ color: currentTheme.textSecondary }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <ChartNoAxesCombined
+                                  className="w-4 h-4"
+                                  style={{ color: currentTheme.primary }}
+                                />
+                                <span>{db.recordCount} records</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <NotebookTabs
+                                  className="w-4 h-4"
+                                  style={{ color: currentTheme.primary }}
+                                />
+                                <span>{db.formSchema?.length || 0} fields</span>
+                              </div>
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                    <div
+                      className="border-b"
+                      style={{ borderColor: currentTheme.border }}
+                    />
+                  </div>
+                )}
+
+                {/* Own Databases Section */}
+                {ownDatabases.length > 0 && (
+                  <div>
+                    <h3
+                      className="text-lg font-semibold mb-4 flex items-center gap-2"
+                      style={{ color: currentTheme.text }}
+                    >
+                      <Database className="w-5 h-5" style={{ color: currentTheme.primary }} />
+                      My Databases
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                      {ownDatabases.map((db, idx) => {
+                        const sel = selectedDbIds.includes(db._id);
+                        return (
+                          <motion.button
+                            key={db._id}
+                            onClick={() => toggleDb(db._id)}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.04 }}
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.97 }}
+                            className="p-6 rounded-xl border-2 transition-all text-left relative overflow-hidden group"
+                            style={{
+                              backgroundColor: sel
+                                ? `${currentTheme.primary}12`
+                                : currentTheme.background,
+                              borderColor: sel ? currentTheme.primary : currentTheme.border,
+                            }}
+                          >
+                            <div
+                              className={`absolute top-3 right-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${sel ? 'scale-100' : 'scale-75 opacity-30'
+                                }`}
+                              style={{
+                                borderColor: sel ? currentTheme.primary : currentTheme.border,
+                                backgroundColor: sel ? currentTheme.primary : 'transparent',
+                              }}
+                            >
+                              {sel && <CheckCircle2 className="w-4 h-4 text-white" />}
+                            </div>
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl transition-all"
+                              style={{
+                                backgroundColor: sel ? currentTheme.primary : 'transparent',
+                              }}
                             />
-                            <span>{db.formSchema?.length || 0} fields</span>
-                          </div>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
-                </div>
+                            <div
+                              className="font-bold text-lg mb-3"
+                              style={{ color: currentTheme.text }}
+                            >
+                              {db.DatabaseName}
+                            </div>
+                            <div
+                              className="space-y-2 text-sm"
+                              style={{ color: currentTheme.textSecondary }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <ChartNoAxesCombined
+                                  className="w-4 h-4"
+                                  style={{ color: currentTheme.primary }}
+                                />
+                                <span>{db.recordCount} records</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <NotebookTabs
+                                  className="w-4 h-4"
+                                  style={{ color: currentTheme.primary }}
+                                />
+                                <span>{db.formSchema?.length || 0} fields</span>
+                              </div>
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div
                   className="flex gap-4 flex-wrap items-center pt-5 border-t"
