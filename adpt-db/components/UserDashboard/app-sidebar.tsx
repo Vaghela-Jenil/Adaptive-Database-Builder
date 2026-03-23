@@ -213,6 +213,8 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                     style={{
                       backgroundColor: isActive ? currentTheme.primary : "transparent",
                       color: isActive ? "#ffffff" : currentTheme.text,
+                      border: `1px solid ${isActive ? currentTheme.primary : currentTheme.border}`,
+                      boxShadow: isActive ? "0 6px 14px rgba(0, 0, 0, 0.18)" : "0 2px 8px rgba(0, 0, 0, 0.10)",
                     }}
                   >
                     <Icon className="w-5 h-5" />
@@ -244,6 +246,8 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                       style={{
                         backgroundColor: isActive ? currentTheme.primary : "transparent",
                         color: isActive ? "#ffffff" : currentTheme.text,
+                        border: `1px solid ${isActive ? currentTheme.primary : currentTheme.border}`,
+                        boxShadow: isActive ? "0 6px 14px rgba(0, 0, 0, 0.18)" : "0 2px 8px rgba(0, 0, 0, 0.10)",
                       }}
                     >
                       <Icon className="w-5 h-5" />

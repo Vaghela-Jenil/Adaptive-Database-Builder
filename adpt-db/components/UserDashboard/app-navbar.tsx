@@ -197,6 +197,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             style={{
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
             }}
           >
             {isSidebarOpen ? (
@@ -212,6 +213,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
             style={{
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
             }}
           >
             <RefreshCcw
@@ -234,6 +236,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
               color: currentTheme.textSecondary,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
             }}
           >
             <HelpCircle className="w-5 h-5" />
@@ -250,6 +253,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
               color: currentTheme.textSecondary,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
             }}
           >
             <MessageCircle className="w-5 h-5" />
@@ -276,6 +280,7 @@ export default function DashboardNavbar({ isSidebarOpen, setIsSidebarOpen, onRef
               backgroundColor: currentTheme.background,
               border: `1px solid ${currentTheme.border}`,
               color: currentTheme.textSecondary,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
             }}
           >
             <Calendar className="w-5 h-5" />
