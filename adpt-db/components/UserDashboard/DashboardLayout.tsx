@@ -161,7 +161,7 @@ export default function DashboardLayout() {
         cardTransition={{ type: "spring", stiffness: 140, damping: 18 }}
       >
         <TourAutoLaunch setIsSidebarOpen={setIsSidebarOpen} />
-        <div className="flex h-screen overflow-hidden" style={{ backgroundColor: currentTheme.background }}>
+        <div className="flex h-[100dvh] overflow-hidden" style={{ backgroundColor: currentTheme.background }}>
           <VisitTracker />
           <DashboardSidebar
             activePage={activePage}

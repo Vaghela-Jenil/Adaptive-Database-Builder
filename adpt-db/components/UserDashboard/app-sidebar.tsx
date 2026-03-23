@@ -144,7 +144,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
   };
 
   return (
-   <div suppressHydrationWarning className="relative h-full" // Ensure height is 100%
+  <div suppressHydrationWarning className="relative h-[100dvh]" // Ensure height is 100%
       style={{
         backgroundColor: currentTheme.surface,
         borderRight: `1px solid ${currentTheme.border}`,
@@ -155,11 +155,11 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
         className="overflow-hidden shrink-0 h-full" // Ensure height is 100%
       >
         {/* Main Flex Container: h-screen or h-full depending on parent */}
-        <div className="w-70 h-screen flex flex-col">
+        <div className="w-[280px] h-full min-h-0 flex flex-col">
           
           {/* 1. FIXED HEADER */}
           <div
-            className="p-6 shrink-0" // shrink-0 prevents the header from collapsing
+            className="p-4 shrink-0" // shrink-0 prevents the header from collapsing
             style={{ borderBottom: `1px solid ${currentTheme.border}` }}
           >
             <div className="flex items-center gap-3">
@@ -190,7 +190,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
 
           {/* 2. SCROLLABLE NAVIGATION AREA */}
           <nav 
-          className="flex-1 overflow-y-auto p-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-lg transition-all"
+          className="flex-1 min-h-0 overflow-y-auto p-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-lg transition-all"
   style={{
     scrollbarWidth: 'thin',
     scrollbarColor: `${currentTheme.primary}60 transparent`,
@@ -209,14 +209,14 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                     onClick={() => setActivePage(item.id)}
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                    className="w-full min-h-11 flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
                     style={{
                       backgroundColor: isActive ? currentTheme.primary : "transparent",
                       color: isActive ? "#ffffff" : currentTheme.text,
                     }}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <span className="font-medium leading-none whitespace-nowrap">{item.label}</span>
                     {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
                   </motion.button>
                 );
@@ -224,8 +224,8 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             </div>
 
             {/* Quick Access Section */}
-            <div className="mt-8 mb-4">
-              <p className="text-xs font-semibold uppercase tracking-wider px-4 mb-3"
+            <div className="mt-6 mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider px-4 mb-2"
                  style={{ color: currentTheme.textSecondary }}>
                 Quick Access
               </p>
@@ -240,14 +240,14 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                       onClick={() => setActivePage(item.id)}
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                      className="w-full min-h-11 flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
                       style={{
                         backgroundColor: isActive ? currentTheme.primary : "transparent",
                         color: isActive ? "#ffffff" : currentTheme.text,
                       }}
                     >
                       <Icon className="w-5 h-5" />
-                      <span className="font-medium">{item.label}</span>
+                      <span className="font-medium leading-none whitespace-nowrap">{item.label}</span>
                       {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
                     </motion.button>
                   );

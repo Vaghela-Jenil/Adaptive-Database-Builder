@@ -5,6 +5,7 @@ import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/context/ThemeContext";
 import { useOnborda } from "onborda";
+import { dashboardTourStepSelectors } from "./dashboard-tour-steps";
 
 export function DashboardTourCard({
   step,
@@ -17,6 +18,41 @@ export function DashboardTourCard({
   const { currentTheme } = useTheme();
   const { closeOnborda } = useOnborda();
   const isLastStep = currentStep === totalSteps - 1;
+
+  const scrollToStepTarget = (stepIndex: number) => {
+    const selector = dashboardTourStepSelectors[stepIndex];
+    if (!selector) return;
+
+    const target = document.querySelector(selector) as HTMLElement | null;
+    if (!target) return;
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  };
+
+  const handleNextStep = () => {
+    if (isLastStep) {
+      closeOnborda();
+      return;
+    }
+
+    scrollToStepTarget(currentStep + 1);
+    window.setTimeout(() => {
+      nextStep();
+    }, 160);
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep === 0) return;
+
+    scrollToStepTarget(currentStep - 1);
+    window.setTimeout(() => {
+      prevStep();
+    }, 160);
+  };
 
   return (
     <div
@@ -101,7 +137,7 @@ export function DashboardTourCard({
           <Button
             type="button"
             variant="outline"
-            onClick={prevStep}
+            onClick={handlePrevStep}
             disabled={currentStep === 0}
             className="rounded-xl"
             style={{
@@ -129,7 +165,7 @@ export function DashboardTourCard({
             </Button>
             <Button
               type="button"
-              onClick={isLastStep ? closeOnborda : nextStep}
+              onClick={handleNextStep}
               className="rounded-xl text-white"
               style={{ backgroundColor: currentTheme.primary }}
             >

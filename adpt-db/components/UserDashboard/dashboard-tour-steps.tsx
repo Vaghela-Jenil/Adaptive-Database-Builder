@@ -15,6 +15,21 @@ import {
 
 export const dashboardTourName = "dashboard-tour";
 
+export const dashboardTourStepSelectors = [
+  "#onborda-dashboard-home",
+  "#onborda-database",
+  "#onborda-analytics",
+  "#onborda-chatbot",
+  "#onborda-nearby-store",
+  "#onborda-history",
+  "#onborda-shared-database",
+  "#onborda-query",
+  "#onborda-chat-app",
+  "#onborda-navbar-info",
+  "#onborda-navbar-chat",
+  "#onborda-navbar-task-manager",
+] as const;
+
 type DashboardTour = {
   tour: string;
   steps: Step[];
@@ -70,7 +85,7 @@ export const dashboardTourSteps: DashboardTour[] = [
       },
       {
         icon: <Sparkles className="h-4 w-4" />,
-        title: "Chatbot",
+        title: "AI Assistant",
         content: (
           <div className={tourContentClassName}>
             <p>The AI assistant helps with navigation, data questions, and workflow guidance in natural language.</p>
@@ -93,7 +108,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-nearby-store",
         side: "right",
-        pointerPadding: 16,
+        pointerPadding: 12,
         pointerRadius: 18,
       },
         {
@@ -107,7 +122,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-history",
         side: "right",
-        pointerPadding: 20,
+        pointerPadding: 12,
         pointerRadius: 18,
       },
       {
@@ -121,7 +136,7 @@ export const dashboardTourSteps: DashboardTour[] = [
         ),
         selector: "#onborda-shared-database",
         side: "right",
-        pointerPadding: 24,
+        pointerPadding: 10,
         pointerRadius: 18,
       },
       {
