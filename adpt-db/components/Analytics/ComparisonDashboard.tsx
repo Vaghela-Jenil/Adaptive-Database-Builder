@@ -447,6 +447,19 @@ export default function ComparisonDashboard({
       height: number
     ) => {
       const hasCat = !!chart.categoryFieldId;
+      const categoryDb = loadedDbs.find((d) => d._id === chart.categoryDatabaseId);
+      const categoryField = categoryDb?.formSchema.find((f) => f.id === chart.categoryFieldId);
+      const xAxisLabel = hasCat
+        ? categoryField?.label || 'Category'
+        : chart.type === 'scatter'
+          ? 'Data Point Index'
+          : 'Series';
+      const yAxisLabel =
+        seriesKeys.length === 1
+          ? seriesKeys[0]
+          : seriesKeys.length > 1
+            ? 'Aggregated Value'
+            : 'Value';
       const tip = {
         contentStyle: {
           backgroundColor: currentTheme.surface,
@@ -464,8 +477,20 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis dataKey="name" stroke={currentTheme.textSecondary} angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                <YAxis stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="name"
+                  stroke={currentTheme.textSecondary}
+                  angle={-35}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: xAxisLabel, position: 'insideBottom', offset: -4, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Legend />
                 {hasCat ? (
@@ -488,8 +513,20 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 100, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis type="number" stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} width={90} />
+                <XAxis
+                  type="number"
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yAxisLabel, position: 'insideBottom', offset: -2, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  width={90}
+                  label={{ value: xAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Legend />
                 {hasCat ? (
@@ -512,8 +549,20 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis dataKey="name" stroke={currentTheme.textSecondary} angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                <YAxis stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="name"
+                  stroke={currentTheme.textSecondary}
+                  angle={-35}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: xAxisLabel, position: 'insideBottom', offset: -4, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Legend />
                 {seriesKeys.map((k, i) => (
@@ -534,8 +583,20 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis dataKey="name" stroke={currentTheme.textSecondary} angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                <YAxis stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="name"
+                  stroke={currentTheme.textSecondary}
+                  angle={-35}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: xAxisLabel, position: 'insideBottom', offset: -4, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Legend />
                 {hasCat ? (
@@ -554,8 +615,20 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis dataKey="name" stroke={currentTheme.textSecondary} angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                <YAxis stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="name"
+                  stroke={currentTheme.textSecondary}
+                  angle={-35}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: xAxisLabel, position: 'insideBottom', offset: -4, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Legend />
                 {hasCat ? (
@@ -615,8 +688,22 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <ScatterChart margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis type="number" dataKey="x" stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} name="Index" />
-                <YAxis type="number" dataKey="y" stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} name="Value" />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  name={xAxisLabel}
+                  label={{ value: xAxisLabel, position: 'insideBottom', offset: -2, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  name={yAxisLabel}
+                  label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Scatter data={scatterData} fill={currentTheme.primary}>
                   {scatterData.map((_, i) => (
@@ -663,8 +750,20 @@ export default function ComparisonDashboard({
             <ResponsiveContainer width="100%" height={height}>
               <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.border} opacity={0.3} />
-                <XAxis dataKey="name" stroke={currentTheme.textSecondary} angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                <YAxis stroke={currentTheme.textSecondary} tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="name"
+                  stroke={currentTheme.textSecondary}
+                  angle={-35}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: xAxisLabel, position: 'insideBottom', offset: -4, fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
+                <YAxis
+                  stroke={currentTheme.textSecondary}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+                />
                 <Tooltip {...tip} />
                 <Legend />
                 {hasCat ? (
@@ -694,7 +793,7 @@ export default function ComparisonDashboard({
           );
       }
     },
-    [currentTheme]
+    [currentTheme, loadedDbs]
   );
 
   /* ─── Overview stats ───────────────────────────── */

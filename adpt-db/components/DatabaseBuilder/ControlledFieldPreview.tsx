@@ -40,6 +40,29 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
   const errorMessage = formErrors?.[field.id];
   const options = field.options || [];
 
+  const getMeridiemFromTime = (time?: string): 'AM' | 'PM' => {
+    if (!time || !time.includes(':')) return 'AM';
+    const [hours] = time.split(':').map(Number);
+    return Number.isFinite(hours) && hours >= 12 ? 'PM' : 'AM';
+  };
+
+  const applyMeridiemToTime = (time: string, meridiem: 'AM' | 'PM'): string => {
+    const baseTime = time && time.includes(':') ? time : '12:00';
+    const [hoursRaw, minutesRaw] = baseTime.split(':');
+    let hours = Number(hoursRaw);
+    const minutes = Number(minutesRaw);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return '12:00';
+
+    if (meridiem === 'AM') {
+      if (hours >= 12) hours -= 12;
+    } else if (hours < 12) {
+      hours += 12;
+    }
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+
   const handleTagRemove = (tag: string) => {
     const next = localTags.filter((t) => t !== tag);
     setLocalTags(next);
@@ -382,20 +405,36 @@ export default function ControlledFieldPreview({ field, value, onChange, isEditi
 
       {/* TIME FIELD */}
 {field.type === 'input-time' && (
-    <Input
-      type="time"
-      value={value || ''}
-      onChange={(e) => onChange?.(e.target.value)}
-      disabled={field.disabled}
-      style={{
-        backgroundColor: currentTheme.surface,
-        borderColor: errorMessage ? "#ef4444" : currentTheme.border,
-        color: currentTheme.text,
-        accentColor: "red",
-        colorScheme: mode === 'dark' ? 'dark' : 'light'
-      }}
-      className="block w-full h-9 text-sm rounded-md"
-    />
+    <div className="grid grid-cols-[1fr_84px] gap-2">
+      <Input
+        type="time"
+        value={value || ''}
+        onChange={(e) => onChange?.(e.target.value)}
+        disabled={field.disabled}
+        style={{
+          backgroundColor: currentTheme.surface,
+          borderColor: errorMessage ? "#ef4444" : currentTheme.border,
+          color: currentTheme.text,
+          accentColor: "red",
+          colorScheme: mode === 'dark' ? 'dark' : 'light'
+        }}
+        className="block w-full h-9 text-sm rounded-md"
+      />
+      <select
+        value={getMeridiemFromTime(value || '')}
+        onChange={(e) => onChange?.(applyMeridiemToTime(value || '12:00', e.target.value as 'AM' | 'PM'))}
+        disabled={field.disabled}
+        className="h-9 rounded-md border px-2 text-sm outline-none"
+        style={{
+          backgroundColor: currentTheme.surface,
+          borderColor: errorMessage ? "#ef4444" : currentTheme.border,
+          color: currentTheme.text,
+        }}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
 )}
 
       {/* 10. Standard Inputs (text, email, tel, date, etc.) */}

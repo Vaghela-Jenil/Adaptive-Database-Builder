@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
-import { Loader2, Info, Compass, Check } from "lucide-react";
+import { Loader2, Info, Compass, Check, Maximize2, X } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 import ResultsList from "@/components/Nearby-store/ResultList";
@@ -53,6 +53,7 @@ export default function NearByStorePage() {
   const [results, setResults] = useState<Place[] | null>(null);
   const [lastSearch, setLastSearch] = useState<SearchState | null>(null);
   const [open_now, setOpenNow] = useState<OpenNowOption>("");
+  const [isMapMaximized, setIsMapMaximized] = useState(false);
 
   const handleLocationClick = async () => {
     setLoading(true);
@@ -378,7 +379,7 @@ export default function NearByStorePage() {
                           Click "Initiate Search"
                         </p>
                         <p className="text-[11px] opacity-70" style={{ color: currentTheme.textSecondary }}>
-                          See results on the map and list. Export data as CSV, XLSX, or JSON
+                          See results on the map and list. Export data as CSV or PDF
                         </p>
                       </div>
                     </div>
@@ -493,6 +494,19 @@ export default function NearByStorePage() {
                 <div className="xl:col-span-3 rounded-[2.5rem] p-2"
                   style={{ background: `${currentTheme.surface}B3`, border: `1px solid ${currentTheme.border}` }}>
                   <div className="rounded-[2rem] overflow-hidden h-145 w-full relative border bg-slate-50/10" style={{ borderColor: currentTheme.border }}>
+                    <button
+                      onClick={() => setIsMapMaximized(true)}
+                      className="absolute top-3 right-3 z-[500] p-2 rounded-xl border"
+                      style={{
+                        backgroundColor: `${currentTheme.background}E6`,
+                        borderColor: currentTheme.border,
+                        color: currentTheme.text
+                      }}
+                      aria-label="Maximize map"
+                      title="Maximize map"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
                     <MapView
                       places={results ?? []}
                       center={{
@@ -520,11 +534,47 @@ export default function NearByStorePage() {
                     Export <span style={{ color: currentTheme.primary }}>Dataset</span>
                   </h3>
                   <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest" style={{ color: currentTheme.textSecondary }}>
-                    Available Formats: CSV • XLSX • JSON
+                    Available Formats: CSV • PDF
                   </p>
                 </div>
                 <ExportButtons places={results ?? []} fileBase={fileBase} />
               </motion.div>
+
+              {isMapMaximized && (
+                <div
+                  className="fixed inset-0 z-[9999] p-4 md:p-8"
+                  style={{ backgroundColor: "rgba(0, 0, 0, 0.65)" }}
+                >
+                  <div
+                    className="relative h-full w-full rounded-[2rem] overflow-hidden border"
+                    style={{ background: `${currentTheme.surface}F0`, borderColor: currentTheme.border }}
+                  >
+                    <button
+                      onClick={() => setIsMapMaximized(false)}
+                      className="absolute top-4 right-4 z-[600] p-2 rounded-xl border"
+                      style={{
+                        backgroundColor: `${currentTheme.background}E6`,
+                        borderColor: currentTheme.border,
+                        color: currentTheme.text
+                      }}
+                      aria-label="Close maximized map"
+                      title="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+
+                    <div className="h-full w-full">
+                      <MapView
+                        places={results ?? []}
+                        center={{
+                          lat: lastSearch?.latitude ?? latitude,
+                          lon: lastSearch?.longitude ?? longitude,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -63,6 +63,13 @@ export default function ChartDisplay({
   formSchema: FormField[];
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const getFieldLabel = (fieldId: string) => {
+    return formSchema.find((field) => field.id === fieldId)?.label || fieldId || 'Unknown';
+  };
+
+  const xAxisLabel = getFieldLabel(chart.xAxis);
+  const yAxisLabel = getFieldLabel(chart.yAxis);
+
   const renderChart = (height: number) => {
     switch (chart.type) {
       case 'bar':
@@ -76,8 +83,12 @@ export default function ChartDisplay({
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                label={{ value: xAxisLabel, position: 'insideBottom', offset: -2, fill: currentTheme.textSecondary, fontSize: 11 }}
               />
-              <YAxis stroke={currentTheme.textSecondary} />
+              <YAxis
+                stroke={currentTheme.textSecondary}
+                label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: currentTheme.surface,
@@ -133,8 +144,12 @@ export default function ChartDisplay({
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                label={{ value: xAxisLabel, position: 'insideBottom', offset: -2, fill: currentTheme.textSecondary, fontSize: 11 }}
               />
-              <YAxis stroke={currentTheme.textSecondary} />
+              <YAxis
+                stroke={currentTheme.textSecondary}
+                label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: currentTheme.surface,
@@ -167,8 +182,12 @@ export default function ChartDisplay({
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                label={{ value: xAxisLabel, position: 'insideBottom', offset: -2, fill: currentTheme.textSecondary, fontSize: 11 }}
               />
-              <YAxis stroke={currentTheme.textSecondary} />
+              <YAxis
+                stroke={currentTheme.textSecondary}
+                label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: currentTheme.surface,
@@ -198,8 +217,13 @@ export default function ChartDisplay({
                 stroke={currentTheme.textSecondary}
                 dataKey="value"
                 type="number"
+                label={{ value: xAxisLabel, position: 'insideBottom', offset: -2, fill: currentTheme.textSecondary, fontSize: 11 }}
               />
-              <YAxis stroke={currentTheme.textSecondary} dataKey="count" />
+              <YAxis
+                stroke={currentTheme.textSecondary}
+                dataKey="count"
+                label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fill: currentTheme.textSecondary, fontSize: 11 }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: currentTheme.surface,

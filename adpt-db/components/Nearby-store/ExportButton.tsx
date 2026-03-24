@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Place } from "./types";
 import { buildExportRows } from "../../lib/normalize";
 import { useTheme } from "@/context/ThemeContext";
@@ -34,6 +36,29 @@ function downloadBlob(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
+function downloadPdf(fileBase: string, rows: Array<Record<string, string | number>>) {
+  const doc = new jsPDF();
+
+  if (!rows.length) {
+    doc.text("No data to export", 14, 20);
+    doc.save(`${fileBase}.pdf`);
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const body = rows.map((row) => headers.map((header) => String(row[header] ?? "")));
+
+  autoTable(doc, {
+    head: [headers],
+    body,
+    startY: 20,
+    styles: { fontSize: 8 },
+    headStyles: { fontStyle: "bold" },
+  });
+
+  doc.save(`${fileBase}.pdf`);
+}
+
 export default function ExportButtons({
   places,
   fileBase
@@ -59,15 +84,9 @@ export default function ExportButtons({
       <button
         className="btn ghost p-2 rounded-md"
         style={{color: currentTheme.text, backgroundColor: currentTheme.primary}}
-        onClick={() => {
-          const json = JSON.stringify(rows, null, 2);
-          downloadBlob(
-            `${fileBase}.json`,
-            new Blob([json], { type: "application/json" })
-          );
-        }}
+        onClick={() => downloadPdf(fileBase, rows)}
       >
-        Download JSON
+        Download PDF
       </button>
     </div>
   );

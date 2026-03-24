@@ -46,6 +46,30 @@ interface TaskList {
   order: number;
 }
 
+const getMeridiemFromTime = (time?: string): "AM" | "PM" => {
+  if (!time || !time.includes(":")) return "AM";
+  const [hours] = time.split(":").map(Number);
+  if (!Number.isFinite(hours)) return "AM";
+  return hours >= 12 ? "PM" : "AM";
+};
+
+const applyMeridiemToTime = (time: string, meridiem: "AM" | "PM"): string => {
+  const baseTime = time && time.includes(":") ? time : "12:00";
+  const [hoursRaw, minutesRaw] = baseTime.split(":");
+  let hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return "12:00";
+
+  if (meridiem === "AM") {
+    if (hours >= 12) hours -= 12;
+  } else {
+    if (hours < 12) hours += 12;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
 export default function TaskManager({
   isOpen,
   onClose,
@@ -861,22 +885,45 @@ export default function TaskManager({
                                   >
                                     Due Time
                                   </label>
-                                  <input
-                                    type="time"
-                                    value={editingTaskData.dueTime || ""}
-                                    onChange={(e) =>
-                                      setEditingTaskData({
-                                        ...editingTaskData,
-                                        dueTime: e.target.value,
-                                      })
-                                    }
-                                    className="w-full px-3 py-2 rounded border outline-none text-sm"
-                                    style={{
-                                      backgroundColor: currentTheme.surface,
-                                      borderColor: currentTheme.primary,
-                                      color: currentTheme.text,
-                                    }}
-                                  />
+                                  <div className="grid grid-cols-[1fr_80px] gap-2">
+                                    <input
+                                      type="time"
+                                      value={editingTaskData.dueTime || ""}
+                                      onChange={(e) =>
+                                        setEditingTaskData({
+                                          ...editingTaskData,
+                                          dueTime: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-3 py-2 rounded border outline-none text-sm"
+                                      style={{
+                                        backgroundColor: currentTheme.surface,
+                                        borderColor: currentTheme.primary,
+                                        color: currentTheme.text,
+                                      }}
+                                    />
+                                    <select
+                                      value={getMeridiemFromTime(editingTaskData.dueTime)}
+                                      onChange={(e) =>
+                                        setEditingTaskData({
+                                          ...editingTaskData,
+                                          dueTime: applyMeridiemToTime(
+                                            editingTaskData.dueTime || "12:00",
+                                            e.target.value as "AM" | "PM"
+                                          ),
+                                        })
+                                      }
+                                      className="w-full px-2 py-2 rounded border outline-none text-sm"
+                                      style={{
+                                        backgroundColor: currentTheme.surface,
+                                        borderColor: currentTheme.primary,
+                                        color: currentTheme.text,
+                                      }}
+                                    >
+                                      <option value="AM">AM</option>
+                                      <option value="PM">PM</option>
+                                    </select>
+                                  </div>
                                 </div>
                                 <div>
                                   <label
@@ -910,22 +957,45 @@ export default function TaskManager({
                                   >
                                     Last Time
                                   </label>
-                                  <input
-                                    type="time"
-                                    value={editingTaskData.lastTime || ""}
-                                    onChange={(e) =>
-                                      setEditingTaskData({
-                                        ...editingTaskData,
-                                        lastTime: e.target.value,
-                                      })
-                                    }
-                                    className="w-full px-3 py-2 rounded border outline-none text-sm"
-                                    style={{
-                                      backgroundColor: currentTheme.surface,
-                                      borderColor: currentTheme.primary,
-                                      color: currentTheme.text,
-                                    }}
-                                  />
+                                  <div className="grid grid-cols-[1fr_80px] gap-2">
+                                    <input
+                                      type="time"
+                                      value={editingTaskData.lastTime || ""}
+                                      onChange={(e) =>
+                                        setEditingTaskData({
+                                          ...editingTaskData,
+                                          lastTime: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-3 py-2 rounded border outline-none text-sm"
+                                      style={{
+                                        backgroundColor: currentTheme.surface,
+                                        borderColor: currentTheme.primary,
+                                        color: currentTheme.text,
+                                      }}
+                                    />
+                                    <select
+                                      value={getMeridiemFromTime(editingTaskData.lastTime)}
+                                      onChange={(e) =>
+                                        setEditingTaskData({
+                                          ...editingTaskData,
+                                          lastTime: applyMeridiemToTime(
+                                            editingTaskData.lastTime || "12:00",
+                                            e.target.value as "AM" | "PM"
+                                          ),
+                                        })
+                                      }
+                                      className="w-full px-2 py-2 rounded border outline-none text-sm"
+                                      style={{
+                                        backgroundColor: currentTheme.surface,
+                                        borderColor: currentTheme.primary,
+                                        color: currentTheme.text,
+                                      }}
+                                    >
+                                      <option value="AM">AM</option>
+                                      <option value="PM">PM</option>
+                                    </select>
+                                  </div>
                                 </div>
                               </div>
 
@@ -1256,22 +1326,45 @@ export default function TaskManager({
                               >
                                 Due Time (optional)
                               </label>
-                              <input
-                                type="time"
-                                value={newTaskData.dueTime || ""}
-                                onChange={(e) =>
-                                  setNewTaskData({
-                                    ...newTaskData,
-                                    dueTime: e.target.value,
-                                  })
-                                }
-                                className="w-full px-3 py-2 rounded border outline-none text-sm"
-                                style={{
-                                  backgroundColor: currentTheme.surface,
-                                  borderColor: currentTheme.border,
-                                  color: currentTheme.text,
-                                }}
-                              />
+                              <div className="grid grid-cols-[1fr_80px] gap-2">
+                                <input
+                                  type="time"
+                                  value={newTaskData.dueTime || ""}
+                                  onChange={(e) =>
+                                    setNewTaskData({
+                                      ...newTaskData,
+                                      dueTime: e.target.value,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 rounded border outline-none text-sm"
+                                  style={{
+                                    backgroundColor: currentTheme.surface,
+                                    borderColor: currentTheme.border,
+                                    color: currentTheme.text,
+                                  }}
+                                />
+                                <select
+                                  value={getMeridiemFromTime(newTaskData.dueTime)}
+                                  onChange={(e) =>
+                                    setNewTaskData({
+                                      ...newTaskData,
+                                      dueTime: applyMeridiemToTime(
+                                        newTaskData.dueTime || "12:00",
+                                        e.target.value as "AM" | "PM"
+                                      ),
+                                    })
+                                  }
+                                  className="w-full px-2 py-2 rounded border outline-none text-sm"
+                                  style={{
+                                    backgroundColor: currentTheme.surface,
+                                    borderColor: currentTheme.border,
+                                    color: currentTheme.text,
+                                  }}
+                                >
+                                  <option value="AM">AM</option>
+                                  <option value="PM">PM</option>
+                                </select>
+                              </div>
                             </div>
 
                             <div>
@@ -1307,22 +1400,45 @@ export default function TaskManager({
                               >
                                 Last Time (optional)
                               </label>
-                              <input
-                                type="time"
-                                value={newTaskData.lastTime || ""}
-                                onChange={(e) =>
-                                  setNewTaskData({
-                                    ...newTaskData,
-                                    lastTime: e.target.value,
-                                  })
-                                }
-                                className="w-full px-3 py-2 rounded border outline-none text-sm"
-                                style={{
-                                  backgroundColor: currentTheme.surface,
-                                  borderColor: currentTheme.border,
-                                  color: currentTheme.text,
-                                }}
-                              />
+                              <div className="grid grid-cols-[1fr_80px] gap-2">
+                                <input
+                                  type="time"
+                                  value={newTaskData.lastTime || ""}
+                                  onChange={(e) =>
+                                    setNewTaskData({
+                                      ...newTaskData,
+                                      lastTime: e.target.value,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 rounded border outline-none text-sm"
+                                  style={{
+                                    backgroundColor: currentTheme.surface,
+                                    borderColor: currentTheme.border,
+                                    color: currentTheme.text,
+                                  }}
+                                />
+                                <select
+                                  value={getMeridiemFromTime(newTaskData.lastTime)}
+                                  onChange={(e) =>
+                                    setNewTaskData({
+                                      ...newTaskData,
+                                      lastTime: applyMeridiemToTime(
+                                        newTaskData.lastTime || "12:00",
+                                        e.target.value as "AM" | "PM"
+                                      ),
+                                    })
+                                  }
+                                  className="w-full px-2 py-2 rounded border outline-none text-sm"
+                                  style={{
+                                    backgroundColor: currentTheme.surface,
+                                    borderColor: currentTheme.border,
+                                    color: currentTheme.text,
+                                  }}
+                                >
+                                  <option value="AM">AM</option>
+                                  <option value="PM">PM</option>
+                                </select>
+                              </div>
                             </div>
 
                             {!isValidLastDate(newTaskData.lastDate || selectedDate, newTaskData.lastTime, newTaskData.dueDate, newTaskData.dueTime) && (

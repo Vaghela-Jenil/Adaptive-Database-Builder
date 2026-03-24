@@ -23,6 +23,8 @@ export default function FieldPreview({ field }: Props) {
   const [rating, setRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const [previewTime, setPreviewTime] = useState('09:00');
+  const [previewMeridiem, setPreviewMeridiem] = useState<'AM' | 'PM'>('AM');
 
   const showLabel = field.showLabel !== false;
   const options = field.options || [];
@@ -145,18 +147,53 @@ export default function FieldPreview({ field }: Props) {
 
       {/* TIME FIELD */}
 {field.type === 'input-time' && (
-    <Input
-      type="time"
-      disabled={field.disabled}
-      style={{
-        backgroundColor: currentTheme.surface,
-        borderColor: currentTheme.border,
-        color: currentTheme.text,
-        accentColor: "red",
-        colorScheme: mode === 'dark' ? 'dark' : 'light'
-      }}
-      className="block w-full h-9 text-sm rounded-md"
-    />
+    <div className="grid grid-cols-[1fr_84px] gap-2">
+      <Input
+        type="time"
+        value={previewTime}
+        onChange={(e) => {
+          const nextTime = e.target.value;
+          setPreviewTime(nextTime);
+          const hours = Number((nextTime || '00:00').split(':')[0]);
+          setPreviewMeridiem(hours >= 12 ? 'PM' : 'AM');
+        }}
+        disabled={field.disabled}
+        style={{
+          backgroundColor: currentTheme.surface,
+          borderColor: currentTheme.border,
+          color: currentTheme.text,
+          accentColor: "red",
+          colorScheme: mode === 'dark' ? 'dark' : 'light'
+        }}
+        className="block w-full h-9 text-sm rounded-md"
+      />
+      <select
+        value={previewMeridiem}
+        onChange={(e) => {
+          const meridiem = e.target.value as 'AM' | 'PM';
+          setPreviewMeridiem(meridiem);
+          const [hoursRaw, minutesRaw] = (previewTime || '12:00').split(':');
+          let hours = Number(hoursRaw);
+          const minutes = Number(minutesRaw);
+          if (meridiem === 'AM') {
+            if (hours >= 12) hours -= 12;
+          } else if (hours < 12) {
+            hours += 12;
+          }
+          setPreviewTime(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+        }}
+        disabled={field.disabled}
+        className="h-9 rounded-md border px-2 text-sm outline-none"
+        style={{
+          backgroundColor: currentTheme.surface,
+          borderColor: currentTheme.border,
+          color: currentTheme.text,
+        }}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
 )}
 
       {/* 7. STANDARD INPUTS (Catch-all for email, phone, url, etc.) */}

@@ -162,10 +162,35 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
             className="p-4 shrink-0" // shrink-0 prevents the header from collapsing
             style={{ borderBottom: `1px solid ${currentTheme.border}` }}
           >
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+            <motion.div
+              className="flex items-center gap-3"
+              transition={{ type: "spring", stiffness: 220, damping: 18 }}
+            >
+              <motion.div
+                className="relative"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.35 }}
+              >
+                <motion.div
+                  className="absolute -inset-1 rounded-2xl"
+                  style={{
+                    background: `radial-gradient(circle at 30% 30%, ${currentTheme.primary}66, transparent 70%)`,
+                  }}
+                  animate={{ opacity: [0.35, 0.7, 0.35], scale: [0.96, 1.06, 0.96] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                />
+
+                <motion.div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden relative"
+                  style={{
+                    backgroundColor: `${currentTheme.primary}14`,
+                    border: `1px solid ${currentTheme.primary}55`,
+                    transformStyle: "preserve-3d",
+                    perspective: 1000,
+                  }}
+                  animate={{ rotateY: [0, 360] }}
+                  transition={{ duration: 5.5, repeat: Infinity, ease: "linear" }}
                 >
                   <Image
                     src={logo}
@@ -175,17 +200,27 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                     className="object-contain p-1"
                     priority
                   />
-                </div>
-              </div>
-              <div>
-                <h2 className="font-semibold" style={{ color: currentTheme.text }}>
+                </motion.div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.35, delay: 0.06 }}
+              >
+                <motion.h2
+                  className="font-semibold"
+                  style={{ color: currentTheme.text }}
+                  animate={{ letterSpacing: ["0em", "0.02em", "0em"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                >
                   Sysnera
-                </h2>
+                </motion.h2>
                 <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
                   Data Intelligence
                 </p>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* 2. SCROLLABLE NAVIGATION AREA */}
