@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
+import { sendWelcomeEmail } from "@/app/actions/email";
 
 export async function POST() {
   await connectDB();
@@ -53,6 +54,18 @@ export async function POST() {
       });
 
       console.log(`New user created in DB: ${user.email}`);
+      
+      // Send welcome email to new user
+      try {
+        await sendWelcomeEmail({
+          toEmail: email,
+          userName: userName
+        });
+        console.log(`Welcome email sent to: ${email}`);
+      } catch (emailError: any) {
+        console.error(`Failed to send welcome email to ${email}:`, emailError.message);
+        // Don't fail the request if email fails - just log the error
+      }
     } else {
       user.userImage = clerkUser.imageUrl;
       user.updatedAt = new Date();

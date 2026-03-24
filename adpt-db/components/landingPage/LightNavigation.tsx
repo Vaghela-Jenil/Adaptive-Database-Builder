@@ -105,7 +105,7 @@ export default function DarkNavigation({activePanel, setActivePanel} : {activePa
                   variant="ghost"
                   className="text-slate-700 cursor-pointer hover:text-purple-700 hover:bg-slate-100 transition-all"
                 >
-                  Sign In
+                  Login
                 </Button>
               </Link>
              }
@@ -180,7 +180,7 @@ export default function DarkNavigation({activePanel, setActivePanel} : {activePa
               :
               <Link href="/auth/login" className="block">
                 <Button variant="ghost" className="w-full text-slate-700 hover:text-purple-700 hover:bg-slate-100">
-                  Sign In
+                  Login
                 </Button>
               </Link>
             }

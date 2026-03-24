@@ -1612,20 +1612,22 @@ export default function DatabaseRecordsView({
 
           {/* Undo Button */}
           {canEdit && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleUndo}
-            disabled={undoHistory.length === 0}
-            title={`Undo (${undoHistory.length} actions available) - Ctrl+Z`}
-            style={{
-              backgroundColor: undoHistory.length > 0 ? currentTheme.primary : `${currentTheme.primary}40`,
-              color: undoHistory.length > 0 ? "#ffffff" : currentTheme.textSecondary,
-            }}
-          >
-            <RotateCcw className="w-4 h-4 mr-1" />
-            Undo
-          </Button>
+          <div className="relative inline-block">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUndo}
+              disabled={undoHistory.length === 0}
+              title={`Undo (${undoHistory.length} actions available) - Ctrl+Z`}
+              style={{
+                backgroundColor: undoHistory.length > 0 ? currentTheme.primary : `${currentTheme.primary}40`,
+                color: undoHistory.length > 0 ? "#ffffff" : currentTheme.textSecondary,
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-1" />
+              Undo  {undoHistory.length > 9 ? "9+" : undoHistory.length}
+            </Button>
+          </div>
           )}
 
           <div className="h-6 w-px" style={{ backgroundColor: currentTheme.border }} />

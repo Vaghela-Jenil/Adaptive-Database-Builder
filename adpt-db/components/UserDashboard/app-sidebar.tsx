@@ -32,6 +32,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
   const { user: clerkUser } = useUser();
   const router = useRouter();
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const settingsMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openClerkSettings = () => {
@@ -144,7 +145,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
   };
 
   return (
-  <div suppressHydrationWarning className="relative h-[100dvh]" // Ensure height is 100%
+  <div suppressHydrationWarning className="relative h-dvh" // Ensure height is 100%
       style={{
         backgroundColor: currentTheme.surface,
         borderRight: `1px solid ${currentTheme.border}`,
@@ -155,7 +156,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
         className="overflow-hidden shrink-0 h-full" // Ensure height is 100%
       >
         {/* Main Flex Container: h-screen or h-full depending on parent */}
-        <div className="w-[280px] h-full min-h-0 flex flex-col">
+        <div className="w-70 h-full min-h-0 flex flex-col">
           
           {/* 1. FIXED HEADER */}
           <div
@@ -237,19 +238,26 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
+                const isHovered = hoveredItem === item.id;
                 return (
                   <motion.button
                     key={item.id}
                     id={tourTargetIds[item.id]}
                     onClick={() => setActivePage(item.id)}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     className="w-full min-h-11 flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
                     style={{
-                      backgroundColor: isActive ? currentTheme.primary : "transparent",
+                      backgroundColor: isActive 
+                        ? currentTheme.primary 
+                        : isHovered 
+                          ? `${currentTheme.primary}50`
+                          : "transparent",
                       color: isActive ? "#ffffff" : currentTheme.text,
-                      border: `1px solid ${isActive ? currentTheme.primary : currentTheme.border}`,
-                      boxShadow: isActive ? "0 6px 14px rgba(0, 0, 0, 0.18)" : "0 2px 8px rgba(0, 0, 0, 0.10)",
+                      // border: `1px solid ${isActive ? currentTheme.primary : isHovered ? currentTheme.primary : currentTheme.border}`,
+                      // boxShadow: isActive ? "0 6px 14px rgba(0, 0, 0, 0.18)" : "0 2px 8px rgba(0, 0, 0, 0.10)",
                     }}
                   >
                     <Icon className="w-5 h-5" />
@@ -270,19 +278,26 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                 {secureItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activePage === item.id;
+                  const isHovered = hoveredItem === item.id;
                   return (
                     <motion.button
                       key={item.id}
                       id={tourTargetIds[item.id]}
                       onClick={() => setActivePage(item.id)}
+                      onMouseEnter={() => setHoveredItem(item.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
                       className="w-full min-h-11 flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all"
                       style={{
-                        backgroundColor: isActive ? currentTheme.primary : "transparent",
+                        backgroundColor: isActive 
+                          ? currentTheme.primary 
+                          : isHovered 
+                            ? `${currentTheme.primary}50`
+                            : "transparent",
                         color: isActive ? "#ffffff" : currentTheme.text,
-                        border: `1px solid ${isActive ? currentTheme.primary : currentTheme.border}`,
-                        boxShadow: isActive ? "0 6px 14px rgba(0, 0, 0, 0.18)" : "0 2px 8px rgba(0, 0, 0, 0.10)",
+                        // border: `1px solid ${isActive ? currentTheme.primary : isHovered ? currentTheme.primary : currentTheme.border}`,
+                        // boxShadow: isActive ? "0 6px 14px rgba(0, 0, 0, 0.18)" : "0 2px 8px rgba(0, 0, 0, 0.10)",
                       }}
                     >
                       <Icon className="w-5 h-5" />

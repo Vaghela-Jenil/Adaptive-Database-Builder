@@ -28,6 +28,7 @@ import { logLogout } from "@/lib/activityLogger";
 export default function AdminLayout() {
   const [activePage, setActivePage] = useState("users");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const { currentTheme } = useTheme();
   const { signOut, session } = useClerk();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -116,18 +117,23 @@ export default function AdminLayout() {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
+                const isHovered = hoveredItem === item.id;
 
                 return (
                   <motion.button
                     key={item.id}
                     onClick={() => setActivePage(item.id)}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative"
                     style={{
                       backgroundColor: isActive
                         ? currentTheme.primary
-                        : "transparent",
+                        : isHovered
+                          ? `${currentTheme.primary}50`
+                          : "transparent",
                       color: isActive ? "#ffffff" : currentTheme.text,
                     }}
                   >
@@ -144,6 +150,7 @@ export default function AdminLayout() {
             className="p-4 flex flex-col gap-1"
             style={{ borderTop: `1px solid ${currentTheme.border}` }}
           >
+            <Link href="/user/dashboard" className="font-medium">
             <button
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer"
               style={{
@@ -153,10 +160,9 @@ export default function AdminLayout() {
               }}
             >
               <User className="w-5 h-5" />
-              <Link href="/user/dashboard" className="font-medium">
-                User Dashboard
-              </Link>
+                User Dashboard            
             </button>
+             </Link>
             <button
               onClick={async () => {
                 await logLogout();
