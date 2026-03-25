@@ -1146,20 +1146,51 @@ export default function DatabaseRecordsView({
 
     if (confirm("Are you absolutely sure? This will wipe ALL records in this database.")) {
       try {
-        // Store all records for undo
-        const recordsToDelete = records;
+        // Fetch ALL records from API for undo (not just paginated ones)
+        let allRecordsForUndo: any[] = [];
+        let page = 1;
+        let hasMore = true;
+        
+        while (hasMore) {
+          try {
+            const res = await axios.get(`/api/databases/${currentDatabase._id}/records`, {
+              params: {
+                page: page,
+                limit: 1000,
+                _t: Date.now()
+              }
+            });
+            
+            const newRecords = res.data.records || [];
+            const totalCount = res.data.totalCount || 0;
+            
+            if (newRecords.length === 0) {
+              hasMore = false;
+            } else {
+              allRecordsForUndo = [...allRecordsForUndo, ...newRecords];
+              hasMore = allRecordsForUndo.length < totalCount;
+              page++;
+            }
+          } catch (err) {
+            console.error("Error fetching records for undo:", err);
+            hasMore = false;
+          }
+        }
 
-        // 2. Use the local constant 'allIds' instead of the state 'deleteRecords'
+        // Get all IDs from fetched records
+        const allIdsFromApi = allRecordsForUndo.map((r) => r.id);
+
+        // 2. Delete all records
         await axios.delete(`/api/databases/${currentDatabase._id}/records/bulk`, {
-          data: { ids: allIds },
+          data: { ids: allIdsFromApi },
         });
 
-        // Add to undo history
+        // Add to undo history with ALL records
         addToHistory({
           type: 'bulkDelete',
           timestamp: Date.now(),
-          recordIds: allIds,
-          oldRecords: recordsToDelete,
+          recordIds: allIdsFromApi,
+          oldRecords: allRecordsForUndo,
         });
 
         // 3. Clear UI state
@@ -1418,21 +1449,76 @@ export default function DatabaseRecordsView({
   }, [showAnalytics]);
 
   // --- Export Functionality ---
-  const handleExportCSV = () => {
-    const headers = [...dataFields.map(f => f.label), "Created At"].join(",");
-    const rows = records.map(r => {
-      const fieldValues = dataFields.map(f => `"${String(r.data[f.id] ?? "")}"`);
-      const createdAt = `"${new Date(r.createdAt).toLocaleDateString()}"`;
+  const handleExportCSV = async () => {
+    try {
+      // Show loading state
+      showToast.info("Exporting all records...");
+      
+      let allRecords: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 1000; // Fetch 1000 records per request
 
-      return [...fieldValues, createdAt].join(",");
-    }).join("\n");
+      // Fetch all records by iterating through pages
+      while (hasMore) {
+        const res = await axios.get(`/api/databases/${currentDatabase._id}/records`, {
+          params: {
+            page: page,
+            limit: pageSize,
+            search: searchQuery || "",
+            date: dateFilter || "",
+            dateFrom: dateFrom || "",
+            dateTo: dateTo || "",
+            _t: Date.now() // Busts browser cache
+          }
+        });
 
-    const blob = new Blob([`${headers}\n${rows}`], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${currentDatabase?.DatabaseName || 'export'}.csv`;
-    a.click();
+        const newRecords = res.data.records || [];
+        const totalCount = res.data.totalCount || 0;
+
+        if (newRecords.length === 0) {
+          hasMore = false;
+        } else {
+          allRecords = [...allRecords, ...newRecords];
+          hasMore = allRecords.length < totalCount;
+          page++;
+        }
+
+        // Prevent infinite loops
+        if (page > 100) {
+          console.warn("Export reached 100 pages, stopping");
+          break;
+        }
+      }
+
+      if (allRecords.length === 0) {
+        showToast.error("No records to export");
+        return;
+      }
+
+      // Build CSV
+      const headers = [...dataFields.map(f => f.label), "Created At"].join(",");
+      const rows = allRecords.map((r: any) => {
+        const fieldValues = dataFields.map(f => `"${String(r.data[f.id] ?? "")}"`);
+        const createdAt = `"${new Date(r.createdAt).toLocaleDateString()}"`;
+        return [...fieldValues, createdAt].join(",");
+      }).join("\n");
+
+      const blob = new Blob([`${headers}\n${rows}`], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentDatabase?.DatabaseName || 'export'}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      
+      showToast.success(`Exported ${allRecords.length} records successfully`);
+    } catch (error: any) {
+      console.error("Export error:", error);
+      showToast.error("Failed to export records: " + (error.response?.data?.error || error.message));
+    }
   };
 
   // --- Import Functionality ---
@@ -1472,6 +1558,12 @@ export default function DatabaseRecordsView({
 
           if (jsonRows.length === 0) {
             showToast.warning("The uploaded file is empty.");
+            return;
+          }
+
+          // Validate max 500 records
+          if (jsonRows.length > 500) {
+            showToast.error(`Import limit exceeded: You can import maximum 500 records at a time. Your file has ${jsonRows.length} records.`);
             return;
           }
 

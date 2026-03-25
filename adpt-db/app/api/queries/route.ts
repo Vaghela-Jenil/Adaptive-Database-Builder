@@ -25,6 +25,11 @@ export async function POST(req: Request) {
 
 export async function GET() {
   await connectDB();
-  const queries = await Query.find({}).sort({ createdAt: -1 });
+  const user = await currentUser();
+  
+  if (!user) return new NextResponse("Unauthorized", { status: 401 });
+  
+  // Filter queries by current user's ID
+  const queries = await Query.find({ userId: user.id }).sort({ createdAt: -1 });
   return NextResponse.json(queries);
 }

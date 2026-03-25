@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect, useMemo } from "react";
 import { Search, Clock, CheckCircle, AlertCircle, Send, X, Loader } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { sendQueryResolutionEmail } from "@/app/actions/queryEmail";
 import axios from "axios";
 
 // Define the structure for TypeScript
@@ -35,7 +34,8 @@ export default function QueryManagement() {
   // --- API WORKING ---
   const fetchQueries = async () => {
     try {
-      const res = await axios.get("/api/queries");
+      // Use admin endpoint to fetch all queries
+      const res = await axios.get("/api/admin/queries");
       const data = await res.data;
       // Ensure data is an array to prevent .filter errors
       setQueries(Array.isArray(data) ? data : []);
@@ -65,29 +65,13 @@ useEffect(() => {
 
     setIsSending(true);
     try {
-      const res = await axios.patch(`/api/queries/${selectedQuery._id}`, { adminReply: reply, status: "resolved" });
+      // Use admin endpoint to update query
+      const res = await axios.patch(`/api/admin/queries/${selectedQuery._id}`, { 
+        adminReply: reply, 
+        status: "resolved" 
+      });
 
       if (res.data.success) {
-        // Send email notification to user using server action
-        try {
-          const emailResult = await sendQueryResolutionEmail({
-            toEmail: selectedQuery.email,
-            userName: selectedQuery.user,
-            querySubject: selectedQuery.subject,
-            queryMessage: selectedQuery.message,
-            adminReply: reply,
-          });
-
-          if (emailResult.success) {
-            console.log("Email sent successfully");
-          } else {
-            console.error("Error sending email:", emailResult.error);
-          }
-        } catch (emailErr) {
-          console.error("Error sending email:", emailErr);
-          // Continue even if email fails
-        }
-
         setReply("");
         setSelectedQuery(null);
         fetchQueries(); // Refresh list

@@ -83,7 +83,7 @@ export default function LightFAQ() {
             Frequently asked questions
           </h2>
           <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-            Everything you need to know about ADPt database platform
+            Everything you need to know about Suventra database platform
           </p>
         </motion.div>
 

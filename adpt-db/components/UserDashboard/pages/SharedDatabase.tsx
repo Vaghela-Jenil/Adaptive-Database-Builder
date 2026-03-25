@@ -209,11 +209,11 @@ export default function ThemedNetwork() {
                 return !isConnected && !hasPending;
             });
             setSearchResults(filteredUsers);
-             setShowSearch(false);
+             setShowSearch(true);
         } catch (error) {
             console.error('Search error:', error);
             setSearchResults([]);
-             setShowSearch(false);
+             setShowSearch(true);
         }
     };
 
@@ -249,6 +249,16 @@ export default function ThemedNetwork() {
 
     const grantAccess = async () => {
         if (!dbForm.name || !shareModalFriend) return toast.error("Select a database first");
+        
+        // Verify the database actually exists in the user's database list
+        const databaseExists = databases.some(db => 
+            (db.db_Id === dbForm.db_id) || 
+            (db.dbname.toLowerCase() === dbForm.name.toLowerCase())
+        );
+        
+        if (!databaseExists) {
+            return toast.error("Selected database does not exist. Please select from the dropdown list.");
+        }
 
         const alreadyShared = getMySharedDBs(shareModalFriend).some((db: any) =>
             (db.databaseId && db.databaseId === dbForm.db_id) ||
@@ -716,11 +726,13 @@ export default function ThemedNetwork() {
                                             onFocus={() => setShowDbDropdown(true)}
                                             onChange={e => { 
                                                 const val = e.target.value;
-                                                setDbSearchQuery(val); 
-                                                setDbForm({ ...dbForm, name: val });
-                                                // Close dropdown if search is empty
+                                                setDbSearchQuery(val);
+                                                // Clear db_id if user is actively searching (not just clicking)
                                                 if (val.trim().length === 0) {
                                                     setShowDbDropdown(false);
+                                                    setDbForm({ ...dbForm, name: "", db_id: "" });
+                                                } else {
+                                                    setShowDbDropdown(true);
                                                 }
                                             }}
                                         />
@@ -793,7 +805,7 @@ export default function ThemedNetwork() {
                                 </button>
                                 <button
                                     onClick={grantAccess}
-                                    disabled={loading || !dbForm.name}
+                                    disabled={loading || !dbForm.name || !dbForm.db_id}
                                     className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.97] disabled:opacity-40"
                                     style={{ backgroundColor: currentTheme.primary }}
                                 >

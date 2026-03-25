@@ -74,7 +74,7 @@ export default function LightCTA() {
                 animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                 transition={{ delay: 0.4, duration: 0.8 }}
               >
-                Join thousands of professionals using ADPt to organize their most important data. Start your 14-day free trial today—no credit card required.
+                Join thousands of professionals using Suventra to organize their most important data. Start your 14-day free trial today—no credit card required.
               </motion.p>
 
               <motion.div
