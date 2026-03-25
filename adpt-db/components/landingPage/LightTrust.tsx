@@ -128,56 +128,6 @@ export default function LightTrust() {
             );
           })}
         </div>
-
-        {/* Stats Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-          className="relative bg-gradient-to-r from-white/95 via-slate-50/90 to-white/95 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-12 max-w-4xl mx-auto overflow-hidden shadow-xl"
-        >
-          {/* Background pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-size-[2rem_2rem]" />
-          </div>
-          
-          <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: '500K+', label: 'Records Stored', gradient: 'from-purple-600 to-blue-600' },
-              { value: '10K+', label: 'Active Users', gradient: 'from-blue-600 to-cyan-600' },
-              { value: '99.9%', label: 'Uptime SLA', gradient: 'from-pink-600 to-purple-600' },
-              { value: '24/7', label: 'Support', gradient: 'from-orange-600 to-red-600' },
-            ].map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
-                transition={{ delay: 0.7 + index * 0.1, duration: 0.6 }}
-              >
-                <motion.div
-                  className={`text-3xl md:text-4xl font-bold mb-2 bg-linear-to-r ${stat.gradient} bg-clip-text text-transparent`}
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }}
-                >
-                  {stat.value}
-                </motion.div>
-                <p className="text-slate-600 font-medium">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Corner accents */}
-          <motion.div 
-            className="absolute top-0 right-0 w-40 h-40 bg-linear-to-br from-purple-300/30 to-transparent rounded-bl-full opacity-50"
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 20, repeat: Infinity }}
-          />
-          <motion.div 
-            className="absolute bottom-0 left-0 w-40 h-40 bg-linear-to-tr from-blue-300/30 to-transparent rounded-tr-full opacity-50"
-            animate={{ rotate: [360, 0] }}
-            transition={{ duration: 25, repeat: Infinity }}
-          />
-        </motion.div>
       </div>
     </section>
   );

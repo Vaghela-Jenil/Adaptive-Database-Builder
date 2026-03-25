@@ -54,14 +54,14 @@ export default function DarkNavigation({activePanel, setActivePanel} : {activePa
             <div className="relative w-10 h-10">
               <Image
                 src="/logo.png"
-                alt="Sysnera Logo"
+                alt="Suventra Logo"
                 width={40}
                 height={40}
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-linear-to-r from-purple-700 to-blue-700 bg-clip-text text-transparent">Sysnera</h1>
+              <h1 className="text-lg font-bold bg-linear-to-r from-purple-700 to-blue-700 bg-clip-text text-transparent">Suventra</h1>
               <p className="text-xs text-slate-600">Data Management</p>
             </div>
           </motion.div>

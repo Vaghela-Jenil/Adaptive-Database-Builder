@@ -87,12 +87,12 @@ export async function sendWelcomeEmail(data: {
     });
 
     const safeName = data.userName || "User";
-    const subject = "Welcome to ADPT-DB! 🎉";
+    const subject = "Welcome to Suventra! 🎉";
     
     const htmlContent = `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-          <h1 style="margin: 0; font-size: 32px;">Welcome to ADPT-DB!</h1>
+          <h1 style="margin: 0; font-size: 32px;">Welcome to Suventra!</h1>
           <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your Journey Starts Now</p>
         </div>
 
@@ -102,11 +102,11 @@ export async function sendWelcomeEmail(data: {
           </p>
           
           <p style="font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
-            Thank you for joining ADPT-DB! We're thrilled to have you onboard. 🚀
+            Thank you for joining Suventra! We're thrilled to have you onboard. 🚀
           </p>
           
           <p style="font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
-            ADPT-DB is designed to help you easily manage, analyze, and collaborate on your databases. Here's what you can do:
+            Suventra is designed to help you easily manage, analyze, and collaborate on your databases. Here's what you can do:
           </p>
           
           <ul style="font-size: 14px; line-height: 1.8; margin: 0 0 20px 0; padding-left: 20px; color: #555;">
@@ -129,7 +129,7 @@ export async function sendWelcomeEmail(data: {
           </p>
 
           <div style="text-align: center; margin: 30px 0 20px 0;">
-            <a href="${process.env.NEXT_PUBLIC_SOCKET_URL || 'https://adpt-db.com'}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">
+            <a href="${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000/user/dashboard'}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">
               Get Started
             </a>
           </div>
@@ -137,14 +137,14 @@ export async function sendWelcomeEmail(data: {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
 
           <p style="font-size: 12px; color: #999; margin: 0; text-align: center;">
-            You're receiving this email because you recently created an account with ADPT-DB. If you didn't sign up, please ignore this email.
+            You're receiving this email because you recently created an account with Suventra. If you didn't sign up, please ignore this email.
           </p>
         </div>
       </div>
     `;
 
     const info = await transporter.sendMail({
-      from: `"ADPT-DB" <${process.env.GMAIL_USER}>`,
+      from: `"Suventra" <${process.env.GMAIL_USER}>`,
       to: data.toEmail,
       subject: subject,
       html: htmlContent,

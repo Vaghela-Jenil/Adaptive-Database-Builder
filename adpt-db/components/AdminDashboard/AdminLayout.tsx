@@ -86,23 +86,32 @@ export default function AdminLayout() {
           >
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div
+                <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-                  style={{ backgroundColor: `${currentTheme.primary}10` }} // Subtle brand-colored background
+                  animate={{ rotateY: 360 }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  style={{
+                    backgroundColor: `${currentTheme.primary}10`,
+                    transformStyle: "preserve-3d",
+                  }} // Subtle brand-colored background
                 >
                   <Image
                     src={logo}
-                    alt="Sysnera Logo"
+                    alt="Suventra Logo"
                     width={40}
                     height={40}
                     className="object-contain p-1" // Ensures logo doesn't touch the edges
                     priority // Loads logo immediately for better LCP
                   />
-                </div>
+                </motion.div>
               </div>
               <div>
                 <h1 className="font-bold" style={{ color: currentTheme.text }}>
-                  Sysnera
+                  Suventra
                 </h1>
                 <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
                   Data Intelligence

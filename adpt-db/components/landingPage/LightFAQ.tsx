@@ -23,10 +23,6 @@ export default function LightFAQ() {
       answer: 'We\'ll notify you when you reach 80% of your storage limit. You can upgrade your plan anytime, and your data remains fully accessible during the upgrade process. We never delete or restrict access to your data due to storage limits.',
     },
     {
-      question: 'Do you offer API access?',
-      answer: 'Absolutely! All plans include full REST API access with comprehensive documentation. You can programmatically create, read, update, and delete records, manage databases, and integrate with your existing tools and workflows.',
-    },
-    {
       question: 'Can I collaborate with my team?',
       answer: 'Yes, collaboration is built-in. Invite unlimited team members, set granular permissions per folder or database, and track all changes with audit logs. Team plans include advanced features like role-based access control and approval workflows.',
     },

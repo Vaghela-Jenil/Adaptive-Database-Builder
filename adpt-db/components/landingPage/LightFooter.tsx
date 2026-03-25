@@ -48,13 +48,13 @@ export default function LightFooter() {
                 <div className="w-8 h-8 flex items-center justify-center">
                   <Image
                     src="/logo.png"
-                    alt="Sysnera Logo"
+                    alt="Suventra Logo"
                     width={32}
                     height={32}
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <span className="text-white font-bold text-lg">Sysnera</span>
+                <span className="text-white font-bold text-lg">Suventra</span>
               </div>
               <p className="text-slate-400 mb-6 max-w-sm">
                 Enterprise-grade data management for teams and professionals who demand elegant design, security, and control.
@@ -111,7 +111,7 @@ export default function LightFooter() {
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-slate-500 text-sm">
-              © {new Date().getFullYear()} ADPt. All rights reserved.
+              © {new Date().getFullYear()} Suventra. All rights reserved.
             </p>
             <div className="flex gap-6">
               <a href="#" className="text-slate-500 hover:text-slate-400 transition-colors text-sm">

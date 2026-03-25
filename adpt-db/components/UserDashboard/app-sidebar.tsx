@@ -195,7 +195,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                 >
                   <Image
                     src={logo}
-                    alt="Sysnera Logo"
+                    alt="Suventra Logo"
                     width={50}
                     height={50}
                     className="object-contain p-1"
@@ -215,7 +215,7 @@ export default function DashboardSidebar({ activePage, setActivePage, isSidebarO
                   animate={{ letterSpacing: ["0em", "0.02em", "0em"] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  Sysnera
+                  Suventra
                 </motion.h2>
                 <p className="text-xs" style={{ color: currentTheme.textSecondary }}>
                   Data Intelligence

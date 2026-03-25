@@ -331,7 +331,7 @@ export default function DarkHero() {
                 whileTap={{ scale: 0.95 }}
                 className="px-8 py-4 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:border-purple-400 hover:text-purple-700 transition-all flex items-center gap-2"
               >
-                Explore Features
+                Watch Demo
               </motion.a>
             </motion.div>
 

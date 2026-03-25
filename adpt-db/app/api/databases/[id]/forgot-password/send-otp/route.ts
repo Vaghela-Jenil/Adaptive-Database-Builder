@@ -82,7 +82,7 @@ export async function POST(
     });
 
     await transporter.sendMail({
-      from: `"ADPT DB" <${process.env.GMAIL_USER}>`,
+      from: `"Suventra" <${process.env.GMAIL_USER}>`,
       to: targetEmail,
       subject: "Database password reset OTP",
       html: `
