@@ -180,7 +180,7 @@ export default function EmailCenter() {
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-8 rounded-[2.5rem] border-2 shadow-2xl overflow-hidden"
+          className="h-fit lg:col-span-8 rounded-[2.5rem] border-2 shadow-2xl overflow-hidden"
           style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
         >
           <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: currentTheme.border }}>

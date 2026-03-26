@@ -100,7 +100,7 @@ export default function DatabaseChatbot({
       if (!formName) throw new Error("Database information is missing.");
 
       const res = await axios.get("/api/chatbot/database", {
-        params: { form_name: formName, query: query },
+        params: { databaseId: database._id, form_name: formName, query: query },
       });
 
       const data = res.data;
