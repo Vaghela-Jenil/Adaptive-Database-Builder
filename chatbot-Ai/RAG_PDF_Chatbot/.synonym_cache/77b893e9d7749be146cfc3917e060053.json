@@ -1,0 +1,179 @@
+{
+  "name": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "first": [
+    "firstname",
+    "full name"
+  ],
+  "last": [
+    "lastname",
+    "full name"
+  ],
+  "maths": [
+    "math"
+  ],
+  "english language": [
+    "english"
+  ],
+  "science": [
+    "physics",
+    "chemistry"
+  ],
+  "physics class": [
+    "physics"
+  ],
+  "chemistry class": [
+    "chemistry"
+  ],
+  "average score": [
+    "average"
+  ],
+  "average grade": [
+    "average"
+  ],
+  "fullname": [
+    "full name",
+    "firstname",
+    "lastname"
+  ],
+  "expensive": [
+    "average"
+  ],
+  "costly": [
+    "average"
+  ],
+  "divide": [
+    "divide field"
+  ],
+  "separate": [
+    "divide field"
+  ],
+  "split": [
+    "divide field"
+  ],
+  "select": [
+    "select date"
+  ],
+  "date": [
+    "select date"
+  ],
+  "calendar": [
+    "select date"
+  ],
+  "student": [
+    "firstname",
+    "lastname",
+    "average"
+  ],
+  "student name": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "subject": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "grades": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student info": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ],
+  "personal details": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "student details": [
+    "firstname",
+    "lastname",
+    "average",
+    "full name"
+  ],
+  "education": [
+    "math",
+    "english",
+    "physics",
+    "chemistry",
+    "average"
+  ],
+  "school": [
+    "math",
+    "english",
+    "physics",
+    "chemistry",
+    "average"
+  ],
+  "marks": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "score": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student average": [
+    "average"
+  ],
+  "student score": [
+    "average"
+  ],
+  "student grade": [
+    "average"
+  ],
+  "math score": [
+    "math",
+    "average"
+  ],
+  "english score": [
+    "english",
+    "average"
+  ],
+  "physics score": [
+    "physics",
+    "average"
+  ],
+  "chemistry score": [
+    "chemistry",
+    "average"
+  ],
+  "first name": [
+    "firstname"
+  ],
+  "last name": [
+    "lastname"
+  ],
+  "student full name": [
+    "full name",
+    "firstname",
+    "lastname"
+  ],
+  "select a date": [
+    "select date"
+  ],
+  "pick a date": [
+    "select date"
+  ],
+  "choose a date": [
+    "select date"
+  ]
+}

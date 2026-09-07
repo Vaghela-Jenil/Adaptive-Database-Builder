@@ -1,0 +1,99 @@
+{
+  "name": [
+    "firstname",
+    "lastname"
+  ],
+  "first": [
+    "firstname"
+  ],
+  "last": [
+    "lastname"
+  ],
+  "maths": [
+    "math"
+  ],
+  "english language": [
+    "english"
+  ],
+  "physics class": [
+    "physics"
+  ],
+  "chemistry lesson": [
+    "chemistry"
+  ],
+  "date": [
+    "select date"
+  ],
+  "average score": [
+    "average"
+  ],
+  "total score": [
+    "total"
+  ],
+  "expensive": [
+    "total"
+  ],
+  "costly": [
+    "total"
+  ],
+  "student": [
+    "firstname",
+    "lastname"
+  ],
+  "marks": [
+    "math",
+    "english",
+    "physics"
+  ],
+  "science": [
+    "physics",
+    "chemistry"
+  ],
+  "mathematical": [
+    "math",
+    "mul"
+  ],
+  "multiplication": [
+    "mul"
+  ],
+  "addition": [
+    "total"
+  ],
+  "student name": [
+    "firstname",
+    "lastname"
+  ],
+  "full name": [
+    "firstname",
+    "lastname"
+  ],
+  "grades": [
+    "average",
+    "total"
+  ],
+  "results": [
+    "average",
+    "total"
+  ],
+  "student info": [
+    "firstname",
+    "lastname",
+    "average"
+  ],
+  "student details": [
+    "firstname",
+    "lastname",
+    "average"
+  ],
+  "science subject": [
+    "physics",
+    "chemistry"
+  ],
+  "language": [
+    "english"
+  ],
+  "math problem": [
+    "math",
+    "mul"
+  ]
+}

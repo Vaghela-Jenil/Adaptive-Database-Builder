@@ -1,0 +1,92 @@
+{
+  "name": [
+    "name",
+    "text label"
+  ],
+  "username": [
+    "name",
+    "text label"
+  ],
+  "number": [
+    "my num",
+    "sum"
+  ],
+  "email address": [
+    "text label"
+  ],
+  "cost": [
+    "rate this",
+    "sum"
+  ],
+  "birthday": [
+    "birth date",
+    "name"
+  ],
+  "expensive": [
+    "rate this",
+    "sum"
+  ],
+  "price": [
+    "rate this",
+    "sum"
+  ],
+  "date of birth": [
+    "birth date",
+    "name"
+  ],
+  "feedback": [
+    "rate this",
+    "text label"
+  ],
+  "total": [
+    "sum",
+    "my num"
+  ],
+  "comment": [
+    "text label"
+  ],
+  "numeric value": [
+    "my num",
+    "sum"
+  ],
+  "age": [
+    "birth date",
+    "name"
+  ],
+  "rating": [
+    "rate this",
+    "sum"
+  ],
+  "description": [
+    "text label"
+  ],
+  "amount": [
+    "sum",
+    "my num"
+  ],
+  "user": [
+    "name"
+  ],
+  "value": [
+    "sum",
+    "my num"
+  ],
+  "birth": [
+    "birth date",
+    "name"
+  ],
+  "text": [
+    "text label"
+  ],
+  "score": [
+    "rate this",
+    "sum"
+  ],
+  "id": [
+    "my num",
+    "name"
+  ],
+  "details": [
+    "text label"
+  ]
+}

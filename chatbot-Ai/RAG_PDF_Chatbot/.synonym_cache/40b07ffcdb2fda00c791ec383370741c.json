@@ -1,0 +1,101 @@
+{
+  "name": [
+    "product name"
+  ],
+  "price": [
+    "product price",
+    "tax"
+  ],
+  "cost": [
+    "product price",
+    "tax"
+  ],
+  "amount": [
+    "quantity"
+  ],
+  "score": [
+    "rating"
+  ],
+  "details": [
+    "description"
+  ],
+  "sales": [
+    "daily_sales_history",
+    "quantity"
+  ],
+  "history": [
+    "daily_sales_history",
+    "dates"
+  ],
+  "taxes": [
+    "tax"
+  ],
+  "expensive": [
+    "product price",
+    "tax"
+  ],
+  "cheap": [
+    "product price",
+    "tax"
+  ],
+  "rate": [
+    "rating"
+  ],
+  "review": [
+    "rating",
+    "description"
+  ],
+  "when": [
+    "dates"
+  ],
+  "how many": [
+    "quantity"
+  ],
+  "info": [
+    "description",
+    "product name"
+  ],
+  "product": [
+    "product name",
+    "description"
+  ],
+  "value": [
+    "product price",
+    "rating"
+  ],
+  "fee": [
+    "tax"
+  ],
+  "total": [
+    "product price",
+    "quantity",
+    "tax"
+  ],
+  "date": [
+    "dates",
+    "daily_sales_history"
+  ],
+  "how much": [
+    "product price",
+    "tax"
+  ],
+  "description": [
+    "description",
+    "product name"
+  ],
+  "sales history": [
+    "daily_sales_history",
+    "dates"
+  ],
+  "rating score": [
+    "rating"
+  ],
+  "product info": [
+    "description",
+    "product name"
+  ],
+  "quantity sold": [
+    "quantity",
+    "daily_sales_history"
+  ]
+}

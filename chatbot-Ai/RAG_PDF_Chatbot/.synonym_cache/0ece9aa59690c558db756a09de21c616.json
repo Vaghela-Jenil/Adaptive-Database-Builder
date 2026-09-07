@@ -1,0 +1,112 @@
+{
+  "student": [
+    "student id",
+    "firstname",
+    "lastname"
+  ],
+  "mark": [
+    "student markshhet",
+    "maths",
+    "physics"
+  ],
+  "grade": [
+    "student markshhet",
+    "maths",
+    "engineering graphics"
+  ],
+  "name": [
+    "firstname",
+    "lastname",
+    "student id"
+  ],
+  "contact": [
+    "email address",
+    "phone number",
+    "student id"
+  ],
+  "email": [
+    "email address",
+    "student id",
+    "firstname"
+  ],
+  "phone": [
+    "phone number",
+    "student id",
+    "lastname"
+  ],
+  "semester": [
+    "semester",
+    "maths",
+    "python programming"
+  ],
+  "math": [
+    "maths",
+    "student markshhet",
+    "engineering graphics"
+  ],
+  "expensive": [
+    "student markshhet",
+    "semester",
+    "python programming"
+  ],
+  "course": [
+    "python programming",
+    "engineering graphics",
+    "maths"
+  ],
+  "graphics": [
+    "engineering graphics",
+    "maths",
+    "python programming"
+  ],
+  "programming": [
+    "python programming",
+    "maths",
+    "engineering graphics"
+  ],
+  "id": [
+    "student id",
+    "email address",
+    "phone number"
+  ],
+  "academic": [
+    "semester",
+    "maths",
+    "student markshhet"
+  ],
+  "performance": [
+    "student markshhet",
+    "maths",
+    "physics"
+  ],
+  "personal": [
+    "firstname",
+    "lastname",
+    "email address"
+  ],
+  "details": [
+    "student id",
+    "email address",
+    "phone number"
+  ],
+  "info": [
+    "student id",
+    "firstname",
+    "lastname"
+  ],
+  "score": [
+    "student markshhet",
+    "maths",
+    "physics"
+  ],
+  "result": [
+    "student markshhet",
+    "maths",
+    "python programming"
+  ],
+  "enrollment": [
+    "student id",
+    "semester",
+    "email address"
+  ]
+}

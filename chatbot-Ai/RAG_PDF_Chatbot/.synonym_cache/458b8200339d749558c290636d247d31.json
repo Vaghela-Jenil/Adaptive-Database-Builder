@@ -1,0 +1,121 @@
+{
+  "name": [
+    "product name"
+  ],
+  "price": [
+    "product price",
+    "tax",
+    "revenue"
+  ],
+  "cost": [
+    "product price",
+    "tax",
+    "revenue"
+  ],
+  "expensive": [
+    "product price",
+    "tax",
+    "revenue"
+  ],
+  "cheap": [
+    "product price",
+    "tax",
+    "revenue"
+  ],
+  "quantity": [
+    "quantity"
+  ],
+  "amount": [
+    "quantity",
+    "product price",
+    "revenue"
+  ],
+  "rating": [
+    "rating"
+  ],
+  "review": [
+    "rating",
+    "description"
+  ],
+  "info": [
+    "description",
+    "product name"
+  ],
+  "details": [
+    "description",
+    "product name",
+    "lead time (in days)"
+  ],
+  "time": [
+    "lead time (in days)"
+  ],
+  "wait": [
+    "lead time (in days)"
+  ],
+  "delivery": [
+    "lead time (in days)",
+    "quantity"
+  ],
+  "sales": [
+    "revenue",
+    "product price",
+    "quantity"
+  ],
+  "profit": [
+    "revenue",
+    "product price",
+    "tax"
+  ],
+  "description": [
+    "description",
+    "product name"
+  ],
+  "long": [
+    "lead time (in days)",
+    "description"
+  ],
+  "short": [
+    "lead time (in days)"
+  ],
+  "high": [
+    "rating",
+    "revenue"
+  ],
+  "low": [
+    "rating",
+    "revenue"
+  ],
+  "product": [
+    "product name",
+    "description"
+  ],
+  "taxes": [
+    "tax",
+    "revenue"
+  ],
+  "money": [
+    "revenue",
+    "product price",
+    "tax"
+  ],
+  "purchase": [
+    "product price",
+    "quantity",
+    "revenue"
+  ],
+  "buy": [
+    "product price",
+    "quantity",
+    "revenue"
+  ],
+  "expensive product": [
+    "product price",
+    "revenue"
+  ],
+  "fast": [
+    "lead time (in days)"
+  ],
+  "slow": [
+    "lead time (in days)"
+  ]
+}

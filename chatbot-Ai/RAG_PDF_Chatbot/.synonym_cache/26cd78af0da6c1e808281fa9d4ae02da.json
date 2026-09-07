@@ -1,0 +1,92 @@
+{
+  "name": [
+    "legal full name",
+    "full name"
+  ],
+  "college": [
+    "university admission form",
+    "select major"
+  ],
+  "phone": [
+    "phone number"
+  ],
+  "picture": [
+    "id photo"
+  ],
+  "birthday": [
+    "date of birth"
+  ],
+  "email": [
+    "personal email"
+  ],
+  "major": [
+    "select major"
+  ],
+  "scholarship": [
+    "applying for scholarship"
+  ],
+  "gpa": [
+    "previous gpa"
+  ],
+  "purpose": [
+    "statement of purpose"
+  ],
+  "verification": [
+    "identity verification"
+  ],
+  "agree": [
+    "i agree to university policies"
+  ],
+  "application": [
+    "university admission form",
+    "statement of purpose",
+    "select major"
+  ],
+  "identity": [
+    "id photo",
+    "identity verification",
+    "legal full name"
+  ],
+  "contact": [
+    "phone number",
+    "personal email"
+  ],
+  "policy": [
+    "i agree to university policies",
+    "university admission form"
+  ],
+  "expensive": [
+    "applying for scholarship",
+    "previous gpa"
+  ],
+  "photo": [
+    "id photo"
+  ],
+  "date": [
+    "date of birth"
+  ],
+  "birth": [
+    "date of birth"
+  ],
+  "accept": [
+    "i agree to university policies"
+  ],
+  "admission": [
+    "university admission form",
+    "select major",
+    "applying for scholarship"
+  ],
+  "form": [
+    "university admission form",
+    "i agree to university policies"
+  ],
+  "school": [
+    "university admission form",
+    "select major"
+  ],
+  "information": [
+    "personal email",
+    "phone number",
+    "legal full name"
+  ]
+}

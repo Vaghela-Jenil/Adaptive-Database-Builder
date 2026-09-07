@@ -1,0 +1,163 @@
+{
+  "name": [
+    "firstname",
+    "lastname"
+  ],
+  "full name": [
+    "firstname",
+    "lastname"
+  ],
+  "initials": [
+    "firstname",
+    "lastname"
+  ],
+  "student": [
+    "firstname",
+    "lastname"
+  ],
+  "person": [
+    "firstname",
+    "lastname"
+  ],
+  "math score": [
+    "math",
+    "average"
+  ],
+  "maths": [
+    "math",
+    "average"
+  ],
+  "english score": [
+    "english",
+    "average"
+  ],
+  "english language": [
+    "english",
+    "average"
+  ],
+  "science": [
+    "physics",
+    "chemistry"
+  ],
+  "physics score": [
+    "physics",
+    "average"
+  ],
+  "chemistry score": [
+    "chemistry",
+    "average"
+  ],
+  "date": [
+    "select date"
+  ],
+  "when": [
+    "select date"
+  ],
+  "average score": [
+    "average",
+    "math",
+    "english"
+  ],
+  "total score": [
+    "total",
+    "math",
+    "english"
+  ],
+  "phone": [
+    "phone number"
+  ],
+  "contact": [
+    "phone number"
+  ],
+  "number": [
+    "phone number",
+    "total",
+    "average"
+  ],
+  "time": [
+    "time"
+  ],
+  "schedule": [
+    "time",
+    "select date"
+  ],
+  "duration": [
+    "time"
+  ],
+  "expensive": [
+    "total",
+    "average"
+  ],
+  "cost": [
+    "total",
+    "average"
+  ],
+  "price": [
+    "total",
+    "average"
+  ],
+  "student info": [
+    "firstname",
+    "lastname",
+    "phone number"
+  ],
+  "student details": [
+    "firstname",
+    "lastname",
+    "phone number"
+  ],
+  "subject": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "classes": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "courses": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "grades": [
+    "average",
+    "total",
+    "math",
+    "english"
+  ],
+  "marks": [
+    "average",
+    "total",
+    "math",
+    "english"
+  ],
+  "score": [
+    "average",
+    "total",
+    "math",
+    "english"
+  ],
+  "student performance": [
+    "average",
+    "total",
+    "math",
+    "english"
+  ],
+  "academic record": [
+    "average",
+    "total",
+    "math",
+    "english"
+  ],
+  "academic performance": [
+    "average",
+    "total",
+    "math",
+    "english"
+  ]
+}

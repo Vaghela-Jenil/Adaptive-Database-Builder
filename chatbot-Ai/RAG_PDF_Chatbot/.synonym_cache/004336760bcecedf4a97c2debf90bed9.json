@@ -1,0 +1,107 @@
+{
+  "name": [
+    "firstname",
+    "lastname"
+  ],
+  "full name": [
+    "firstname",
+    "lastname"
+  ],
+  "student": [
+    "firstname",
+    "lastname",
+    "average"
+  ],
+  "student info": [
+    "firstname",
+    "lastname",
+    "average"
+  ],
+  "math score": [
+    "math",
+    "math total"
+  ],
+  "math grades": [
+    "math",
+    "math total",
+    "average"
+  ],
+  "english grade": [
+    "english",
+    "average"
+  ],
+  "science": [
+    "physics",
+    "chemistry"
+  ],
+  "subjects": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "date": [
+    "select date"
+  ],
+  "when": [
+    "select date"
+  ],
+  "schedule": [
+    "select date"
+  ],
+  "average score": [
+    "average",
+    "math total"
+  ],
+  "total score": [
+    "total",
+    "math total"
+  ],
+  "expensive": [
+    "total",
+    "average"
+  ],
+  "cost": [
+    "total",
+    "average"
+  ],
+  "price": [
+    "total",
+    "average"
+  ],
+  "multiply": [
+    "mul"
+  ],
+  "product": [
+    "mul"
+  ],
+  "chem": [
+    "chemistry"
+  ],
+  "physics grade": [
+    "physics",
+    "average"
+  ],
+  "firstname only": [
+    "firstname"
+  ],
+  "lastname only": [
+    "lastname"
+  ],
+  "student name": [
+    "firstname",
+    "lastname"
+  ],
+  "science grades": [
+    "physics",
+    "chemistry",
+    "average"
+  ],
+  "grades": [
+    "math",
+    "english",
+    "physics",
+    "chemistry",
+    "average"
+  ]
+}

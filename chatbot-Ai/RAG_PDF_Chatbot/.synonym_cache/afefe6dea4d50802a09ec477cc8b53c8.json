@@ -1,0 +1,132 @@
+{
+  "name": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "first": [
+    "firstname"
+  ],
+  "last": [
+    "lastname"
+  ],
+  "maths": [
+    "math"
+  ],
+  "science": [
+    "math",
+    "physics",
+    "chemistry"
+  ],
+  "english language": [
+    "english"
+  ],
+  "physics class": [
+    "physics"
+  ],
+  "chemistry lesson": [
+    "chemistry"
+  ],
+  "average score": [
+    "average"
+  ],
+  "full": [
+    "full name"
+  ],
+  "divide": [
+    "divide field"
+  ],
+  "percentage": [
+    "percentge"
+  ],
+  "percent": [
+    "percentge"
+  ],
+  "student name": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "subject": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student grade": [
+    "average",
+    "percentge"
+  ],
+  "expensive": [
+    "average"
+  ],
+  "costly": [
+    "average"
+  ],
+  "cheap": [
+    "average"
+  ],
+  "student mark": [
+    "average",
+    "percentge"
+  ],
+  "person": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "individual": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "student": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ],
+  "academics": [
+    "math",
+    "english",
+    "physics",
+    "chemistry",
+    "average"
+  ],
+  "grades": [
+    "average",
+    "percentge"
+  ],
+  "marks": [
+    "average",
+    "percentge"
+  ],
+  "score": [
+    "average",
+    "percentge"
+  ],
+  "student info": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ],
+  "pupil": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ],
+  "student details": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ],
+  "student record": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ]
+}

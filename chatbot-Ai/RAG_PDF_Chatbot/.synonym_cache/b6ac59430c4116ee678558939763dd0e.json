@@ -1,0 +1,110 @@
+{
+  "name": [
+    "product name"
+  ],
+  "price": [
+    "product price"
+  ],
+  "cost": [
+    "product price"
+  ],
+  "how much": [
+    "product price"
+  ],
+  "expensive": [
+    "product price"
+  ],
+  "cheap": [
+    "product price"
+  ],
+  "amount": [
+    "quantity",
+    "product price"
+  ],
+  "number": [
+    "quantity"
+  ],
+  "count": [
+    "quantity"
+  ],
+  "score": [
+    "rating"
+  ],
+  "rank": [
+    "rating"
+  ],
+  "review": [
+    "rating",
+    "description"
+  ],
+  "info": [
+    "description",
+    "product name"
+  ],
+  "details": [
+    "description",
+    "product name"
+  ],
+  "sales": [
+    "daily_sales_history",
+    "quantity"
+  ],
+  "history": [
+    "daily_sales_history",
+    "dates"
+  ],
+  "date": [
+    "dates",
+    "daily_sales_history"
+  ],
+  "when": [
+    "dates"
+  ],
+  "product": [
+    "product name",
+    "description"
+  ],
+  "item": [
+    "product name",
+    "quantity"
+  ],
+  "description": [
+    "description",
+    "product name"
+  ],
+  "rating": [
+    "rating",
+    "description"
+  ],
+  "daily sales": [
+    "daily_sales_history",
+    "quantity"
+  ],
+  "product info": [
+    "product name",
+    "description"
+  ],
+  "sales history": [
+    "daily_sales_history",
+    "dates"
+  ],
+  "quantity sold": [
+    "quantity",
+    "daily_sales_history"
+  ],
+  "how many": [
+    "quantity"
+  ],
+  "what": [
+    "product name",
+    "description"
+  ],
+  "product details": [
+    "product name",
+    "description"
+  ],
+  "price history": [
+    "product price",
+    "daily_sales_history"
+  ]
+}

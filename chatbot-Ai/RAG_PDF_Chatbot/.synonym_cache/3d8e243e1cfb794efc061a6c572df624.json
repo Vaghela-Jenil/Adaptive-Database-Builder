@@ -1,0 +1,139 @@
+{
+  "name": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "first": [
+    "firstname",
+    "full name"
+  ],
+  "last": [
+    "lastname",
+    "full name"
+  ],
+  "maths": [
+    "math"
+  ],
+  "english language": [
+    "english"
+  ],
+  "science": [
+    "physics",
+    "chemistry"
+  ],
+  "physics class": [
+    "physics"
+  ],
+  "chemistry class": [
+    "chemistry"
+  ],
+  "average score": [
+    "average"
+  ],
+  "average grade": [
+    "average"
+  ],
+  "expensive": [
+    "average"
+  ],
+  "divide": [
+    "divide field"
+  ],
+  "student name": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "fullname": [
+    "full name",
+    "firstname",
+    "lastname"
+  ],
+  "subject": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student info": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average"
+  ],
+  "classes": [
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student record": [
+    "firstname",
+    "lastname",
+    "full name",
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "personal details": [
+    "firstname",
+    "lastname",
+    "full name"
+  ],
+  "grades": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "marks": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student grades": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "student marks": [
+    "average",
+    "math",
+    "english",
+    "physics",
+    "chemistry"
+  ],
+  "science subjects": [
+    "physics",
+    "chemistry"
+  ],
+  "arts subject": [
+    "english"
+  ],
+  "math class": [
+    "math"
+  ],
+  "english class": [
+    "english"
+  ],
+  "student average": [
+    "average"
+  ],
+  "average student score": [
+    "average"
+  ],
+  "firstname only": [
+    "firstname"
+  ],
+  "lastname only": [
+    "lastname"
+  ]
+}
